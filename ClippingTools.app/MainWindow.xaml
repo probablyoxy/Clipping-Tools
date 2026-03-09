@@ -1,0 +1,209 @@
+﻿<Window x:Class="ClippingTools.app.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ClippingTools.app"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="600" Width="800" Background="#1e1e1e"
+        Closing="Window_Closing">
+    <Grid Background="#36393f">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Background="#2f3136">
+            <TextBlock Text="Clipping Tools" Foreground="White" FontSize="20" FontWeight="Bold" Margin="20,20,0,30"/>
+
+            <Button x:Name="NavHomeBtn" Content="Home" Height="40" Margin="10,0,10,10" Background="#4f545c" Foreground="White" BorderThickness="0" Click="NavHomeBtn_Click"/>
+            <Button x:Name="NavDiscordBtn" Content="Discord" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavDiscordBtn_Click"/>
+            <Button x:Name="NavSettingsBtn" Content="Settings" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSettingsBtn_Click"/>
+        </StackPanel>
+
+        <TabControl x:Name="MainContent" Grid.Column="1" Background="Transparent" BorderThickness="0" Margin="20">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
+
+            <TabItem>
+                <StackPanel>
+                    <TextBlock Text="Home" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <CheckBox x:Name="SendClipsCheck" Content="Send clipping actions to others" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
+                    <CheckBox x:Name="ReceiveClipsCheck" Content="Receive clipping actions from others" Foreground="White" IsChecked="True" Margin="0,0,0,30" Click="Setting_Changed"/>
+
+                    <Button x:Name="ConnectButton" Content="Activate Syncing" Height="40" Width="200" HorizontalAlignment="Left" Background="#5865F2" Foreground="White" FontWeight="Bold" Click="ConnectButton_Click"/>
+
+                    <CheckBox x:Name="AutoSyncCheck" Content="Sync Automatically on startup" Foreground="White" Margin="0,15,0,10" Click="Setting_Changed"/>
+                    <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Foreground="White" Margin="0,0,0,10" Click="StartWithWindowsCheck_Click"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem>
+                <StackPanel>
+                    <TextBlock Text="Discord Integration" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <TextBlock Text="Your Discord ID:" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <Grid Margin="0,0,0,30">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="150"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="DiscordIdInput" Grid.Column="0" Height="30" Margin="0,0,10,0" Background="#202225" Foreground="White" BorderBrush="#202225" TextChanged="Setting_TextChanged"/>
+                        <Button x:Name="DiscordSignInBtn" Grid.Column="1" Content="Sign In w/ Discord" Background="#5865F2" Foreground="White" BorderThickness="0" Click="DiscordSignInBtn_Click"/>
+                    </Grid>
+
+                    <TextBlock Text="Approved Users List (Mutual sync required):" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="Paste User IDs here (one per line, space, or comma). Click an ID to remove it." Foreground="#b9bbbe" FontSize="11" Margin="0,0,0,10"/>
+
+                    <Grid Margin="0,0,0,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="55"/>
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="60"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="NewUserIdInput" Grid.Column="0" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" Margin="0,0,5,0" KeyDown="NewUserIdInput_KeyDown"/>
+                            <Button Grid.Column="1" Content="Add" Background="#4f545c" Foreground="White" BorderThickness="0" Click="AddUserBtn_Click"/>
+                        </Grid>
+
+                        <ListBox x:Name="UserListBox" Grid.Row="1" Background="#202225" BorderBrush="#202225" Foreground="White" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Auto" Padding="0,0,0,5">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding}" Background="#4f545c" Foreground="White" BorderThickness="0" Cursor="Hand" Click="RemoveUserBtn_Click" Padding="15,5" Margin="0,2,5,2"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <ContentPresenter/>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                        </ListBox>
+                    </Grid>
+
+                    <TextBlock Text="Voice Channel Sync Rules:" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <StackPanel>
+                        <RadioButton x:Name="RadioAnyVC" GroupName="VCRules" Content="Sync in ANY Voice Channel with Approved Users" Foreground="#b9bbbe" IsChecked="True" Margin="0,0,0,10" Checked="RadioVCRules_Changed"/>
+                        <RadioButton x:Name="RadioSpecificVC" GroupName="VCRules" Content="Only sync when in these specific Channel IDs:" Foreground="#b9bbbe" Margin="0,0,0,5" Checked="RadioVCRules_Changed"/>
+
+                        <Grid x:Name="ChannelListContainer" Margin="20,0,0,0" IsEnabled="False" Opacity="0.5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="55"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="NewChannelIdInput" Grid.Column="0" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" Margin="0,0,5,0" KeyDown="NewChannelIdInput_KeyDown"/>
+                                <Button Grid.Column="1" Content="Add" Background="#4f545c" Foreground="White" BorderThickness="0" Click="AddChannelBtn_Click"/>
+                            </Grid>
+
+                            <ListBox x:Name="ChannelListBox" Grid.Row="1" Background="#202225" BorderBrush="#202225" Foreground="White" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Auto" Padding="0,0,0,5">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" Background="#4f545c" Foreground="White" BorderThickness="0" Cursor="Hand" Click="RemoveChannelBtn_Click" Padding="15,5" Margin="0,2,5,2"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <ContentPresenter/>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem>
+                <StackPanel>
+                    <TextBlock Text="Settings" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox x:Name="EnableSoundCheck" Grid.Column="0" Content="Play sound effect when a clip is taken" Foreground="White" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
+                        <Button Grid.Column="1" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestSoundBtn_Click"/>
+                    </Grid>
+
+                    <Grid Margin="20,0,0,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="150"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="RadioSystemSound" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="SystemSoundCombo" Grid.Column="1" SelectionChanged="SystemSoundCombo_SelectionChanged">
+                                <ComboBoxItem Content="Exclamation" IsSelected="True"/>
+                                <ComboBoxItem Content="Asterisk"/>
+                                <ComboBoxItem Content="Beep"/>
+                                <ComboBoxItem Content="Hand"/>
+                                <ComboBoxItem Content="Question"/>
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="80"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="RadioCustomSound" Grid.Column="0" Content="Use Custom Audio File:" Foreground="#b9bbbe" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                            <TextBox x:Name="CustomSoundPathInput" Grid.Column="1" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseSoundBtn_Click"/>
+                        </Grid>
+                    </Grid>
+
+                    <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
+
+                    <TextBlock Text="Trigger Key (Press this to sync AND clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Shift+C" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225"/>
+
+                    <TextBlock Text="Hardware Clip Key (Click each box and press ONE key at a time. Press Esc to clear):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <WrapPanel x:Name="ClipKeyPanel" Margin="0,0,0,20" Orientation="Horizontal"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
