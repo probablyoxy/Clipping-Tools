@@ -9,6 +9,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
 	<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 	<DebugType>None</DebugType>
+	<ApplicationIcon>littlesmall.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="littlesmall.ico" />
+  </ItemGroup>
 
 </Project>
