@@ -16,13 +16,14 @@ using System.Text.Json;
 using System.Linq;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
-using System.Net; // NEW: For the invisible web server
-using System.Net.Http; // NEW: To fetch data from Discord
-using System.Net.Http.Headers; // NEW: To fetch data from Discord
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using NHotkey;
 using NHotkey.Wpf;
 using WindowsInput;
 using WindowsInput.Native;
+using System.Diagnostics;
 
 namespace ClippingTools.app
 {
@@ -44,6 +45,10 @@ namespace ClippingTools.app
 
         private bool isLoaded = false;
 
+        // CHANGE WHEN UPDATE :)
+        private const string AppVersion = "v0.1.0";
+        private string downloadUrlForUpdate = "";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -56,6 +61,8 @@ namespace ClippingTools.app
 
             LoadSettings();
             isLoaded = true;
+
+            CurrentVersionText.Text = AppVersion;
 
             if (AutoSyncCheck.IsChecked == true)
             {
@@ -191,12 +198,7 @@ namespace ClippingTools.app
 
             string authUrl = $"https://discord.com/api/oauth2/authorize?client_id={clientId}&redirect_uri={Uri.EscapeDataString(redirectUri)}&response_type=token&scope=identify";
 
-            // Force opens the user's default browser to the Discord authorization page
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = authUrl,
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo { FileName = authUrl, UseShellExecute = true });
 
             await ListenForDiscordToken();
         }
@@ -206,10 +208,7 @@ namespace ClippingTools.app
             using (HttpListener listener = new HttpListener())
             {
                 listener.Prefixes.Add("http://127.0.0.1:5050/");
-                try
-                {
-                    listener.Start();
-                }
+                try { listener.Start(); }
                 catch
                 {
                     MessageBox.Show("Could not start local server. Port 5050 might be in use.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -225,17 +224,12 @@ namespace ClippingTools.app
 
                     if (request.Url.AbsolutePath == "/")
                     {
-                        // Discord puts the token in the URL hash (#). Servers can't see the hash.
-                        // So we serve a tiny webpage to the user that grabs the hash via Javascript and sends it back.
                         string html = @"
                             <html><body style='background:#36393f; color:white; font-family:sans-serif; text-align:center; padding-top:50px;'>
                             <h2>Completing Discord Sign-In...</h2>
                             <script>
-                                if (window.location.hash) {
-                                    window.location.href = '/token?' + window.location.hash.substring(1);
-                                } else {
-                                    document.body.innerHTML = '<h2>Error: No token provided.</h2>';
-                                }
+                                if (window.location.hash) { window.location.href = '/token?' + window.location.hash.substring(1); } 
+                                else { document.body.innerHTML = '<h2>Error: No token provided.</h2>'; }
                             </script>
                             </body></html>";
 
@@ -260,14 +254,10 @@ namespace ClippingTools.app
                         response.Close();
 
                         listener.Stop();
-
                         await FetchDiscordProfile(token);
                         break;
                     }
-                    else
-                    {
-                        response.Close();
-                    }
+                    else { response.Close(); }
                 }
             }
         }
@@ -287,8 +277,6 @@ namespace ClippingTools.app
                         using (JsonDocument doc = JsonDocument.Parse(json))
                         {
                             string discordId = doc.RootElement.GetProperty("id").GetString();
-
-                            // We have to use Dispatcher to update the UI because we are on a background networking thread
                             Dispatcher.Invoke(() => {
                                 DiscordIdInput.Text = discordId;
                                 SaveSettings();
@@ -312,7 +300,6 @@ namespace ClippingTools.app
             DiscordSignInBtn.Content = "Sign In w/ Discord";
             DiscordSignInBtn.IsEnabled = true;
         }
-
 
         // ==============================================================================
         // AUDIO AND BROWSE LOGIC
@@ -540,7 +527,6 @@ namespace ClippingTools.app
             while (isAnyKeyPressed)
             {
                 isAnyKeyPressed = false;
-
                 for (int i = 0x01; i <= 0xFE; i++)
                 {
                     if ((GetAsyncKeyState(i) & 0x8000) != 0)
@@ -549,11 +535,7 @@ namespace ClippingTools.app
                         break;
                     }
                 }
-
-                if (isAnyKeyPressed)
-                {
-                    await Task.Delay(10);
-                }
+                if (isAnyKeyPressed) { await Task.Delay(10); }
             }
         }
 
@@ -572,21 +554,12 @@ namespace ClippingTools.app
 
             try
             {
-                foreach (var vk in codesToPress)
-                {
-                    simulator.Keyboard.KeyDown(vk);
-                    await Task.Delay(20);
-                }
-
+                foreach (var vk in codesToPress) { simulator.Keyboard.KeyDown(vk); await Task.Delay(20); }
                 await Task.Delay(50);
             }
             finally
             {
-                for (int i = codesToPress.Count - 1; i >= 0; i--)
-                {
-                    simulator.Keyboard.KeyUp(codesToPress[i]);
-                    await Task.Delay(20);
-                }
+                for (int i = codesToPress.Count - 1; i >= 0; i--) { simulator.Keyboard.KeyUp(codesToPress[i]); await Task.Delay(20); }
             }
         }
 
@@ -598,8 +571,166 @@ namespace ClippingTools.app
         }
 
         // ==============================================================================
-        // UI NAVIGATION LOGIC BELOW
+        // UI NAVIGATION & UPDATER LOGIC BELOW
         // ==============================================================================
+
+        private void NavHomeBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 0;
+            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+        }
+
+        private void NavDiscordBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 1;
+            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+        }
+
+        private void NavSettingsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 2;
+            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+        }
+
+        private async void NavUpdateBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 3;
+            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+
+            await CheckForUpdatesAsync();
+        }
+
+        private async Task CheckForUpdatesAsync()
+        {
+            UpdateStatusText.Text = "Checking GitHub for updates...";
+            UpdateStatusText.Foreground = Brushes.LightGray;
+            PerformUpdateBtn.Visibility = Visibility.Collapsed;
+
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "ClipSync-Updater");
+
+                    string url = "https://api.github.com/repos/probablyoxy/Clipping-Tools/releases/latest";
+
+                    var response = await client.GetAsync(url);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync();
+                        using (JsonDocument doc = JsonDocument.Parse(json))
+                        {
+                            string latestVersion = doc.RootElement.GetProperty("tag_name").GetString();
+                            LatestVersionText.Text = latestVersion;
+
+                            if (latestVersion != AppVersion)
+                            {
+                                UpdateStatusText.Text = "A new update is available!";
+                                UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581"));
+
+                                downloadUrlForUpdate = doc.RootElement.GetProperty("assets")[0].GetProperty("browser_download_url").GetString();
+                                PerformUpdateBtn.Visibility = Visibility.Visible;
+                            }
+                            else
+                            {
+                                UpdateStatusText.Text = "You are on the latest version.";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        UpdateStatusText.Text = "Could not find any releases on GitHub.";
+                        LatestVersionText.Text = "Unknown";
+                    }
+                }
+            }
+            catch
+            {
+                UpdateStatusText.Text = "Network error while checking for updates.";
+                UpdateStatusText.Foreground = Brushes.IndianRed;
+            }
+        }
+
+        private async void PerformUpdateBtn_Click(object sender, RoutedEventArgs e)
+        {
+            PerformUpdateBtn.IsEnabled = false;
+            PerformUpdateBtn.Content = "Downloading...";
+            UpdateProgressBar.Visibility = Visibility.Visible;
+
+            try
+            {
+                string currentExePath = Process.GetCurrentProcess().MainModule.FileName;
+                string tempExePath = System.IO.Path.Combine(configFolder, "update_temp.exe");
+                string updaterBatPath = System.IO.Path.Combine(configFolder, "updater.bat");
+
+                using (HttpClient client = new HttpClient())
+                {
+                    var response = await client.GetAsync(downloadUrlForUpdate, HttpCompletionOption.ResponseHeadersRead);
+                    var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                    var canReportProgress = totalBytes != -1;
+
+                    using (var stream = await response.Content.ReadAsStreamAsync())
+                    using (var fileStream = new FileStream(tempExePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+                    {
+                        var buffer = new byte[8192];
+                        var isMoreToRead = true;
+                        var totalRead = 0L;
+
+                        do
+                        {
+                            var read = await stream.ReadAsync(buffer, 0, buffer.Length);
+                            if (read == 0) { isMoreToRead = false; }
+                            else
+                            {
+                                await fileStream.WriteAsync(buffer, 0, read);
+                                totalRead += read;
+                                if (canReportProgress) { UpdateProgressBar.Value = (double)totalRead / totalBytes * 100; }
+                            }
+                        } while (isMoreToRead);
+                    }
+                }
+
+                PerformUpdateBtn.Content = "Installing...";
+
+                string batCode = $@"
+@echo off
+timeout /t 2 /nobreak > NUL
+move /y ""{tempExePath}"" ""{currentExePath}""
+start """" ""{currentExePath}""
+del ""%~f0""
+";
+                File.WriteAllText(updaterBatPath, batCode);
+
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = updaterBatPath,
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                Process.Start(psi);
+
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Update failed: " + ex.Message);
+                PerformUpdateBtn.IsEnabled = true;
+                PerformUpdateBtn.Content = "Download and Update";
+                UpdateProgressBar.Visibility = Visibility.Collapsed;
+            }
+        }
 
         private void HotkeyInput_PreviewKeyDown(object sender, KeyEventArgs e)
         {
@@ -647,30 +778,6 @@ namespace ClippingTools.app
                     if (tb == TriggerKeyInput) TestTriggerKeyAvailability(tb.Text);
                 }
             }
-        }
-
-        private void NavHomeBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 0;
-            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4f545c"));
-            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2f3136"));
-            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2f3136"));
-        }
-
-        private void NavDiscordBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 1;
-            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2f3136"));
-            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4f545c"));
-            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2f3136"));
-        }
-
-        private void NavSettingsBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 2;
-            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2f3136"));
-            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2f3136"));
-            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4f545c"));
         }
 
         private void RadioVCRules_Changed(object sender, RoutedEventArgs e)
