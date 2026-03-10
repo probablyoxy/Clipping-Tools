@@ -42,6 +42,10 @@ namespace ClippingTools.app
         public ObservableCollection<DiscordItem> ApprovedUsers { get; set; } = new ObservableCollection<DiscordItem>();
         public ObservableCollection<DiscordItem> ApprovedChannels { get; set; } = new ObservableCollection<DiscordItem>();
 
+        // NEW: Used purely for the multi-select popup menu
+        public ObservableCollection<DiscordItem> AllVisibleUsers { get; set; } = new ObservableCollection<DiscordItem>();
+        private List<DiscordItem> RawFetchedUsers = new List<DiscordItem>(); // Holds all fetched users so we can search through them without deleting data
+
         public List<string> ClipKeysList { get; set; } = new List<string>();
 
         private readonly string configFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
@@ -50,7 +54,7 @@ namespace ClippingTools.app
         private bool isLoaded = false;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.0";
+        private const string AppVersion = "v0.0.9";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -64,6 +68,7 @@ namespace ClippingTools.app
 
             UserListBox.ItemsSource = ApprovedUsers;
             ChannelListBox.ItemsSource = ApprovedChannels;
+            AllUsersListBox.ItemsSource = AllVisibleUsers;
 
             var userView = (ListCollectionView)CollectionViewSource.GetDefaultView(ApprovedUsers);
             userView.IsLiveSorting = true;
@@ -74,6 +79,12 @@ namespace ClippingTools.app
             channelView.IsLiveSorting = true;
             channelView.LiveSortingProperties.Add("DisplayName");
             channelView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
+
+            // Keeps the overlay menu alphabetized
+            var allUserView = (ListCollectionView)CollectionViewSource.GetDefaultView(AllVisibleUsers);
+            allUserView.IsLiveSorting = true;
+            allUserView.LiveSortingProperties.Add("DisplayName");
+            allUserView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
 
             LoadSettings();
             isLoaded = true;
@@ -618,6 +629,18 @@ namespace ClippingTools.app
                                 }
                             });
                         }
+                        else if (action == "all_users_list")
+                        {
+                            var usersJson = doc.RootElement.GetProperty("users");
+                            Dispatcher.Invoke(() => {
+                                RawFetchedUsers.Clear();
+                                foreach (var prop in usersJson.EnumerateObject())
+                                {
+                                    RawFetchedUsers.Add(new DiscordItem { Id = prop.Name, DisplayName = prop.Value.GetString() });
+                                }
+                                FilterUserList();
+                            });
+                        }
                     }
                 }
             }
@@ -1107,6 +1130,85 @@ del ""%~f0""
                 MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{itemToRemove.DisplayName}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result == MessageBoxResult.Yes) { ApprovedChannels.Remove(itemToRemove); SaveSettings(); }
             }
+        }
+
+        // ==============================================================================
+        // OVERLAY MENU LOGIC (SEARCH & FILTER)
+        // ==============================================================================
+
+        private async void OpenSelectUsersBtn_Click(object sender, RoutedEventArgs e)
+        {
+            SelectUsersOverlay.Visibility = Visibility.Visible;
+            SelectUsersTitle.Text = "Select Users (Fetching...)";
+            SearchUsersInput.Text = "";
+            AllVisibleUsers.Clear();
+            RawFetchedUsers.Clear();
+
+            if (webSocket != null && webSocket.State == WebSocketState.Open)
+            {
+                await SendWsMessage(new { action = "get_all_users", client_id = DiscordIdInput.Text });
+            }
+            else
+            {
+                SelectUsersTitle.Text = "Select Users (Offline)";
+            }
+        }
+
+        private void CloseSelectUsersBtn_Click(object sender, RoutedEventArgs e)
+        {
+            SelectUsersOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void SubmitSelectedUsersBtn_Click(object sender, RoutedEventArgs e)
+        {
+            bool itemsAdded = false;
+            foreach (DiscordItem item in AllUsersListBox.SelectedItems)
+            {
+                if (!ApprovedUsers.Any(u => u.Id == item.Id))
+                {
+                    ApprovedUsers.Add(new DiscordItem { Id = item.Id, DisplayName = item.DisplayName });
+                    itemsAdded = true;
+                }
+            }
+
+            if (itemsAdded)
+            {
+                SaveSettings();
+                SyncApprovedUsersToServer();
+                AskServerToResolveNames();
+            }
+
+            SelectUsersOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void SearchUsersInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FilterUserList();
+        }
+
+        private void FilterUserList()
+        {
+            string searchText = SearchUsersInput.Text.ToLower();
+            AllVisibleUsers.Clear();
+
+            // Create a HashSet of IDs we already have so we can instantly skip them
+            var approvedIds = new HashSet<string>(ApprovedUsers.Select(u => u.Id));
+
+            foreach (var user in RawFetchedUsers)
+            {
+                // Never show users who are already on the friend list
+                if (approvedIds.Contains(user.Id)) continue;
+
+                // Only show users matching the search text (or show everyone if box is empty)
+                if (string.IsNullOrWhiteSpace(searchText) ||
+                    user.DisplayName.ToLower().Contains(searchText) ||
+                    user.Id.Contains(searchText))
+                {
+                    AllVisibleUsers.Add(user);
+                }
+            }
+
+            SelectUsersTitle.Text = $"Select Users ({AllVisibleUsers.Count} found)";
         }
     }
 
