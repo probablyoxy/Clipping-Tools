@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -19,11 +20,14 @@ using System.Runtime.InteropServices;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.WebSockets;
+using System.Threading;
 using NHotkey;
 using NHotkey.Wpf;
 using WindowsInput;
 using WindowsInput.Native;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace ClippingTools.app
 {
@@ -35,8 +39,8 @@ namespace ClippingTools.app
         private InputSimulator simulator = new InputSimulator();
         private MediaPlayer customAudioPlayer = new MediaPlayer();
 
-        public ObservableCollection<string> ApprovedUsers { get; set; } = new ObservableCollection<string>();
-        public ObservableCollection<string> ApprovedChannels { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<DiscordItem> ApprovedUsers { get; set; } = new ObservableCollection<DiscordItem>();
+        public ObservableCollection<DiscordItem> ApprovedChannels { get; set; } = new ObservableCollection<DiscordItem>();
 
         public List<string> ClipKeysList { get; set; } = new List<string>();
 
@@ -49,6 +53,11 @@ namespace ClippingTools.app
         private const string AppVersion = "v0.1.0";
         private string downloadUrlForUpdate = "";
 
+        private ClientWebSocket webSocket;
+        private CancellationTokenSource wsCts;
+        private bool isSyncActive = false;
+        private bool isReconnecting = false;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -56,8 +65,15 @@ namespace ClippingTools.app
             UserListBox.ItemsSource = ApprovedUsers;
             ChannelListBox.ItemsSource = ApprovedChannels;
 
-            CollectionViewSource.GetDefaultView(ApprovedUsers).SortDescriptions.Add(new SortDescription(".", ListSortDirection.Ascending));
-            CollectionViewSource.GetDefaultView(ApprovedChannels).SortDescriptions.Add(new SortDescription(".", ListSortDirection.Ascending));
+            var userView = (ListCollectionView)CollectionViewSource.GetDefaultView(ApprovedUsers);
+            userView.IsLiveSorting = true;
+            userView.LiveSortingProperties.Add("DisplayName");
+            userView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
+
+            var channelView = (ListCollectionView)CollectionViewSource.GetDefaultView(ApprovedChannels);
+            channelView.IsLiveSorting = true;
+            channelView.LiveSortingProperties.Add("DisplayName");
+            channelView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
 
             LoadSettings();
             isLoaded = true;
@@ -121,10 +137,10 @@ namespace ClippingTools.app
                     }
 
                     ApprovedChannels.Clear();
-                    foreach (var c in settings.Channels) ApprovedChannels.Add(c);
+                    foreach (var c in settings.Channels) ApprovedChannels.Add(new DiscordItem { Id = c, DisplayName = c });
 
                     ApprovedUsers.Clear();
-                    foreach (var u in settings.Users) ApprovedUsers.Add(u);
+                    foreach (var u in settings.Users) ApprovedUsers.Add(new DiscordItem { Id = u, DisplayName = u });
                 }
             }
             catch { }
@@ -155,8 +171,8 @@ namespace ClippingTools.app
                 SystemSoundType = (SystemSoundCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Exclamation",
                 CustomSoundFilename = CustomSoundPathInput.Text,
 
-                Channels = ApprovedChannels.ToList(),
-                Users = ApprovedUsers.ToList()
+                Channels = ApprovedChannels.Select(c => c.Id).ToList(),
+                Users = ApprovedUsers.Select(u => u.Id).ToList()
             };
 
             string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -174,7 +190,7 @@ namespace ClippingTools.app
             {
                 RegistryKey rk = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
                 if (StartWithWindowsCheck.IsChecked == true)
-                    rk.SetValue("ClippingTools", System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
+                    rk.SetValue("ClippingTools", Process.GetCurrentProcess().MainModule.FileName);
                 else
                     rk.DeleteValue("ClippingTools", false);
             }
@@ -453,8 +469,14 @@ namespace ClippingTools.app
                 StartListening();
         }
 
-        private void StartListening()
+        private async void StartListening()
         {
+            if (string.IsNullOrEmpty(DiscordIdInput.Text))
+            {
+                MessageBox.Show("Please sign in to Discord first so the server knows your ID.", "Missing ID", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
                 HotkeyManager.Current.Remove("SyncClip");
@@ -465,24 +487,209 @@ namespace ClippingTools.app
 
                 ConnectButton.Content = "Listening...";
                 ConnectButton.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(67, 181, 129));
+
+                isSyncActive = true;
+                await ConnectToServer();
             }
             catch (NHotkey.HotkeyAlreadyRegisteredException)
             {
+                isSyncActive = false;
                 StopListening();
                 ShowHotkeyTakenWarning();
             }
             catch (Exception ex)
             {
+                isSyncActive = false;
                 StopListening();
                 MessageBox.Show("Error setting hotkey. Check your formatting.\n\n" + ex.Message);
             }
         }
 
-        private void StopListening()
+        private async void StopListening()
         {
+            isSyncActive = false;
+            isReconnecting = false;
             HotkeyManager.Current.Remove("SyncClip");
             ConnectButton.Content = "Activate Syncing";
             ConnectButton.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#5865F2"));
+
+            await DisconnectFromServer();
+        }
+
+        // --- WEBSOCKET ENGINE ---
+
+        private async Task ConnectToServer()
+        {
+            if (webSocket != null && webSocket.State == WebSocketState.Open) return;
+
+            webSocket = new ClientWebSocket();
+            wsCts = new CancellationTokenSource();
+            try
+            {
+                ServerStatusDot.Fill = System.Windows.Media.Brushes.Orange;
+                ServerStatusText.Text = "Connecting...";
+
+                await webSocket.ConnectAsync(new Uri("wss://clip.oxy.pizza"), wsCts.Token);
+
+                ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
+                ServerStatusText.Text = "Connected";
+                isReconnecting = false;
+
+                await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
+                AskServerToResolveNames();
+
+                _ = ReceiveMessages();
+            }
+            catch
+            {
+                ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+                ServerStatusText.Text = "Server Offline";
+                TriggerAutoReconnect();
+            }
+        }
+
+        private async Task DisconnectFromServer()
+        {
+            if (webSocket != null && webSocket.State == WebSocketState.Open)
+            {
+                try
+                {
+                    wsCts?.Cancel();
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                }
+                catch { }
+            }
+            webSocket?.Dispose();
+            wsCts?.Dispose();
+
+            ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+            ServerStatusText.Text = "Disconnected";
+        }
+
+        private async Task SendWsMessage(object payload)
+        {
+            if (webSocket != null && webSocket.State == WebSocketState.Open)
+            {
+                string json = JsonSerializer.Serialize(payload);
+                byte[] bytes = Encoding.UTF8.GetBytes(json);
+                await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+        }
+
+        private async Task ReceiveMessages()
+        {
+            var buffer = new byte[8192];
+            try
+            {
+                while (webSocket.State == WebSocketState.Open)
+                {
+                    var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), wsCts.Token);
+                    if (result.MessageType == WebSocketMessageType.Close) break;
+
+                    string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    using (JsonDocument doc = JsonDocument.Parse(message))
+                    {
+                        string action = doc.RootElement.GetProperty("action").GetString();
+
+                        if (action == "sync_clip" && ReceiveClipsCheck.IsChecked == true)
+                        {
+                            string senderId = doc.RootElement.GetProperty("sender_id").GetString();
+
+                            if (ApprovedUsers.Any(u => u.Id == senderId))
+                            {
+                                await ReceiveNetworkClipCommand();
+                            }
+                        }
+                        else if (action == "resolved_ids")
+                        {
+                            var usersJson = doc.RootElement.GetProperty("users");
+                            var channelsJson = doc.RootElement.GetProperty("channels");
+
+                            Dispatcher.Invoke(() => {
+                                foreach (var user in ApprovedUsers)
+                                {
+                                    if (usersJson.TryGetProperty(user.Id, out JsonElement nameElement))
+                                        user.DisplayName = nameElement.GetString();
+                                }
+                                foreach (var channel in ApprovedChannels)
+                                {
+                                    if (channelsJson.TryGetProperty(channel.Id, out JsonElement nameElement))
+                                        channel.DisplayName = nameElement.GetString();
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            catch { }
+            finally
+            {
+                Dispatcher.Invoke(() => {
+                    ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+                    ServerStatusText.Text = "Disconnected";
+                    TriggerAutoReconnect();
+                });
+            }
+        }
+
+        private async void TriggerAutoReconnect()
+        {
+            if (!isSyncActive || isReconnecting) return;
+            isReconnecting = true;
+
+            while (isSyncActive && isReconnecting)
+            {
+                for (int i = 30; i > 0; i--)
+                {
+                    if (!isSyncActive || !isReconnecting) return;
+                    Dispatcher.Invoke(() => { ServerStatusText.Text = $"Reconnecting in {i}s..."; });
+                    await Task.Delay(1000);
+                }
+
+                if (!isSyncActive || !isReconnecting) return;
+
+                try
+                {
+                    Dispatcher.Invoke(() => {
+                        ServerStatusText.Text = "Connecting...";
+                        ServerStatusDot.Fill = System.Windows.Media.Brushes.Orange;
+                    });
+
+                    webSocket = new ClientWebSocket();
+                    wsCts = new CancellationTokenSource();
+                    await webSocket.ConnectAsync(new Uri("wss://clip.oxy.pizza"), wsCts.Token);
+
+                    isReconnecting = false;
+                    Dispatcher.Invoke(() => {
+                        ServerStatusText.Text = "Connected";
+                        ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
+                    });
+
+                    await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
+                    AskServerToResolveNames();
+
+                    _ = ReceiveMessages();
+                    return;
+                }
+                catch
+                {
+                    Dispatcher.Invoke(() => {
+                        ServerStatusText.Text = "Server Offline";
+                        ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+                    });
+                }
+            }
+        }
+
+        private async void ServerStatus_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (!isSyncActive) return;
+
+            if (webSocket == null || webSocket.State != WebSocketState.Open)
+            {
+                isReconnecting = false;
+                await ConnectToServer();
+            }
         }
 
         private void ShowHotkeyTakenWarning()
@@ -513,6 +720,11 @@ namespace ClippingTools.app
 
         private async void OnClipTriggered(object sender, HotkeyEventArgs e)
         {
+            if (SendClipsCheck.IsChecked == true)
+            {
+                await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text });
+            }
+
             await PerformSafeHardwareClip();
         }
 
@@ -804,19 +1016,63 @@ del ""%~f0""
         private void ProcessAddUsers()
         {
             var newIds = NewUserIdInput.Text.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var id in newIds) { if (!ApprovedUsers.Contains(id)) ApprovedUsers.Add(id); }
+            bool itemsAdded = false;
+
+            foreach (var id in newIds)
+            {
+                if (!ApprovedUsers.Any(u => u.Id == id))
+                {
+                    ApprovedUsers.Add(new DiscordItem { Id = id, DisplayName = id });
+                    itemsAdded = true;
+                }
+            }
             NewUserIdInput.Clear();
             SaveSettings();
+
+            if (itemsAdded)
+            {
+                SyncApprovedUsersToServer();
+                AskServerToResolveNames();
+            }
         }
 
         private void RemoveUserBtn_Click(object sender, RoutedEventArgs e)
         {
             Button btn = sender as Button;
-            string idToRemove = btn.DataContext as string;
-            if (idToRemove != null)
+            DiscordItem itemToRemove = btn.DataContext as DiscordItem;
+            if (itemToRemove != null)
             {
-                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{idToRemove}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes) { ApprovedUsers.Remove(idToRemove); SaveSettings(); }
+                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{itemToRemove.DisplayName}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes)
+                {
+                    ApprovedUsers.Remove(itemToRemove);
+                    SaveSettings();
+                    SyncApprovedUsersToServer();
+                }
+            }
+        }
+
+        private async void SyncApprovedUsersToServer()
+        {
+            if (webSocket != null && webSocket.State == WebSocketState.Open)
+            {
+                var payload = new { action = "update_users", approved_users = ApprovedUsers.Select(u => u.Id).ToList() };
+                await SendWsMessage(payload);
+            }
+        }
+
+        private async void AskServerToResolveNames()
+        {
+            if (webSocket != null && webSocket.State == WebSocketState.Open)
+            {
+                var payload = new
+                {
+                    action = "resolve_ids",
+                    client_id = DiscordIdInput.Text,
+                    users = ApprovedUsers.Select(u => u.Id).ToList(),
+                    channels = ApprovedChannels.Select(c => c.Id).ToList()
+                };
+                await SendWsMessage(payload);
             }
         }
 
@@ -826,19 +1082,30 @@ del ""%~f0""
         private void ProcessAddChannels()
         {
             var newIds = NewChannelIdInput.Text.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var id in newIds) { if (!ApprovedChannels.Contains(id)) ApprovedChannels.Add(id); }
+            bool itemsAdded = false;
+
+            foreach (var id in newIds)
+            {
+                if (!ApprovedChannels.Any(c => c.Id == id))
+                {
+                    ApprovedChannels.Add(new DiscordItem { Id = id, DisplayName = id });
+                    itemsAdded = true;
+                }
+            }
             NewChannelIdInput.Clear();
             SaveSettings();
+
+            if (itemsAdded) { AskServerToResolveNames(); }
         }
 
         private void RemoveChannelBtn_Click(object sender, RoutedEventArgs e)
         {
             Button btn = sender as Button;
-            string idToRemove = btn.DataContext as string;
-            if (idToRemove != null)
+            DiscordItem itemToRemove = btn.DataContext as DiscordItem;
+            if (itemToRemove != null)
             {
-                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{idToRemove}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes) { ApprovedChannels.Remove(idToRemove); SaveSettings(); }
+                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{itemToRemove.DisplayName}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes) { ApprovedChannels.Remove(itemToRemove); SaveSettings(); }
             }
         }
     }
@@ -859,7 +1126,28 @@ del ""%~f0""
         public bool UseCustomSound { get; set; } = false;
         public string SystemSoundType { get; set; } = "Exclamation";
         public string CustomSoundFilename { get; set; } = "";
+
         public List<string> Channels { get; set; } = new List<string>();
         public List<string> Users { get; set; } = new List<string>();
+    }
+
+    public class DiscordItem : INotifyPropertyChanged
+    {
+        public string Id { get; set; }
+
+        private string _displayName;
+        public string DisplayName
+        {
+            get => _displayName;
+            set
+            {
+                if (_displayName != value)
+                {
+                    _displayName = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("DisplayName"));
+                }
+            }
+        }
+        public event PropertyChangedEventHandler PropertyChanged;
     }
 }

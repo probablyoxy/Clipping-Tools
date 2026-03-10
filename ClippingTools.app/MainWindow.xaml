@@ -30,14 +30,21 @@
             </TabControl.ItemContainerStyle>
 
             <TabItem>
-                <StackPanel>
-                    <TextBlock Text="Home" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <CheckBox x:Name="SendClipsCheck" Content="Send clipping actions to others" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
-                    <CheckBox x:Name="ReceiveClipsCheck" Content="Receive clipping actions from others" Foreground="White" IsChecked="True" Margin="0,0,0,30" Click="Setting_Changed"/>
-                    <Button x:Name="ConnectButton" Content="Activate Syncing" Height="40" Width="200" HorizontalAlignment="Left" Background="#5865F2" Foreground="White" FontWeight="Bold" Click="ConnectButton_Click"/>
-                    <CheckBox x:Name="AutoSyncCheck" Content="Sync Automatically on startup" Foreground="White" Margin="0,15,0,10" Click="Setting_Changed"/>
-                    <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Foreground="White" Margin="0,0,0,10" Click="StartWithWindowsCheck_Click"/>
-                </StackPanel>
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="Home" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+                        <CheckBox x:Name="SendClipsCheck" Content="Send clipping actions to others" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="ReceiveClipsCheck" Content="Receive clipping actions from others" Foreground="White" IsChecked="True" Margin="0,0,0,30" Click="Setting_Changed"/>
+                        <Button x:Name="ConnectButton" Content="Activate Syncing" Height="40" Width="200" HorizontalAlignment="Left" Background="#5865F2" Foreground="White" FontWeight="Bold" Click="ConnectButton_Click"/>
+                        <CheckBox x:Name="AutoSyncCheck" Content="Sync Automatically on startup" Foreground="White" Margin="0,15,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Foreground="White" Margin="0,0,0,10" Click="StartWithWindowsCheck_Click"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,0,0" Cursor="Hand" MouseLeftButtonDown="ServerStatus_Click" ToolTip="Click to force reconnect">
+                        <Ellipse x:Name="ServerStatusDot" Width="10" Height="10" Fill="IndianRed" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ServerStatusText" Text="Disconnected" Foreground="#b9bbbe" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
             </TabItem>
 
             <TabItem>
@@ -49,7 +56,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="150"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="DiscordIdInput" Grid.Column="0" Height="30" Margin="0,0,10,0" Background="#202225" Foreground="White" BorderBrush="#202225" TextChanged="Setting_TextChanged"/>
+                        <TextBox x:Name="DiscordIdInput" Grid.Column="0" Height="30" Margin="0,0,10,0" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" IsReadOnly="True" TextChanged="Setting_TextChanged"/>
                         <Button x:Name="DiscordSignInBtn" Grid.Column="1" Content="Sign In w/ Discord" Background="#5865F2" Foreground="White" BorderThickness="0" Click="DiscordSignInBtn_Click"/>
                     </Grid>
                     <TextBlock Text="Approved Users List (Mutual sync required):" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
@@ -75,7 +82,9 @@
                             </ListBox.ItemsPanel>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Content="{Binding}" Background="#4f545c" Foreground="White" BorderThickness="0" Cursor="Hand" Click="RemoveUserBtn_Click" Padding="15,5" Margin="0,2,5,2"/>
+                                    <Button Background="#4f545c" Foreground="White" BorderThickness="0" Cursor="Hand" Click="RemoveUserBtn_Click" Padding="15,5" Margin="0,2,5,2" ToolTip="{Binding Id}">
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </Button>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                             <ListBox.ItemContainerStyle>
@@ -118,7 +127,9 @@
                                 </ListBox.ItemsPanel>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Button Content="{Binding}" Background="#4f545c" Foreground="White" BorderThickness="0" Cursor="Hand" Click="RemoveChannelBtn_Click" Padding="15,5" Margin="0,2,5,2"/>
+                                        <Button Background="#4f545c" Foreground="White" BorderThickness="0" Cursor="Hand" Click="RemoveChannelBtn_Click" Padding="15,5" Margin="0,2,5,2" ToolTip="{Binding Id}">
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </Button>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                                 <ListBox.ItemContainerStyle>

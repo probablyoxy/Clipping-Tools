@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="ClippingTools.app/ClippingTools.app.csproj" />
+  <Project Path="ClippingTools.app/ClippingTools.csproj" />
   <Project Path="Installer/Installer.csproj" Id="cf770e31-c43e-4eeb-92ea-3a6573317e9b" />
 </Solution>
