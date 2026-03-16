@@ -39,6 +39,8 @@ namespace ClippingTools.app
         private string appUuid = "";
         private InputSimulator simulator = new InputSimulator();
         private MediaPlayer customAudioPlayer = new MediaPlayer();
+        private System.Windows.Forms.NotifyIcon trayIcon;
+        private bool forceExit = false;
 
         public ObservableCollection<DiscordItem> ApprovedUsers { get; set; } = new ObservableCollection<DiscordItem>();
         public ObservableCollection<DiscordItem> ApprovedChannels { get; set; } = new ObservableCollection<DiscordItem>();
@@ -92,10 +94,42 @@ namespace ClippingTools.app
 
             CurrentVersionText.Text = AppVersion;
 
+            SetupTrayIcon();
+
+            this.Loaded += (s, e) =>
+            {
+                if (Environment.GetCommandLineArgs().Contains("--minimized"))
+                {
+                    this.Hide();
+                }
+            };
+
             if (AutoSyncCheck.IsChecked == true)
             {
                 StartListening();
             }
+        }
+
+        private void SetupTrayIcon()
+        {
+            trayIcon = new System.Windows.Forms.NotifyIcon();
+            trayIcon.Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath);
+            trayIcon.Visible = true;
+            trayIcon.Text = "Clipping Tools";
+            trayIcon.MouseClick += (s, args) =>
+            {
+                if (args.Button == System.Windows.Forms.MouseButtons.Left)
+                {
+                    this.Show();
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
+                }
+            };
+
+            var contextMenu = new System.Windows.Forms.ContextMenuStrip();
+            contextMenu.Items.Add("Open", null, (s, args) => { this.Show(); this.WindowState = WindowState.Normal; this.Activate(); });
+            contextMenu.Items.Add("Exit", null, (s, args) => { forceExit = true; System.Windows.Application.Current.Shutdown(); });
+            trayIcon.ContextMenuStrip = contextMenu;
         }
 
         // ==============================================================================
@@ -198,22 +232,57 @@ namespace ClippingTools.app
 
         private void Setting_Changed(object sender, RoutedEventArgs e) { SaveSettings(); }
         private void Setting_TextChanged(object sender, TextChangedEventArgs e) { SaveSettings(); }
-        private void Window_Closing(object sender, CancelEventArgs e) { SaveSettings(); }
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {
+            if (!forceExit)
+            {
+                e.Cancel = true;
+                this.Hide();
+                SaveSettings();
+            }
+            else
+            {
+                if (trayIcon != null)
+                {
+                    trayIcon.Visible = false;
+                    trayIcon.Dispose();
+                }
+                SaveSettings();
+            }
+        }
 
         private void StartWithWindowsCheck_Click(object sender, RoutedEventArgs e)
         {
             SaveSettings();
             try
             {
-                RegistryKey rk = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-                if (StartWithWindowsCheck.IsChecked == true)
-                    rk.SetValue("ClippingTools", Process.GetCurrentProcess().MainModule.FileName);
+                string exePath = Environment.ProcessPath;
+                bool enable = StartWithWindowsCheck.IsChecked ?? false;
+
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "schtasks.exe",
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    UseShellExecute = true,
+                    Verb = "runas"
+                };
+
+                if (enable)
+                {
+                    psi.Arguments = $"/create /tn \"ClippingTools\" /tr \"\\\"{exePath}\\\" --minimized\" /sc onlogon /rl highest /f";
+                }
                 else
-                    rk.DeleteValue("ClippingTools", false);
+                {
+                    psi.Arguments = $"/delete /tn \"ClippingTools\" /f";
+                }
+
+                Process.Start(psi);
             }
             catch
             {
-                MessageBox.Show("Could not set registry key. Try running the app as Administrator.", "Registry Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                StartWithWindowsCheck.IsChecked = !StartWithWindowsCheck.IsChecked;
+                SaveSettings();
             }
         }
 
@@ -1197,15 +1266,12 @@ del ""%~f0""
             string searchText = SearchUsersInput.Text.ToLower();
             AllVisibleUsers.Clear();
 
-            // Create a HashSet of IDs we already have so we can instantly skip them
             var approvedIds = new HashSet<string>(ApprovedUsers.Select(u => u.Id));
 
             foreach (var user in RawFetchedUsers)
             {
-                // Never show users who are already on the friend list
                 if (approvedIds.Contains(user.Id)) continue;
 
-                // Only show users matching the search text (or show everyone if box is empty)
                 if (string.IsNullOrWhiteSpace(searchText) ||
                     user.DisplayName.ToLower().Contains(searchText) ||
                     user.Id.Contains(searchText))
