@@ -36,6 +36,7 @@ namespace ClippingTools.app
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
 
+        private string appUuid = "";
         private InputSimulator simulator = new InputSimulator();
         private MediaPlayer customAudioPlayer = new MediaPlayer();
 
@@ -105,6 +106,7 @@ namespace ClippingTools.app
         {
             if (!File.Exists(configFilePath))
             {
+                appUuid = Guid.NewGuid().ToString();
                 ClipKeysList.Add("LeftAlt");
                 ClipKeysList.Add("F10");
                 RebuildClipKeyUI();
@@ -118,6 +120,9 @@ namespace ClippingTools.app
 
                 if (settings != null)
                 {
+                    if (string.IsNullOrEmpty(settings.AppUuid)) { settings.AppUuid = Guid.NewGuid().ToString(); }
+                    appUuid = settings.AppUuid;
+
                     SendClipsCheck.IsChecked = settings.SendClips;
                     ReceiveClipsCheck.IsChecked = settings.ReceiveClips;
                     DiscordIdInput.Text = settings.DiscordId;
@@ -167,6 +172,7 @@ namespace ClippingTools.app
 
             var settings = new AppSettings
             {
+                AppUuid = appUuid,
                 SendClips = SendClipsCheck.IsChecked ?? true,
                 ReceiveClips = ReceiveClipsCheck.IsChecked ?? true,
                 DiscordId = DiscordIdInput.Text,
@@ -546,7 +552,7 @@ namespace ClippingTools.app
                 ServerStatusText.Text = "Connected";
                 isReconnecting = false;
 
-                await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
+                await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
                 AskServerToResolveNames();
 
                 _ = ReceiveMessages();
@@ -688,7 +694,7 @@ namespace ClippingTools.app
                         ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
                     });
 
-                    await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
+                    await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
                     AskServerToResolveNames();
 
                     _ = ReceiveMessages();
@@ -745,7 +751,7 @@ namespace ClippingTools.app
         {
             if (SendClipsCheck.IsChecked == true)
             {
-                await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text });
+                await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
             }
 
             await PerformSafeHardwareClip();
@@ -1214,6 +1220,7 @@ del ""%~f0""
 
     public class AppSettings
     {
+        public string AppUuid { get; set; } = "";
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
         public string DiscordId { get; set; } = "";
