@@ -45,9 +45,8 @@ namespace ClippingTools.app
         public ObservableCollection<DiscordItem> ApprovedUsers { get; set; } = new ObservableCollection<DiscordItem>();
         public ObservableCollection<DiscordItem> ApprovedChannels { get; set; } = new ObservableCollection<DiscordItem>();
 
-        // NEW: Used purely for the multi-select popup menu
         public ObservableCollection<DiscordItem> AllVisibleUsers { get; set; } = new ObservableCollection<DiscordItem>();
-        private List<DiscordItem> RawFetchedUsers = new List<DiscordItem>(); // Holds all fetched users so we can search through them without deleting data
+        private List<DiscordItem> RawFetchedUsers = new List<DiscordItem>();
 
         public List<string> ClipKeysList { get; set; } = new List<string>();
 
@@ -57,7 +56,7 @@ namespace ClippingTools.app
         private bool isLoaded = false;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.0.9";
+        private const string AppVersion = "v0.1.0";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
