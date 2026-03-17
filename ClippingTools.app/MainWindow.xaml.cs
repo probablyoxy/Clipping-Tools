@@ -38,6 +38,7 @@ namespace ClippingTools.app
 
         private string appUuid = "";
         private InputSimulator simulator = new InputSimulator();
+        private CancellationTokenSource obsWatchdogCts;
         private MediaPlayer customAudioPlayer = new MediaPlayer();
         private System.Windows.Forms.NotifyIcon trayIcon;
         private bool forceExit = false;
@@ -56,7 +57,7 @@ namespace ClippingTools.app
         private bool isLoaded = false;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.0";
+        private const string AppVersion = "v0.1.1";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -165,6 +166,11 @@ namespace ClippingTools.app
 
                     AutoSyncCheck.IsChecked = settings.AutoSync;
                     StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
+                    AutoRestartObsCheck.IsChecked = settings.AutoRestartObs;
+                    ObsIntervalInput.Text = settings.ObsCheckInterval > 0 ? settings.ObsCheckInterval.ToString() : "5";
+                    ObsIntervalPanel.Visibility = (AutoRestartObsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
+
+                    ToggleObsWatchdog();
 
                     if (settings.ClipKeys != null && settings.ClipKeys.Count > 0)
                     {
@@ -215,6 +221,8 @@ namespace ClippingTools.app
 
                 AutoSync = AutoSyncCheck.IsChecked ?? false,
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
+                AutoRestartObs = AutoRestartObsCheck.IsChecked ?? false,
+                ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
 
                 EnableSound = EnableSoundCheck.IsChecked ?? true,
                 UseCustomSound = RadioCustomSound.IsChecked ?? false,
@@ -883,42 +891,177 @@ namespace ClippingTools.app
         // UI NAVIGATION & UPDATER LOGIC BELOW
         // ==============================================================================
 
+        private void ResetNavBackgrounds()
+        {
+            var darkBg = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            NavHomeBtn.Background = darkBg;
+            NavDiscordBtn.Background = darkBg;
+            NavSettingsBtn.Background = darkBg;
+            NavExtrasBtn.Background = darkBg;
+            NavUpdateBtn.Background = darkBg;
+        }
+
         private void NavHomeBtn_Click(object sender, RoutedEventArgs e)
         {
             MainContent.SelectedIndex = 0;
+            ResetNavBackgrounds();
             NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
-            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
-            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
         }
 
         private void NavDiscordBtn_Click(object sender, RoutedEventArgs e)
         {
             MainContent.SelectedIndex = 1;
-            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            ResetNavBackgrounds();
             NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
-            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
         }
 
         private void NavSettingsBtn_Click(object sender, RoutedEventArgs e)
         {
             MainContent.SelectedIndex = 2;
-            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
-            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            ResetNavBackgrounds();
             NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+        }
+
+        private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 3;
+            ResetNavBackgrounds();
+            NavExtrasBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
 
         private async void NavUpdateBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 3;
-            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
-            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
-            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136"));
+            MainContent.SelectedIndex = 4;
+            ResetNavBackgrounds();
             NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
 
             await CheckForUpdatesAsync();
+        }
+
+        private void AutoRestartObsCheck_Click(object sender, RoutedEventArgs e)
+        {
+            ObsIntervalPanel.Visibility = (AutoRestartObsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
+            SaveSettings();
+            ToggleObsWatchdog();
+        }
+
+        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
+        {
+            System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex("[^0-9]+");
+            e.Handled = regex.IsMatch(e.Text);
+        }
+
+        private void ToggleObsWatchdog()
+        {
+            if (AutoRestartObsCheck.IsChecked == true)
+            {
+                if (obsWatchdogCts == null || obsWatchdogCts.IsCancellationRequested)
+                {
+                    obsWatchdogCts = new CancellationTokenSource();
+                    _ = RunObsWatchdogAsync(obsWatchdogCts.Token);
+                }
+            }
+            else
+            {
+                obsWatchdogCts?.Cancel();
+            }
+        }
+
+        private async Task RunObsWatchdogAsync(CancellationToken token)
+        {
+            string obsPath = @"C:\Program Files\obs-studio\bin\64bit\obs64.exe";
+            string obsDir = @"C:\Program Files\obs-studio\bin\64bit";
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string sentinelFile = System.IO.Path.Combine(appData, @"obs-studio\.sentinel");
+            string logDir = System.IO.Path.Combine(appData, @"obs-studio\logs");
+
+            string[] crashKeywords = {
+                "amf_encode_tex: SubmitInput timed out", "AMF_INPUT_FULL", "amf_encode_tex: Failed to create texture",
+                "AMF_DIRECTX_FAILED", "AMF_NOT_FOUND", "Error encoding with encoder 'amd_amf",
+                "DXGI_ERROR_DEVICE_REMOVED", "DXGI_ERROR_DEVICE_RESET", "DXGI_ERROR_DEVICE_HUNG",
+                "Device Removed Reason", "Device Remove/Reset", "Failed to create texture: 0x887A0005",
+                "Failed to create buffer", "Texture->Map failed", "GetDeviceRemovedReason failed",
+                "Bad NV12 texture handling detected", "Encoder error, disconnecting", "Error encoding with encoder",
+                "Video stopped, number of skipped frames due to encoding lag", "Starting the output failed",
+                "nvenc failed", "nvenc_encode: Error", "Error encoding: Unknown error occurred"
+            };
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    var obsProcesses = Process.GetProcessesByName("obs64");
+                    if (obsProcesses.Length > 0 && Directory.Exists(logDir))
+                    {
+                        var latestLog = new DirectoryInfo(logDir).GetFiles("*.txt")
+                                        .OrderByDescending(f => f.LastWriteTime)
+                                        .FirstOrDefault();
+
+                        if (latestLog != null)
+                        {
+                            bool needsRestart = false;
+
+                            using (var fs = new FileStream(latestLog.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                            using (var sr = new StreamReader(fs))
+                            {
+                                var allLines = (await sr.ReadToEndAsync()).Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                                var recentLines = allLines.Skip(Math.Max(0, allLines.Length - 50));
+
+                                foreach (var line in recentLines)
+                                {
+                                    if (crashKeywords.Any(k => line.Contains(k)))
+                                    {
+                                        needsRestart = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (needsRestart)
+                            {
+                                foreach (var p in Process.GetProcessesByName("obs64")) { try { p.Kill(); } catch { } }
+                                foreach (var p in Process.GetProcessesByName("obs-ffmpeg-mux")) { try { p.Kill(); } catch { } }
+
+                                await Task.Delay(5000, token);
+
+                                if (Directory.Exists(sentinelFile))
+                                {
+                                    try { Directory.Delete(sentinelFile, true); } catch { }
+                                }
+
+                                string safeModeFile = System.IO.Path.Combine(appData, @"obs-studio\safe_mode");
+                                if (File.Exists(safeModeFile))
+                                {
+                                    try { File.Delete(safeModeFile); } catch { }
+                                }
+
+                                try { File.Move(latestLog.FullName, latestLog.FullName + ".crashed"); } catch { }
+
+                                ProcessStartInfo psi = new ProcessStartInfo
+                                {
+                                    FileName = obsPath,
+                                    Arguments = "--startreplaybuffer --minimize-to-tray --disable-shutdown-check",
+                                    WorkingDirectory = obsDir,
+                                    UseShellExecute = true
+                                };
+                                try { Process.Start(psi); } catch { }
+
+                                await Task.Delay(10000, token);
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                int currentInterval = 5000;
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (int.TryParse(ObsIntervalInput.Text, out int parsed) && parsed > 0)
+                        currentInterval = parsed * 1000;
+                });
+
+                await Task.Delay(currentInterval, token);
+            }
         }
 
         private async Task CheckForUpdatesAsync()
@@ -1286,11 +1429,13 @@ del ""%~f0""
     public class AppSettings
     {
         public string AppUuid { get; set; } = "";
+        public bool AutoRestartObs { get; set; } = false;
+        public int ObsCheckInterval { get; set; } = 5;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
         public string DiscordId { get; set; } = "";
         public bool AnyVCRule { get; set; } = true;
-        public string TriggerKey { get; set; } = "Ctrl+Shift+C";
+        public string TriggerKey { get; set; } = "Ctrl+Alt+F10";
         public List<string> ClipKeys { get; set; } = new List<string>();
 
         public bool AutoSync { get; set; } = false;

@@ -19,6 +19,7 @@
             <Button x:Name="NavHomeBtn" Content="Home" Height="40" Margin="10,0,10,10" Background="#4f545c" Foreground="White" BorderThickness="0" Click="NavHomeBtn_Click"/>
             <Button x:Name="NavDiscordBtn" Content="Discord" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavDiscordBtn_Click"/>
             <Button x:Name="NavSettingsBtn" Content="Settings" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSettingsBtn_Click"/>
+            <Button x:Name="NavExtrasBtn" Content="Extras" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavExtrasBtn_Click"/>
             <Button x:Name="NavUpdateBtn" Content="Update" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavUpdateBtn_Click"/>
         </StackPanel>
 
@@ -195,13 +196,24 @@
                         </Grid>
                     </Grid>
                     <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
-                    <TextBlock Text="Trigger Key (Press this to sync AND clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                    <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Shift+C" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225"/>
-                    <TextBlock Text="Hardware Clip Key (Click each box and press ONE key at a time. Press Esc to clear):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBlock Text="Trigger Keybind (Keybind used to create a synced clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Alt+F10" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225"/>
+                    <TextBlock Text="Software Clip Keybind (Click each box and press ONE key at a time. Press Esc to clear):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
                     <WrapPanel x:Name="ClipKeyPanel" Margin="0,0,0,20" Orientation="Horizontal"/>
                 </StackPanel>
             </TabItem>
 
+            <TabItem>
+                <StackPanel>
+                    <TextBlock Text="Extras" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+                    <CheckBox x:Name="AutoRestartObsCheck" Content="Automatically Restart OBS Replay on Failure" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="AutoRestartObsCheck_Click"/>
+                    <StackPanel x:Name="ObsIntervalPanel" Visibility="Collapsed" Margin="20,0,0,10">
+                        <TextBlock Text="OBS Checking Interval (Seconds)" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBox x:Name="ObsIntervalInput" Text="5" Width="50" Height="25" HorizontalAlignment="Left" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+            
             <TabItem>
                 <StackPanel>
                     <TextBlock Text="Updates" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
