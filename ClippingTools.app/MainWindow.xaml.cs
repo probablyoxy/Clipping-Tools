@@ -676,52 +676,64 @@ namespace ClippingTools.app
             {
                 while (webSocket.State == WebSocketState.Open)
                 {
-                    var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), wsCts.Token);
-                    if (result.MessageType == WebSocketMessageType.Close) break;
-
-                    string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    using (JsonDocument doc = JsonDocument.Parse(message))
+                    using (var ms = new MemoryStream())
                     {
-                        string action = doc.RootElement.GetProperty("action").GetString();
-
-                        if (action == "sync_clip" && ReceiveClipsCheck.IsChecked == true)
+                        WebSocketReceiveResult result;
+                        do
                         {
-                            string senderId = doc.RootElement.GetProperty("sender_id").GetString();
+                            result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), wsCts.Token);
+                            if (result.MessageType == WebSocketMessageType.Close) break;
+                            ms.Write(buffer, 0, result.Count);
+                        } while (!result.EndOfMessage);
 
-                            if (ApprovedUsers.Any(u => u.Id == senderId))
+                        if (result.MessageType == WebSocketMessageType.Close) break;
+
+                        string message = Encoding.UTF8.GetString(ms.ToArray());
+                        using (JsonDocument doc = JsonDocument.Parse(message))
+                        {
+                            string action = doc.RootElement.GetProperty("action").GetString();
+
+                            if (action == "sync_clip" && ReceiveClipsCheck.IsChecked == true)
                             {
-                                await ReceiveNetworkClipCommand();
-                            }
-                        }
-                        else if (action == "resolved_ids")
-                        {
-                            var usersJson = doc.RootElement.GetProperty("users");
-                            var channelsJson = doc.RootElement.GetProperty("channels");
+                                string senderId = doc.RootElement.GetProperty("sender_id").GetString();
 
-                            Dispatcher.Invoke(() => {
-                                foreach (var user in ApprovedUsers)
+                                if (ApprovedUsers.Any(u => u.Id == senderId))
                                 {
-                                    if (usersJson.TryGetProperty(user.Id, out JsonElement nameElement))
-                                        user.DisplayName = nameElement.GetString();
+                                    await ReceiveNetworkClipCommand();
                                 }
-                                foreach (var channel in ApprovedChannels)
+                            }
+                            else if (action == "resolved_ids")
+                            {
+                                var usersJson = doc.RootElement.GetProperty("users");
+                                var channelsJson = doc.RootElement.GetProperty("channels");
+
+                                Dispatcher.Invoke(() =>
                                 {
-                                    if (channelsJson.TryGetProperty(channel.Id, out JsonElement nameElement))
-                                        channel.DisplayName = nameElement.GetString();
-                                }
-                            });
-                        }
-                        else if (action == "all_users_list")
-                        {
-                            var usersJson = doc.RootElement.GetProperty("users");
-                            Dispatcher.Invoke(() => {
-                                RawFetchedUsers.Clear();
-                                foreach (var prop in usersJson.EnumerateObject())
+                                    foreach (var user in ApprovedUsers)
+                                    {
+                                        if (usersJson.TryGetProperty(user.Id, out JsonElement nameElement))
+                                            user.DisplayName = nameElement.GetString();
+                                    }
+                                    foreach (var channel in ApprovedChannels)
+                                    {
+                                        if (channelsJson.TryGetProperty(channel.Id, out JsonElement nameElement))
+                                            channel.DisplayName = nameElement.GetString();
+                                    }
+                                });
+                            }
+                            else if (action == "all_users_list")
+                            {
+                                var usersJson = doc.RootElement.GetProperty("users");
+                                Dispatcher.Invoke(() =>
                                 {
-                                    RawFetchedUsers.Add(new DiscordItem { Id = prop.Name, DisplayName = prop.Value.GetString() });
-                                }
-                                FilterUserList();
-                            });
+                                    RawFetchedUsers.Clear();
+                                    foreach (var prop in usersJson.EnumerateObject())
+                                    {
+                                        RawFetchedUsers.Add(new DiscordItem { Id = prop.Name, DisplayName = prop.Value.GetString() });
+                                    }
+                                    FilterUserList();
+                                });
+                            }
                         }
                     }
                 }
@@ -729,7 +741,8 @@ namespace ClippingTools.app
             catch { }
             finally
             {
-                Dispatcher.Invoke(() => {
+                Dispatcher.Invoke(() =>
+                {
                     ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
                     ServerStatusText.Text = "Disconnected";
                     TriggerAutoReconnect();

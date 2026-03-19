@@ -1,0 +1,6 @@
+{
+  "ALLOWED_BOT_IDS": [
+    "my_secret_bot_id_1",
+    "my_secret_bot_id_2"
+  ]
+}
