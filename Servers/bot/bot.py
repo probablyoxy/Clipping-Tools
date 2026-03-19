@@ -142,7 +142,9 @@ async def on_voice_state_update(member, before, after):
     payload = {
         "action": "vc_update",
         "user_id": str(member.id),
-        "channel_id": channel_id
+        "user_name": member.display_name,
+        "channel_id": channel_id,
+        "channel_name": after.channel.name if after.channel else None
     }
     
     try:

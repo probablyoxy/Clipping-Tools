@@ -57,7 +57,7 @@ namespace ClippingTools.app
         private bool isLoaded = false;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.1";
+        private const string AppVersion = "v0.1.2";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -108,6 +108,8 @@ namespace ClippingTools.app
             {
                 StartListening();
             }
+
+            _ = CheckForUpdatesAsync(true);
         }
 
         private void SetupTrayIcon()
@@ -657,6 +659,8 @@ namespace ClippingTools.app
 
             ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
             ServerStatusText.Text = "Disconnected";
+            CurrentVcText.Visibility = Visibility.Collapsed;
+            VcUsersPanel.Visibility = Visibility.Collapsed;
         }
 
         private async Task SendWsMessage(object payload)
@@ -724,14 +728,64 @@ namespace ClippingTools.app
                             else if (action == "all_users_list")
                             {
                                 var usersJson = doc.RootElement.GetProperty("users");
-                                Dispatcher.Invoke(() =>
-                                {
+                                Dispatcher.Invoke(() => {
                                     RawFetchedUsers.Clear();
                                     foreach (var prop in usersJson.EnumerateObject())
                                     {
                                         RawFetchedUsers.Add(new DiscordItem { Id = prop.Name, DisplayName = prop.Value.GetString() });
                                     }
                                     FilterUserList();
+                                });
+                            }
+                            else if (action == "client_vc_update")
+                            {
+                                var vcMapElement = doc.RootElement.GetProperty("vc_map");
+
+                                Dispatcher.Invoke(() => {
+                                    string myId = DiscordIdInput.Text;
+                                    if (!vcMapElement.TryGetProperty(myId, out JsonElement myVcData))
+                                    {
+                                        CurrentVcText.Visibility = Visibility.Collapsed;
+                                        VcUsersPanel.Visibility = Visibility.Collapsed;
+                                        return;
+                                    }
+
+                                    string myChannelId = myVcData.GetProperty("id").GetString();
+                                    string myChannelName = myVcData.GetProperty("name").GetString();
+
+                                    List<(string Name, bool IsConnected)> usersInMyVc = new List<(string, bool)>();
+
+                                    foreach (var prop in vcMapElement.EnumerateObject())
+                                    {
+                                        if (prop.Value.GetProperty("id").GetString() == myChannelId)
+                                        {
+                                            string displayName = prop.Value.TryGetProperty("user_name", out JsonElement nameElem) ? nameElem.GetString() : "Unknown User";
+
+                                            bool isConnected = prop.Value.TryGetProperty("is_connected", out JsonElement connElem) && connElem.GetBoolean();
+                                            usersInMyVc.Add((displayName, isConnected));
+                                        }
+                                    }
+
+                                    usersInMyVc.Sort((a, b) => a.Name.CompareTo(b.Name));
+
+                                    CurrentVcText.Text = $"Current VC: {myChannelName}";
+                                    VcUsersPanel.Children.Clear();
+
+                                    foreach (var user in usersInMyVc)
+                                    {
+                                        StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 2, 0, 2) };
+                                        TextBlock tb = new TextBlock { Text = user.Name, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#b9bbbe")), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
+
+                                        System.Windows.Shapes.Ellipse dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center };
+                                        dot.Fill = user.IsConnected ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#f04747"));
+
+                                        sp.Children.Add(tb);
+                                        sp.Children.Add(dot);
+                                        VcUsersPanel.Children.Add(sp);
+                                    }
+
+                                    CurrentVcText.Visibility = Visibility.Visible;
+                                    VcUsersPanel.Visibility = Visibility.Visible;
                                 });
                             }
                         }
@@ -741,10 +795,11 @@ namespace ClippingTools.app
             catch { }
             finally
             {
-                Dispatcher.Invoke(() =>
-                {
+                Dispatcher.Invoke(() => {
                     ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
                     ServerStatusText.Text = "Disconnected";
+                    CurrentVcText.Visibility = Visibility.Collapsed;
+                    VcUsersPanel.Visibility = Visibility.Collapsed;
                     TriggerAutoReconnect();
                 });
             }
@@ -947,8 +1002,9 @@ namespace ClippingTools.app
             MainContent.SelectedIndex = 4;
             ResetNavBackgrounds();
             NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            NavUpdateBtn.Content = "Update";
 
-            await CheckForUpdatesAsync();
+            await CheckForUpdatesAsync(false);
         }
 
         private void AutoRestartObsCheck_Click(object sender, RoutedEventArgs e)
@@ -1050,14 +1106,20 @@ namespace ClippingTools.app
 
                                 try { File.Move(latestLog.FullName, latestLog.FullName + ".crashed"); } catch { }
 
-                                ProcessStartInfo psi = new ProcessStartInfo
+                                string vbsPath = System.IO.Path.Combine(configFolder, "launch_obs.vbs");
+                                string vbsCode = $@"
+Set objShell = CreateObject(""WScript.Shell"")
+objShell.CurrentDirectory = ""{obsDir}""
+objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimize-to-tray --disable-shutdown-check"", 0, False
+";
+                                try
                                 {
-                                    FileName = obsPath,
-                                    Arguments = "--startreplaybuffer --minimize-to-tray --disable-shutdown-check",
-                                    WorkingDirectory = obsDir,
-                                    UseShellExecute = true
-                                };
-                                try { Process.Start(psi); } catch { }
+                                    if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+                                    File.WriteAllText(vbsPath, vbsCode);
+
+                                    Process.Start("explorer.exe", $"\"{vbsPath}\"");
+                                }
+                                catch { }
 
                                 await Task.Delay(10000, token);
                             }
@@ -1077,18 +1139,22 @@ namespace ClippingTools.app
             }
         }
 
-        private async Task CheckForUpdatesAsync()
+        private async Task CheckForUpdatesAsync(bool isSilentStartup = false)
         {
-            UpdateStatusText.Text = "Checking GitHub for updates...";
-            UpdateStatusText.Foreground = Brushes.LightGray;
-            PerformUpdateBtn.Visibility = Visibility.Collapsed;
+            if (!isSilentStartup)
+            {
+                UpdateStatusText.Text = "Checking GitHub for updates...";
+                UpdateStatusText.Foreground = Brushes.LightGray;
+                PerformUpdateBtn.Visibility = Visibility.Collapsed;
+                ReleaseNotesTitle.Visibility = Visibility.Collapsed;
+                ReleaseNotesText.Visibility = Visibility.Collapsed;
+            }
 
             try
             {
                 using (HttpClient client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Add("User-Agent", "ClipSync-Updater");
-
                     string url = "https://api.github.com/repos/probablyoxy/Clipping-Tools/releases/latest";
 
                     var response = await client.GetAsync(url);
@@ -1098,23 +1164,44 @@ namespace ClippingTools.app
                         using (JsonDocument doc = JsonDocument.Parse(json))
                         {
                             string latestVersion = doc.RootElement.GetProperty("tag_name").GetString();
-                            LatestVersionText.Text = latestVersion;
+
+                            string releaseNotes = doc.RootElement.TryGetProperty("body", out JsonElement bodyElement)
+                                ? bodyElement.GetString() : "No release notes provided.";
 
                             if (latestVersion != AppVersion)
                             {
-                                UpdateStatusText.Text = "A new update is available!";
-                                UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581"));
-
                                 downloadUrlForUpdate = doc.RootElement.GetProperty("assets")[0].GetProperty("browser_download_url").GetString();
-                                PerformUpdateBtn.Visibility = Visibility.Visible;
+
+                                if (isSilentStartup)
+                                {
+                                    NavUpdateBtn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ff69b4"));
+                                    NavUpdateBtn.Content = "Update Available!!";
+                                    NavUpdateBtn.Foreground = Brushes.White;
+                                }
+                                else
+                                {
+                                    LatestVersionText.Text = latestVersion;
+                                    UpdateStatusText.Text = "A new update is available!";
+                                    UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581"));
+                                    PerformUpdateBtn.Visibility = Visibility.Visible;
+
+                                    ReleaseNotesText.Text = releaseNotes;
+                                    ReleaseNotesTitle.Visibility = Visibility.Visible;
+                                    ReleaseNotesText.Visibility = Visibility.Visible;
+                                }
                             }
-                            else
+                            else if (!isSilentStartup)
                             {
+                                LatestVersionText.Text = latestVersion;
                                 UpdateStatusText.Text = "You are on the latest version.";
+
+                                ReleaseNotesText.Text = releaseNotes;
+                                ReleaseNotesTitle.Visibility = Visibility.Visible;
+                                ReleaseNotesText.Visibility = Visibility.Visible;
                             }
                         }
                     }
-                    else
+                    else if (!isSilentStartup)
                     {
                         UpdateStatusText.Text = "Could not find any releases on GitHub.";
                         LatestVersionText.Text = "Unknown";
@@ -1123,8 +1210,11 @@ namespace ClippingTools.app
             }
             catch
             {
-                UpdateStatusText.Text = "Network error while checking for updates.";
-                UpdateStatusText.Foreground = Brushes.IndianRed;
+                if (!isSilentStartup)
+                {
+                    UpdateStatusText.Text = "Network error while checking for updates.";
+                    UpdateStatusText.Foreground = Brushes.IndianRed;
+                }
             }
         }
 
