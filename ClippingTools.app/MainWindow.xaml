@@ -265,6 +265,7 @@
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
                                 <Setter Property="Margin" Value="0,2"/>
+                                <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
                             </Style>
                         </ListBox.ItemContainerStyle>
                     </ListBox>

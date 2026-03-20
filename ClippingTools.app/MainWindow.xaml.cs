@@ -1464,6 +1464,12 @@ del ""%~f0""
             AllVisibleUsers.Clear();
             RawFetchedUsers.Clear();
 
+            _ = Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SearchUsersInput.Focus();
+                Keyboard.Focus(SearchUsersInput);
+            }), System.Windows.Threading.DispatcherPriority.Input);
+
             if (webSocket != null && webSocket.State == WebSocketState.Open)
             {
                 await SendWsMessage(new { action = "get_all_users", client_id = DiscordIdInput.Text });
@@ -1482,7 +1488,7 @@ del ""%~f0""
         private void SubmitSelectedUsersBtn_Click(object sender, RoutedEventArgs e)
         {
             bool itemsAdded = false;
-            foreach (DiscordItem item in AllUsersListBox.SelectedItems)
+            foreach (DiscordItem item in RawFetchedUsers.Where(u => u.IsSelected))
             {
                 if (!ApprovedUsers.Any(u => u.Id == item.Id))
                 {
@@ -1570,6 +1576,21 @@ del ""%~f0""
                 }
             }
         }
+
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsSelected"));
+                }
+            }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
     }
 }
