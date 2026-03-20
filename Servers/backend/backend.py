@@ -35,6 +35,39 @@ vc_map = {}
 
 active_bots = set()
 
+def broadcast_vc_updates():
+    for client_id, ws in list(active_connections.items()):
+        client_vc_data = vc_map.get(client_id)
+        if not client_vc_data:
+            payload_map = {}
+        else:
+            client_vc_id = client_vc_data["id"]
+            payload_map = {}
+            for u, c in vc_map.items():
+                if c["id"] == client_vc_id:
+                    i_have_them = u in user_approved_lists.get(client_id, [])
+                    they_have_me = client_id in user_approved_lists.get(u, [])
+                    
+                    rel = "none"
+                    if i_have_them and they_have_me: rel = "mutual"
+                    elif i_have_them: rel = "outgoing"
+                    elif they_have_me: rel = "incoming"
+
+                    payload_map[u] = {
+                        "id": c["id"],
+                        "name": c["name"],
+                        "user_name": c.get("user_name", "Unknown User"),
+                        "is_connected": u in active_connections,
+                        "relationship": rel
+                    }
+        
+        try:
+            asyncio.create_task(ws.send(json.dumps({
+                "action": "client_vc_update",
+                "vc_map": payload_map
+            })))
+        except: pass
+
 async def handle_client(websocket):
     user_id = None
     is_bot = False
@@ -59,18 +92,7 @@ async def handle_client(websocket):
                     active_connections[user_id] = websocket
                     user_approved_lists[user_id] = approved_users
                     print(f"[Desktop] User {user_id} connected. Friends list size: {len(approved_users)}")
-                    
-                    client_vc_map = {u: {"id": c["id"], "name": c["name"], "user_name": c.get("user_name", "Unknown User"), "is_connected": u in active_connections} for u, c in vc_map.items() if u == user_id or u in approved_users}
-                    asyncio.create_task(websocket.send(json.dumps({
-                        "action": "client_vc_update",
-                        "vc_map": client_vc_map
-                    })))
-                    
-                    for client_id, ws in list(active_connections.items()):
-                        if client_id != user_id and user_id in user_approved_lists.get(client_id, []):
-                            f_vc_map = {u: {"id": c["id"], "name": c["name"], "user_name": c.get("user_name", "Unknown User"), "is_connected": u in active_connections} for u, c in vc_map.items() if u == client_id or u in user_approved_lists[client_id]}
-                            try: asyncio.create_task(ws.send(json.dumps({"action": "client_vc_update", "vc_map": f_vc_map})))
-                            except: pass
+                    broadcast_vc_updates()
                 else:
                     unverified_connections[user_id] = {"ws": websocket, "approved_users": approved_users}
                     print(f"[Desktop] User {user_id} connected with unverified UUID. Requesting bot link.")
@@ -87,6 +109,7 @@ async def handle_client(websocket):
                 if user_id:
                     user_approved_lists[user_id] = data.get("approved_users", [])
                     print(f"[Desktop] User {user_id} updated their friend list.")
+                    broadcast_vc_updates()
 
             elif action == "resolve_ids":
                 for bot_ws in list(active_bots):
@@ -145,12 +168,7 @@ async def handle_client(websocket):
                         active_connections[target_user] = conn_data["ws"]
                         user_approved_lists[target_user] = conn_data["approved_users"]
                         print(f"[Desktop] Moved {target_user} to active connections.")
-                        
-                        client_vc_map = {u: {"id": c["id"], "name": c["name"], "user_name": c.get("user_name", "Unknown User"), "is_connected": u in active_connections} for u, c in vc_map.items() if u == target_user or u in conn_data["approved_users"]}
-                        asyncio.create_task(conn_data["ws"].send(json.dumps({
-                            "action": "client_vc_update",
-                            "vc_map": client_vc_map
-                        })))
+                        broadcast_vc_updates()
 
             elif action == "bot_identify":
                 bot_id = data.get("bot_id")
@@ -190,16 +208,7 @@ async def handle_client(websocket):
                         del vc_map[target_user]
                     print(f"[Bot Update] {target_user} left VC.")
                 
-                for client_id, ws in list(active_connections.items()):
-                    friends = user_approved_lists.get(client_id, [])
-                    if target_user == client_id or target_user in friends:
-                        client_vc_map = {u: {"id": c["id"], "name": c["name"], "user_name": c.get("user_name", "Unknown User"), "is_connected": u in active_connections} for u, c in vc_map.items() if u == client_id or u in friends}
-                        try:
-                            asyncio.create_task(ws.send(json.dumps({
-                                "action": "client_vc_update",
-                                "vc_map": client_vc_map
-                            })))
-                        except: pass
+                broadcast_vc_updates()
 
     except websockets.exceptions.ConnectionClosed:
         pass
@@ -211,13 +220,7 @@ async def handle_client(websocket):
                     del active_connections[user_id]
                     del user_approved_lists[user_id]
                     print(f"[Desktop] User {user_id} disconnected.")
-                    
-                    for client_id, ws in list(active_connections.items()):
-                        friends = user_approved_lists.get(client_id, [])
-                        if user_id in friends:
-                            f_vc_map = {u: {"id": c["id"], "name": c["name"], "user_name": c.get("user_name", "Unknown User"), "is_connected": u in active_connections} for u, c in vc_map.items() if u == client_id or u in friends}
-                            try: asyncio.create_task(ws.send(json.dumps({"action": "client_vc_update", "vc_map": f_vc_map})))
-                            except: pass
+                    broadcast_vc_updates()
                             
                 if user_id in unverified_connections:
                     del unverified_connections[user_id]

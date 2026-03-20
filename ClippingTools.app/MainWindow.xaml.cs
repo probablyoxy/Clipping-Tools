@@ -36,6 +36,9 @@ namespace ClippingTools.app
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
 
+        private EventWaitHandle singleInstanceWatcher;
+        private bool isSingleInstance;
+
         private string appUuid = "";
         private InputSimulator simulator = new InputSimulator();
         private CancellationTokenSource obsWatchdogCts;
@@ -57,7 +60,7 @@ namespace ClippingTools.app
         private bool isLoaded = false;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.2";
+        private const string AppVersion = "v0.1.3";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -67,6 +70,29 @@ namespace ClippingTools.app
 
         public MainWindow()
         {
+            singleInstanceWatcher = new EventWaitHandle(false, EventResetMode.AutoReset, "ClippingTools_SingleInstanceEvent", out isSingleInstance);
+            if (!isSingleInstance)
+            {
+                singleInstanceWatcher.Set();
+                Application.Current.Shutdown();
+                return;
+            }
+
+            Task.Run(() => {
+                while (true)
+                {
+                    singleInstanceWatcher.WaitOne();
+                    Dispatcher.Invoke(() => {
+                        this.Show();
+                        if (this.WindowState == WindowState.Minimized) this.WindowState = WindowState.Normal;
+                        this.Activate();
+                        this.Topmost = true;
+                        this.Topmost = false;
+                        this.Focus();
+                    });
+                }
+            });
+
             InitializeComponent();
 
             UserListBox.ItemsSource = ApprovedUsers;
@@ -753,20 +779,29 @@ namespace ClippingTools.app
                                     string myChannelId = myVcData.GetProperty("id").GetString();
                                     string myChannelName = myVcData.GetProperty("name").GetString();
 
-                                    List<(string Name, bool IsConnected)> usersInMyVc = new List<(string, bool)>();
+                                    List<(string DisplayText, string SortName, bool IsConnected)> usersInMyVc = new List<(string, string, bool)>();
 
                                     foreach (var prop in vcMapElement.EnumerateObject())
                                     {
                                         if (prop.Value.GetProperty("id").GetString() == myChannelId)
                                         {
                                             string displayName = prop.Value.TryGetProperty("user_name", out JsonElement nameElem) ? nameElem.GetString() : "Unknown User";
-
                                             bool isConnected = prop.Value.TryGetProperty("is_connected", out JsonElement connElem) && connElem.GetBoolean();
-                                            usersInMyVc.Add((displayName, isConnected));
+                                            string relationship = prop.Value.TryGetProperty("relationship", out JsonElement relElem) ? relElem.GetString() : "none";
+
+                                            string prefix = "";
+                                            if (prop.Name != myId)
+                                            {
+                                                if (relationship == "mutual") prefix = "* ";
+                                                else if (relationship == "outgoing") prefix = "+ ";
+                                                else if (relationship == "incoming") prefix = "- ";
+                                            }
+
+                                            usersInMyVc.Add((prefix + displayName, displayName, isConnected));
                                         }
                                     }
 
-                                    usersInMyVc.Sort((a, b) => a.Name.CompareTo(b.Name));
+                                    usersInMyVc.Sort((a, b) => a.SortName.CompareTo(b.SortName));
 
                                     CurrentVcText.Text = $"Current VC: {myChannelName}";
                                     VcUsersPanel.Children.Clear();
@@ -774,7 +809,7 @@ namespace ClippingTools.app
                                     foreach (var user in usersInMyVc)
                                     {
                                         StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 2, 0, 2) };
-                                        TextBlock tb = new TextBlock { Text = user.Name, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#b9bbbe")), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
+                                        TextBlock tb = new TextBlock { Text = user.DisplayText, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#b9bbbe")), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
 
                                         System.Windows.Shapes.Ellipse dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center };
                                         dot.Fill = user.IsConnected ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#f04747"));
@@ -967,6 +1002,20 @@ namespace ClippingTools.app
             NavSettingsBtn.Background = darkBg;
             NavExtrasBtn.Background = darkBg;
             NavUpdateBtn.Background = darkBg;
+            NavHelpBtn.Background = darkBg;
+        }
+
+        private void NavHelpBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 5;
+            ResetNavBackgrounds();
+            NavHelpBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo { FileName = e.Uri.AbsoluteUri, UseShellExecute = true });
+            e.Handled = true;
         }
 
         private void NavHomeBtn_Click(object sender, RoutedEventArgs e)

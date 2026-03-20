@@ -21,6 +21,7 @@
             <Button x:Name="NavSettingsBtn" Content="Settings" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSettingsBtn_Click"/>
             <Button x:Name="NavExtrasBtn" Content="Extras" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavExtrasBtn_Click"/>
             <Button x:Name="NavUpdateBtn" Content="Update" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavUpdateBtn_Click"/>
+            <Button x:Name="NavHelpBtn" Content="Help" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavHelpBtn_Click"/>
         </StackPanel>
 
         <TabControl x:Name="MainContent" Grid.Column="1" Background="Transparent" BorderThickness="0" Margin="20">
@@ -238,6 +239,109 @@
                         <TextBlock x:Name="ReleaseNotesText" Text="" Foreground="#b9bbbe" TextWrapping="Wrap" Visibility="Collapsed"/>
                     </ScrollViewer>
                 </StackPanel>
+            </TabItem>
+
+            <TabItem>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="Clipping Tools" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="0,0,0,15" FontSize="14">
+                            <Run FontWeight="Bold" Foreground="White" Text="Clipping Tools"/>
+                            <Run Text=" is a lightweight app that lets you sync your game capture software with all of your friends. When one person clips, everyone will."/>
+                        </TextBlock>
+                        <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="0,0,0,25" FontSize="14">
+                            <Run Text="By linking with my Discord bot, "/>
+                            <Hyperlink NavigateUri="https://oxy.pizza/polandbot" RequestNavigate="Hyperlink_RequestNavigate" TextDecorations="None">
+                                <Run FontWeight="Bold" Foreground="#5865F2" Text="poland bot#2120"/>
+                            </Hyperlink>
+                            <Run Text=", the app watches your active voice channels to see who you are talking with. When you hit your clip button and send the signal, it instantly distributes it to everyone connected in your VC, triggering their software to record at the exact same time. Now you can capture everyone's perspective of the same moment, no matter what!"/>
+                        </TextBlock>
+
+                        <TextBlock Text="Getting Started" Foreground="White" FontSize="22" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="0,0,0,20" FontSize="14">
+                            <Run Text="Follow this basic setup to get connected:"/>
+                        </TextBlock>
+
+                        <TextBlock Text="1. Authenticate" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="15,0,0,20" FontSize="14">
+                            <Run Text="• Go to the "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Discord"/>
+                            <Run Text=" tab and press "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Sign In w/ Discord"/>
+                            <Run Text="."/>
+                            <LineBreak/>
+                            <Run Text="• Follow the steps in the new browser tab that opens."/>
+                            <LineBreak/>
+                            <Run Text="• When you first connect to the network, the bot will DM you to verify your Discord account and link it to the backend. Make sure it can message you or you will not be able to verify your account. "/>
+                            <Run FontStyle="Italic" Text="(This is a strict security feature to prevent people from pretending to be you and sending false clip commands)."/>
+                        </TextBlock>
+
+                        <TextBlock Text="2. Configure Keybinds" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="15,0,0,20" FontSize="14">
+                            <Run Text="• Go to the "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Settings"/>
+                            <Run Text=" tab and change the "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Trigger Keybind"/>
+                            <Run Text=" to something you like. This is the key used to make a shared clip with everyone connected. "/>
+                            <Run FontStyle="Italic" Text="Note: This MUST be different than your normal clipping keys."/>
+                            <LineBreak/>
+                            <Run Text="• Change your "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Software Clip Keybind"/>
+                            <Run Text=" to the actual keybind used for your clipping software (the buttons you usually press to make a clip in OBS, Medal, Shadowplay, etc.)."/>
+                        </TextBlock>
+
+                        <TextBlock Text="3. Connect to the Network" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="15,0,0,20" FontSize="14">
+                            <Run Text="• Go to the "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Home"/>
+                            <Run Text=" tab and press "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Activate Syncing"/>
+                            <Run Text=". This connects you to the routing network and allows you to start syncing clips!"/>
+                            <LineBreak/>
+                            <Run Text="• "/>
+                            <Run FontStyle="Italic" Text="Optional QoL:"/>
+                            <Run Text=" You can also enable "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Sync Automatically"/>
+                            <Run Text=" to connect as soon as the app launches, and "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Start with Windows"/>
+                            <Run Text=" to have the app launch silently with your PC."/>
+                        </TextBlock>
+
+                        <TextBlock Text="4. Build Your Roster" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="15,0,0,20" FontSize="14">
+                            <Run Text="• Go back to the "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Discord"/>
+                            <Run Text=" tab and press "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Select Users"/>
+                            <Run Text="."/>
+                            <LineBreak/>
+                            <Run Text="• Choose the people you wish to send and receive clip commands from (or manually enter their Discord ID)."/>
+                            <LineBreak/>
+                            <Run Text="• "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Important:"/>
+                            <Run Text=" It must be mutual! You and your friend must have each other in your respective lists. The app will not accept commands from users outside your list, and it will not send commands to users outside of your list either."/>
+                            <LineBreak/>
+                            <LineBreak/>
+                            <Run Text="• "/>
+                            <Run FontStyle="Italic" Text="Status Icons:"/>
+                            <Run Text=" The top right of the "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="Home"/>
+                            <Run Text=" tab shows the current VC you are in, as well as everyone else in it. A green circle is connected to the app, and a red circle is disconnected. To the left of each user will be either "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="+"/>
+                            <Run Text=", "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="-"/>
+                            <Run Text=", "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="*"/>
+                            <Run Text=", or nothing. "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="+"/>
+                            <Run Text=" is when only you approve them, "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="-"/>
+                            <Run Text=" is when only they approve you, "/>
+                            <Run FontWeight="Bold" Foreground="White" Text="*"/>
+                            <Run Text=" is when you both approve each other, and nothing will show when neither approves the other."/>
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
         </TabControl>

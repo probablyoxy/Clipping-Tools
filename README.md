@@ -13,10 +13,10 @@ Follow this basic setup to get connected:
 ### 1. Authenticate
 * Go to the **Discord** tab and press **Sign In w/ Discord**. 
 * Follow the steps in the new browser tab that opens. 
-* The bot will DM you to verify your Discord account and link it to the backend. *(This is a strict security feature to prevent people from pretending to be you and sending false clip commands).*
+* When you first connect to the network, the bot will DM you to verify your Discord account and link it to the backend. Make sure it can message you or you will not be able to verify your account. *(This is a strict security feature to prevent people from pretending to be you and sending false clip commands).*
 
 ### 2. Configure Keybinds
-* Go to the **Settings** tab and change the **Trigger Keybind** to something you like. *Note: This MUST be different than your normal clipping key due to Windows limitations.*
+* Go to the **Settings** tab and change the **Trigger Keybind** to something you like. This is the key used to make a shared clip with everyone connected. *Note: This MUST be different than your normal clipping keys.*
 * Change your **Software Clip Keybind** to the actual keybind used for your clipping software (the buttons you usually press to make a clip in OBS, Medal, Shadowplay, etc.).
 
 ### 3. Connect to the Network
@@ -27,3 +27,4 @@ Follow this basic setup to get connected:
 * Go back to the **Discord** tab and press **Select Users**. 
 * Choose the people you wish to send and receive clip commands from (or manually enter their Discord ID). 
 * **Important:** It must be mutual! You and your friend must have each other in your respective lists. The app will not accept commands from users outside your list, and it will not send commands to users outside of your list either.
+* *Status Icons:* The top right of the **Home** tab shows the current VC you are in, as well as everyone else in it. A green circle is connected to the app, and a red circle is disconnected. To the left of each user will be either **+**, **-**, *, or nothing. **+** is when only you approve them, **-** is when only they approve you, * is when you both approve each other, and nothing will show when neither approves the other.
