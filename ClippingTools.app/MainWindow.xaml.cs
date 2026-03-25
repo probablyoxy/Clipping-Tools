@@ -844,14 +844,18 @@ namespace ClippingTools.app
         {
             if (!isSyncActive || isReconnecting) return;
             isReconnecting = true;
+            int currentDelay = 0;
 
             while (isSyncActive && isReconnecting)
             {
-                for (int i = 30; i > 0; i--)
+                if (currentDelay > 0)
                 {
-                    if (!isSyncActive || !isReconnecting) return;
-                    Dispatcher.Invoke(() => { ServerStatusText.Text = $"Reconnecting in {i}s..."; });
-                    await Task.Delay(1000);
+                    for (int i = currentDelay; i > 0; i--)
+                    {
+                        if (!isSyncActive || !isReconnecting) return;
+                        Dispatcher.Invoke(() => { ServerStatusText.Text = $"Reconnecting in {i}s..."; });
+                        await Task.Delay(1000);
+                    }
                 }
 
                 if (!isSyncActive || !isReconnecting) return;
@@ -885,6 +889,9 @@ namespace ClippingTools.app
                         ServerStatusText.Text = "Server Offline";
                         ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
                     });
+
+                    if (currentDelay == 0) currentDelay = 5;
+                    else if (currentDelay < 30) currentDelay += 5;
                 }
             }
         }
