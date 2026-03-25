@@ -60,7 +60,7 @@ namespace ClippingTools.app
         private bool isLoaded = false;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.3";
+        private const string AppVersion = "v0.1.4";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -198,7 +198,12 @@ namespace ClippingTools.app
                     ObsIntervalInput.Text = settings.ObsCheckInterval > 0 ? settings.ObsCheckInterval.ToString() : "5";
                     ObsIntervalPanel.Visibility = (AutoRestartObsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
 
+                    EnableLoggingCheck.IsChecked = settings.EnableLogging;
+                    MaxLogLinesInput.Text = settings.MaxLogLines > 0 ? settings.MaxLogLines.ToString() : "1000";
+                    LogLinesPanel.Visibility = (EnableLoggingCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
+
                     ToggleObsWatchdog();
+                    LoadLogFile();
 
                     if (settings.ClipKeys != null && settings.ClipKeys.Count > 0)
                     {
@@ -251,6 +256,9 @@ namespace ClippingTools.app
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
                 AutoRestartObs = AutoRestartObsCheck.IsChecked ?? false,
                 ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
+
+                EnableLogging = EnableLoggingCheck.IsChecked ?? true,
+                MaxLogLines = int.TryParse(MaxLogLinesInput.Text, out int parsedMax) && parsedMax > 0 ? parsedMax : 1000,
 
                 EnableSound = EnableSoundCheck.IsChecked ?? true,
                 UseCustomSound = RadioCustomSound.IsChecked ?? false,
@@ -351,6 +359,7 @@ namespace ClippingTools.app
 
                     File.Copy(openFileDialog.FileName, configFilePath, true);
                     LoadSettings();
+                    WriteLog("Successfully imported new settings from file.");
                     MessageBox.Show("Settings imported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
@@ -405,6 +414,7 @@ namespace ClippingTools.app
             {
                 appUuid = Guid.NewGuid().ToString();
                 SaveSettings();
+                WriteLog("App UUID reset.");
                 MessageBox.Show("UUID has been reset. Please re-authenticate the next time you connect.", "UUID Reset", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
@@ -506,6 +516,7 @@ namespace ClippingTools.app
                                 DiscordIdInput.Text = discordId;
                                 SaveSettings();
                                 ResetDiscordButton();
+                                WriteLog($"Successfully authenticated with Discord. ID: {discordId}");
                             });
                         }
                     }
@@ -743,6 +754,7 @@ namespace ClippingTools.app
                 ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
                 ServerStatusText.Text = "Connected";
                 isReconnecting = false;
+                WriteLog("Connected to the central server.");
 
                 await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
                 AskServerToResolveNames();
@@ -775,6 +787,7 @@ namespace ClippingTools.app
             ServerStatusText.Text = "Disconnected";
             CurrentVcText.Visibility = Visibility.Collapsed;
             VcUsersPanel.Visibility = Visibility.Collapsed;
+            WriteLog("Disconnected from the central server.");
         }
 
         private async Task SendWsMessage(object payload)
@@ -817,6 +830,7 @@ namespace ClippingTools.app
 
                                 if (ApprovedUsers.Any(u => u.Id == senderId))
                                 {
+                                    WriteLog($"Received remote clip command from user {senderId}.");
                                     await ReceiveNetworkClipCommand();
                                 }
                             }
@@ -931,6 +945,7 @@ namespace ClippingTools.app
         private async void TriggerAutoReconnect()
         {
             if (!isSyncActive || isReconnecting) return;
+            WriteLog("Connection lost. Attempting to reconnect...");
             isReconnecting = true;
             int currentDelay = 0;
 
@@ -980,6 +995,8 @@ namespace ClippingTools.app
 
                     if (currentDelay == 0) currentDelay = 5;
                     else if (currentDelay < 30) currentDelay += 5;
+
+                    WriteLog($"Reconnect attempt failed. Waiting {currentDelay} seconds before next attempt.");
                 }
             }
         }
@@ -1023,6 +1040,7 @@ namespace ClippingTools.app
 
         private async void OnClipTriggered(object sender, HotkeyEventArgs e)
         {
+            WriteLog($"Triggered a local clip command.");
             if (SendClipsCheck.IsChecked == true)
             {
                 await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
@@ -1086,7 +1104,7 @@ namespace ClippingTools.app
         }
 
         // ==============================================================================
-        // UI NAVIGATION & UPDATER LOGIC BELOW
+        // UI & UPDATER
         // ==============================================================================
 
         private void ResetNavBackgrounds()
@@ -1097,14 +1115,80 @@ namespace ClippingTools.app
             NavSettingsBtn.Background = darkBg;
             NavExtrasBtn.Background = darkBg;
             NavUpdateBtn.Background = darkBg;
+            NavLogsBtn.Background = darkBg;
             NavHelpBtn.Background = darkBg;
+        }
+
+        private void NavLogsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 5;
+            ResetNavBackgrounds();
+            NavLogsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
 
         private void NavHelpBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 5;
+            MainContent.SelectedIndex = 6;
             ResetNavBackgrounds();
             NavHelpBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+        }
+
+        private string logFilePath => System.IO.Path.Combine(configFolder, "app.log");
+
+        private void WriteLog(string message)
+        {
+            if (!isLoaded) return;
+
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string logEntry = $"[{timestamp}] {message}";
+
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    if (EnableLoggingCheck.IsChecked == true)
+                    {
+                        if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+
+                        List<string> lines = new List<string>();
+                        if (File.Exists(logFilePath))
+                            lines = File.ReadAllLines(logFilePath).ToList();
+
+                        lines.Add(logEntry);
+
+                        int maxLines = 1000;
+                        if (int.TryParse(MaxLogLinesInput.Text, out int parsed)) maxLines = parsed;
+
+                        if (lines.Count > maxLines)
+                            lines = lines.Skip(lines.Count - maxLines).ToList();
+
+                        File.WriteAllLines(logFilePath, lines);
+                    }
+
+                    LogOutputText.AppendText(logEntry + Environment.NewLine);
+                    LogOutputText.ScrollToEnd();
+                }
+                catch { }
+            });
+        }
+
+        private void LoadLogFile()
+        {
+            try
+            {
+                if (File.Exists(logFilePath))
+                {
+                    LogOutputText.Text = File.ReadAllText(logFilePath) + (File.ReadAllText(logFilePath).EndsWith(Environment.NewLine) ? "" : Environment.NewLine);
+                    LogOutputText.ScrollToEnd();
+                }
+            }
+            catch { }
+        }
+
+        private void EnableLoggingCheck_Click(object sender, RoutedEventArgs e)
+        {
+            LogLinesPanel.Visibility = (EnableLoggingCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
+            SaveSettings();
         }
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
@@ -1232,6 +1316,7 @@ namespace ClippingTools.app
 
                             if (needsRestart)
                             {
+                                WriteLog("OBS crash detected in log file. Attempting to restart OBS...");
                                 foreach (var p in Process.GetProcessesByName("obs64")) { try { p.Kill(); } catch { } }
                                 foreach (var p in Process.GetProcessesByName("obs-ffmpeg-mux")) { try { p.Kill(); } catch { } }
 
@@ -1262,8 +1347,12 @@ objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimi
                                     File.WriteAllText(vbsPath, vbsCode);
 
                                     Process.Start("explorer.exe", $"\"{vbsPath}\"");
+                                    WriteLog("Successfully restarted OBS.");
                                 }
-                                catch { }
+                                catch (Exception ex)
+                                {
+                                    WriteLog($"Failed to restart OBS: {ex.Message}");
+                                }
 
                                 await Task.Delay(10000, token);
                             }
@@ -1364,6 +1453,7 @@ objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimi
 
         private async void PerformUpdateBtn_Click(object sender, RoutedEventArgs e)
         {
+            WriteLog($"Starting download for update {LatestVersionText.Text}.");
             PerformUpdateBtn.IsEnabled = false;
             PerformUpdateBtn.Content = "Downloading...";
             UpdateProgressBar.Visibility = Visibility.Visible;
@@ -1510,6 +1600,7 @@ del ""%~f0""
                 if (!ApprovedUsers.Any(u => u.Id == id))
                 {
                     ApprovedUsers.Add(new DiscordItem { Id = id, DisplayName = id });
+                    WriteLog($"Added user {id} to Approved Users.");
                     itemsAdded = true;
                 }
             }
@@ -1533,6 +1624,7 @@ del ""%~f0""
                 if (result == MessageBoxResult.Yes)
                 {
                     ApprovedUsers.Remove(itemToRemove);
+                    WriteLog($"Removed user {itemToRemove.DisplayName} from Approved Users.");
                     SaveSettings();
                     SyncApprovedUsersToServer();
                 }
@@ -1576,6 +1668,7 @@ del ""%~f0""
                 if (!ApprovedChannels.Any(c => c.Id == id))
                 {
                     ApprovedChannels.Add(new DiscordItem { Id = id, DisplayName = id });
+                    WriteLog($"Added channel {id} to Approved Channels.");
                     itemsAdded = true;
                 }
             }
@@ -1592,7 +1685,12 @@ del ""%~f0""
             if (itemToRemove != null)
             {
                 MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{itemToRemove.DisplayName}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes) { ApprovedChannels.Remove(itemToRemove); SaveSettings(); }
+                if (result == MessageBoxResult.Yes)
+                {
+                    ApprovedChannels.Remove(itemToRemove);
+                    WriteLog($"Removed channel {itemToRemove.DisplayName} from Approved Channels.");
+                    SaveSettings();
+                }
             }
         }
 
@@ -1681,6 +1779,8 @@ del ""%~f0""
 
     public class AppSettings
     {
+        public bool EnableLogging { get; set; } = true;
+        public int MaxLogLines { get; set; } = 1000;
         public string AppUuid { get; set; } = "";
         public bool AutoRestartObs { get; set; } = false;
         public int ObsCheckInterval { get; set; } = 5;

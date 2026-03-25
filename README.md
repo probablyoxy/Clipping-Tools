@@ -23,7 +23,7 @@ Follow this basic setup to get connected:
 * Go to the **Home** tab and press **Activate Syncing**. This connects you to the routing network and allows you to start syncing clips! 
 * *Optional QoL:* You can also enable **Sync Automatically** to connect as soon as the app launches, and **Start with Windows** to have the app launch silently with your PC.
 
-### 4. Build Your Roster
+### 4. Build Your Friends List
 * Go back to the **Discord** tab and press **Select Users**. 
 * Choose the people you wish to send and receive clip commands from (or manually enter their Discord ID). 
 * **Important:** It must be mutual! You and your friend must have each other in your respective lists. The app will not accept commands from users outside your list, and it will not send commands to users outside of your list either.

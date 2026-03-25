@@ -21,6 +21,7 @@
             <Button x:Name="NavSettingsBtn" Content="Settings" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSettingsBtn_Click"/>
             <Button x:Name="NavExtrasBtn" Content="Extras" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavExtrasBtn_Click"/>
             <Button x:Name="NavUpdateBtn" Content="Update" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavUpdateBtn_Click"/>
+            <Button x:Name="NavLogsBtn" Content="Logs" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavLogsBtn_Click"/>
             <Button x:Name="NavHelpBtn" Content="Help" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavHelpBtn_Click"/>
         </StackPanel>
 
@@ -251,6 +252,26 @@
             </TabItem>
 
             <TabItem>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="Action Logs" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+                        <CheckBox x:Name="EnableLoggingCheck" Content="Enable Action Logging" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="EnableLoggingCheck_Click"/>
+                        <StackPanel x:Name="LogLinesPanel" Orientation="Horizontal" Margin="0,0,0,15">
+                            <TextBlock Text="Max lines to keep:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox x:Name="MaxLogLinesInput" Text="1000" Width="60" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBox x:Name="LogOutputText" Grid.Row="1" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10" FontFamily="Consolas" Padding="5"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
                     <StackPanel>
                         <TextBlock Text="Clipping Tools" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,0,0,10"/>
@@ -316,7 +337,7 @@
                             <Run Text=" to have the app launch silently with your PC."/>
                         </TextBlock>
 
-                        <TextBlock Text="4. Build Your Roster" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Text="4. Build Your Friends List" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
                         <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="15,0,0,20" FontSize="14">
                             <Run Text="• Go back to the "/>
                             <Run FontWeight="Bold" Foreground="White" Text="Discord"/>
