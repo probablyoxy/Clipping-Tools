@@ -322,6 +322,94 @@ namespace ClippingTools.app
         }
 
         // ==============================================================================
+        // IMPORT, EXPORT, AND UUID MANAGEMENT
+        // ==============================================================================
+
+        private void ImportSettingsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (isSyncActive)
+            {
+                MessageBox.Show("You cannot import settings while actively syncing. Please disconnect first.", "Sync Active", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "JSON Files (*.json)|*.json";
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    string json = File.ReadAllText(openFileDialog.FileName);
+                    var testSettings = JsonSerializer.Deserialize<AppSettings>(json);
+
+                    if (testSettings == null || testSettings.AppUuid == null)
+                    {
+                        MessageBox.Show("Invalid settings file format.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    File.Copy(openFileDialog.FileName, configFilePath, true);
+                    LoadSettings();
+                    MessageBox.Show("Settings imported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to read the settings file: " + ex.Message, "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void ExportSettingsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBoxResult result = MessageBox.Show(
+                "WARNING: This settings file contains your App UUID and Discord ID. Anyone with this file can connect as you and trigger clips on your behalf. Keep it safe!\n\nDo you want to proceed with exporting?",
+                "Security Warning", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                SaveSettings();
+
+                SaveFileDialog saveFileDialog = new SaveFileDialog();
+                saveFileDialog.Filter = "JSON Files (*.json)|*.json";
+                saveFileDialog.FileName = "ClippingTools_Settings.json";
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    try
+                    {
+                        File.Copy(configFilePath, saveFileDialog.FileName, true);
+                        MessageBox.Show("Settings exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Failed to export settings: " + ex.Message, "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+
+        private void ResetUuidBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (isSyncActive)
+            {
+                MessageBox.Show("You cannot reset your UUID while actively syncing. Please disconnect first.", "Sync Active", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            MessageBoxResult result = MessageBox.Show(
+                "Are you sure you want to reset your App UUID? This will unlink your app from the network. You will need to reverify it via Discord DM on your next connection.",
+                "Confirm Reset", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                appUuid = Guid.NewGuid().ToString();
+                SaveSettings();
+                MessageBox.Show("UUID has been reset. Please re-authenticate the next time you connect.", "UUID Reset", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // ==============================================================================
         // DISCORD OAUTH2 SIGN-IN LOGIC
         // ==============================================================================
 

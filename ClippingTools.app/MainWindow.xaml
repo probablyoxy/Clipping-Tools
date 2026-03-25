@@ -161,7 +161,13 @@
 
             <TabItem>
                 <StackPanel>
-                    <TextBlock Text="Settings" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+                    <Grid Margin="0,0,0,20">
+                        <TextBlock Text="Settings" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button x:Name="ImportSettingsBtn" Content="Import" Background="#4f545c" Foreground="White" BorderThickness="0" Width="60" Height="25" Margin="0,0,10,0" Click="ImportSettingsBtn_Click"/>
+                            <Button x:Name="ExportSettingsBtn" Content="Export" Background="#4f545c" Foreground="White" BorderThickness="0" Width="60" Height="25" Click="ExportSettingsBtn_Click"/>
+                        </StackPanel>
+                    </Grid>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -205,6 +211,9 @@
                     <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Alt+F10" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225"/>
                     <TextBlock Text="Software Clip Keybind (Click each box and press ONE key at a time. Press Esc to clear):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
                     <WrapPanel x:Name="ClipKeyPanel" Margin="0,0,0,20" Orientation="Horizontal"/>
+
+                    <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
+                    <Button x:Name="ResetUuidBtn" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
                 </StackPanel>
             </TabItem>
 

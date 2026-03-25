@@ -216,13 +216,13 @@ async def handle_client(websocket):
         print(f"[Error] {e}")
     finally:
             if user_id:
-                if user_id in active_connections:
+                if user_id in active_connections and active_connections[user_id] == websocket:
                     del active_connections[user_id]
                     del user_approved_lists[user_id]
                     print(f"[Desktop] User {user_id} disconnected.")
                     broadcast_vc_updates()
                             
-                if user_id in unverified_connections:
+                if user_id in unverified_connections and unverified_connections[user_id]["ws"] == websocket:
                     del unverified_connections[user_id]
                     print(f"[Desktop] Unverified User {user_id} disconnected.")
             elif is_bot:
