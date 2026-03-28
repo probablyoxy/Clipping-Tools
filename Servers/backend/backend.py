@@ -200,7 +200,8 @@ async def handle_client(websocket):
                     continue
 
                 sender_channel = sender_data.get("id")
-                print(f"[Desktop] User {user_id} triggered a clip in VC {sender_channel}.")
+                sender_name = sender_data.get("user_name", "Unknown User")
+                print(f"[Desktop] User {user_id} ({sender_name}) triggered a clip in VC {sender_channel}.")
 
                 for target_user, c_data in vc_map.items():
                     if c_data.get("id") == sender_channel and target_user != user_id:
@@ -212,7 +213,8 @@ async def handle_client(websocket):
                                 "sender_id": user_id
                             }
                             await target_ws.send(json.dumps(payload))
-                            print(f"[Router] Sent clip signal from {user_id} -> {target_user}")
+                            target_name = c_data.get("user_name", "Unknown User")
+                            print(f"[Router] Sent clip signal from {user_id} ({sender_name}) -> {target_user} ({target_name})")
 
 
             # ==========================================

@@ -827,9 +827,10 @@ namespace ClippingTools.app
                             {
                                 string senderId = doc.RootElement.GetProperty("sender_id").GetString();
 
-                                if (ApprovedUsers.Any(u => u.Id == senderId))
+                                var matchedUser = ApprovedUsers.FirstOrDefault(u => u.Id == senderId);
+                                if (matchedUser != null)
                                 {
-                                    WriteLog($"Received remote clip command from user {senderId}.");
+                                    WriteLog($"Received remote clip command from user {senderId} ({matchedUser.DisplayName}).");
                                     await ReceiveNetworkClipCommand();
                                 }
                             }
@@ -1130,6 +1131,11 @@ namespace ClippingTools.app
             MainContent.SelectedIndex = 5;
             ResetNavBackgrounds();
             NavLogsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+
+            LogOutputText.Dispatcher.BeginInvoke(new Action(() => {
+                LogOutputText.CaretIndex = LogOutputText.Text.Length;
+                LogOutputText.ScrollToEnd();
+            }), System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private void NavHelpBtn_Click(object sender, RoutedEventArgs e)
@@ -1706,6 +1712,12 @@ del ""%~f0""
 
         private async void OpenSelectUsersBtn_Click(object sender, RoutedEventArgs e)
         {
+            if (webSocket == null || webSocket.State != WebSocketState.Open)
+            {
+                MessageBox.Show("You must be connected to the network to view and search for users.\n\nPlease go to the Home tab and click 'Activate Syncing' first.", "Not Connected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             SelectUsersOverlay.Visibility = Visibility.Visible;
             SelectUsersTitle.Text = "Select Users (Fetching...)";
             SearchUsersInput.Text = "";
@@ -1718,14 +1730,7 @@ del ""%~f0""
                 Keyboard.Focus(SearchUsersInput);
             }), System.Windows.Threading.DispatcherPriority.Input);
 
-            if (webSocket != null && webSocket.State == WebSocketState.Open)
-            {
-                await SendWsMessage(new { action = "get_all_users", client_id = DiscordIdInput.Text });
-            }
-            else
-            {
-                SelectUsersTitle.Text = "Select Users (Offline)";
-            }
+            await SendWsMessage(new { action = "get_all_users", client_id = DiscordIdInput.Text });
         }
 
         private void CloseSelectUsersBtn_Click(object sender, RoutedEventArgs e)
