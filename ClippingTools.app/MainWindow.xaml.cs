@@ -163,6 +163,33 @@ namespace ClippingTools.app
         // INSTANT SAVE / LOAD SYSTEM
         // ==============================================================================
 
+        private bool IsKeybindCollision(string triggerStr, List<string> clipKeys)
+        {
+            if (string.IsNullOrWhiteSpace(triggerStr) || clipKeys == null || clipKeys.Count == 0) return false;
+
+            bool tCtrl = triggerStr.Contains("Ctrl");
+            bool tAlt = triggerStr.Contains("Alt");
+            bool tShift = triggerStr.Contains("Shift");
+
+            string[] tParts = triggerStr.Split('+');
+            string tKey = tParts.LastOrDefault() ?? "";
+            if (tKey == "Ctrl" || tKey == "Alt" || tKey == "Shift") tKey = "";
+
+            bool cCtrl = clipKeys.Any(k => k.Contains("Ctrl"));
+            bool cAlt = clipKeys.Any(k => k.Contains("Alt") || k == "System");
+            bool cShift = clipKeys.Any(k => k.Contains("Shift"));
+
+            var cMainKeys = clipKeys.Where(k => !k.Contains("Ctrl") && !k.Contains("Alt") && !k.Contains("Shift") && k != "System" && k != "None").ToList();
+
+            if (tCtrl == cCtrl && tAlt == cAlt && tShift == cShift)
+            {
+                if (cMainKeys.Count == 0 && string.IsNullOrEmpty(tKey)) return true;
+                if (cMainKeys.Any(k => string.Equals(k, tKey, StringComparison.OrdinalIgnoreCase))) return true;
+            }
+
+            return false;
+        }
+
         private void LoadSettings()
         {
             if (!File.Exists(configFilePath))
@@ -232,12 +259,23 @@ namespace ClippingTools.app
             }
             catch { }
 
+            if (IsKeybindCollision(TriggerKeyInput.Text, ClipKeysList))
+            {
+                TriggerKeyInput.Text = "";
+                WriteLog("[Security] Trigger keybind wiped on startup due to collision with Software Clip keybind.");
+            }
+
             RebuildClipKeyUI();
         }
 
         private void SaveSettings()
         {
             if (!isLoaded) return;
+
+            if (IsKeybindCollision(TriggerKeyInput.Text, ClipKeysList))
+            {
+                TriggerKeyInput.Text = "";
+            }
 
             if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
 
@@ -661,6 +699,17 @@ namespace ClippingTools.app
             if (key == Key.None) return;
 
             string keyStr = key.ToString();
+
+            List<string> testList = new List<string>(ClipKeysList);
+            if (index < testList.Count) testList[index] = keyStr;
+            else testList.Add(keyStr);
+
+            if (IsKeybindCollision(TriggerKeyInput.Text, testList))
+            {
+                MessageBox.Show("You cannot set the Software Clip Keybind to be the exact same as the Trigger Keybind!", "Keybind Collision", MessageBoxButton.OK, MessageBoxImage.Error);
+                Keyboard.ClearFocus();
+                return;
+            }
 
             if (index < ClipKeysList.Count)
             {
@@ -1566,6 +1615,13 @@ del ""%~f0""
                 key != Key.LeftShift && key != Key.RightShift &&
                 key != Key.System)
             {
+                TextBox tb = sender as TextBox;
+                if (tb == TriggerKeyInput && IsKeybindCollision(tb.Text, ClipKeysList))
+                {
+                    tb.Text = "";
+                    MessageBox.Show("You cannot set the Trigger Keybind to be the exact same as the Software Clip Keybind!", "Keybind Collision", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
                 Keyboard.ClearFocus();
                 SaveSettings();
 
@@ -1575,8 +1631,7 @@ del ""%~f0""
                 }
                 else
                 {
-                    TextBox tb = sender as TextBox;
-                    if (tb == TriggerKeyInput) TestTriggerKeyAvailability(tb.Text);
+                    if (tb == TriggerKeyInput && !string.IsNullOrEmpty(tb.Text)) TestTriggerKeyAvailability(tb.Text);
                 }
             }
         }
