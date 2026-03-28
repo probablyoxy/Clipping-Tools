@@ -281,10 +281,18 @@
                         </TextBlock>
                         <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="0,0,0,25" FontSize="14">
                             <Run Text="By linking with my Discord bot, "/>
-                            <Hyperlink NavigateUri="https://oxy.pizza/polandbot" RequestNavigate="Hyperlink_RequestNavigate" TextDecorations="None">
-                                <Run FontWeight="Bold" Foreground="#5865F2" Text="poland bot#2120"/>
+                            <Hyperlink NavigateUri="https://oxy.pizza/clippingtools/invite" RequestNavigate="Hyperlink_RequestNavigate" TextDecorations="None">
+                                <Run FontWeight="Bold" Foreground="#5865F2" Text="Clipping Tools#8377"/>
                             </Hyperlink>
                             <Run Text=", the app watches your active voice channels to see who you are talking with. When you hit your clip button and send the signal, it instantly distributes it to everyone connected in your VC, triggering their software to record at the exact same time. Now you can capture everyone's perspective of the same moment, no matter what!"/>
+                            <LineBreak/>
+                            <Run FontStyle="Italic" Text="Authorize Bot for DM:"/>
+                            <Run Text="You can authorize the bot to DM you"/>
+                            <Hyperlink NavigateUri="https://oxy.pizza/clippingtools/authorize" RequestNavigate="Hyperlink_RequestNavigate" TextDecorations="None">
+                                <Run FontWeight="Bold" Foreground="#5865F2" Text="here"/>
+                            </Hyperlink>
+                            <Run Text="."/>
+                            
                         </TextBlock>
 
                         <TextBlock Text="Getting Started" Foreground="White" FontSize="22" FontWeight="Bold" Margin="0,0,0,10"/>
