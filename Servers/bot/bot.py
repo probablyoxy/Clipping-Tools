@@ -4,6 +4,7 @@ import websockets
 import json
 import os
 import sys
+import time
 
 CONFIG_FILE = "config.json"
 if os.path.exists(CONFIG_FILE):
@@ -21,6 +22,7 @@ intents.members = True
 
 bot = discord.Client(intents=intents)
 ws_connection = None
+assigned_guilds = set()
 
 class LinkAppView(discord.ui.View):
     def __init__(self, user_id, app_uuid):
@@ -47,6 +49,23 @@ class LinkAppView(discord.ui.View):
         else:
             await interaction.response.send_message("Bot is currently disconnected from the server. Try again later.", ephemeral=True)
 
+async def send_guild_sync():
+    if not ws_connection: return
+    guild_data = {}
+    for guild in bot.guilds:
+        has_admin = guild.me.guild_permissions.administrator
+        vc_count = sum(1 for c in guild.voice_channels if c.permissions_for(guild.me).view_channel)
+        guild_data[str(guild.id)] = {"has_admin": has_admin, "vc_count": vc_count}
+    
+    try:
+        await ws_connection.send(json.dumps({
+            "action": "bot_guild_sync",
+            "bot_id": BOT_SECRET_ID,
+            "guilds": guild_data
+        }))
+    except Exception as e:
+        print(f"[Bot] Failed to send guild sync: {e}")
+
 async def connect_to_router():
     global ws_connection
     while True:
@@ -56,6 +75,8 @@ async def connect_to_router():
                 print("[Bot] Successfully connected to Central Router!")
 
                 await ws.send(json.dumps({"action": "bot_identify", "bot_id": BOT_SECRET_ID}))
+
+                await send_guild_sync()
 
                 while True:
                     msg = await ws.recv()
@@ -88,9 +109,10 @@ async def connect_to_router():
                             "channels": resolved_channels
                         }))
 
-                    elif data.get("action") == "request_link":
+                    elif data.get("action") == "try_dm_link":
                         user_id = data.get("user_id")
                         app_uuid = data.get("app_uuid")
+                        success = False
                         
                         try:
                             user = bot.get_user(int(user_id)) or await bot.fetch_user(int(user_id))
@@ -102,8 +124,15 @@ async def connect_to_router():
                                 )
                                 view = LinkAppView(user_id, app_uuid)
                                 await user.send(embed=embed, view=view)
+                                success = True
                         except Exception as e:
                             print(f"[Bot] Could not DM user {user_id}: {e}")
+                            
+                        await ws.send(json.dumps({
+                            "action": "dm_result",
+                            "user_id": user_id,
+                            "success": success
+                        }))
 
                     elif data.get("action") == "get_all_users":
                         client_id = data.get("client_id")
@@ -118,6 +147,11 @@ async def connect_to_router():
                             "client_id": client_id,
                             "users": all_users
                         }))
+                        
+                    elif data.get("action") == "assign_guilds":
+                        global assigned_guilds
+                        assigned_guilds = set(data.get("guild_ids", []))
+                        print(f"[Bot] Assigned to monitor {len(assigned_guilds)} servers exclusively.")
 
         except Exception as e:
             ws_connection = None
@@ -130,9 +164,28 @@ async def on_ready():
     bot.loop.create_task(connect_to_router())
 
 @bot.event
+async def on_guild_join(guild):
+    print(f"[Bot] Joined new server: {guild.name}. Syncing with router...")
+    await send_guild_sync()
+
+@bot.event
+async def on_guild_remove(guild):
+    print(f"[Bot] Left server: {guild.name}. Syncing with router...")
+    await send_guild_sync()
+
+@bot.event
+async def on_member_update(before, after):
+    if before.id == bot.user.id and before.roles != after.roles:
+        await send_guild_sync()
+
+@bot.event
 async def on_voice_state_update(member, before, after):
     if not ws_connection:
         return 
+        
+    guild_id = str(member.guild.id)
+    if guild_id not in assigned_guilds:
+        return
     
     if before.channel == after.channel:
         return
@@ -144,7 +197,8 @@ async def on_voice_state_update(member, before, after):
         "user_id": str(member.id),
         "user_name": member.display_name,
         "channel_id": channel_id,
-        "channel_name": after.channel.name if after.channel else None
+        "channel_name": after.channel.name if after.channel else None,
+        "timestamp": time.time()
     }
     
     try:

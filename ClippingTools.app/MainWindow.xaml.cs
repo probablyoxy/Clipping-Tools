@@ -60,7 +60,7 @@ namespace ClippingTools.app
         private bool isLoaded = false;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.4";
+        private const string AppVersion = "v0.1.5";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -109,7 +109,6 @@ namespace ClippingTools.app
             channelView.LiveSortingProperties.Add("DisplayName");
             channelView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
 
-            // Keeps the overlay menu alphabetized
             var allUserView = (ListCollectionView)CollectionViewSource.GetDefaultView(AllVisibleUsers);
             allUserView.IsLiveSorting = true;
             allUserView.LiveSortingProperties.Add("DisplayName");
@@ -863,6 +862,13 @@ namespace ClippingTools.app
                                         RawFetchedUsers.Add(new DiscordItem { Id = prop.Name, DisplayName = prop.Value.GetString() });
                                     }
                                     FilterUserList();
+                                });
+                            }
+                            else if (action == "dm_verification_failed")
+                            {
+                                Dispatcher.Invoke(() => {
+                                    MessageBox.Show("We could not send you a DM to verify your app!\n\nPlease ensure your DMs are open, or authorize the bot directly by going to:\nhttps://oxy.pizza/clippingtools/authorize\n\nAfter authorizing, click 'Activate Syncing' to try connecting again.", "Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                                    StopListening();
                                 });
                             }
                             else if (action == "client_vc_update")

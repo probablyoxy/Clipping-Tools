@@ -22,18 +22,77 @@ if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as f:
         config = json.load(f)
         ALLOWED_BOT_IDS = config.get("ALLOWED_BOT_IDS", [])
+        PREFERRED_BOT_ID = config.get("PREFERRED_BOT_ID", "")
 else:
     print("[Warning] config.json not found! Bots will not be able to authenticate.")
     ALLOWED_BOT_IDS = []
+    PREFERRED_BOT_ID = ""
 
 active_connections = {} 
 unverified_connections = {}
+pending_dm_requests = {}
 
 user_approved_lists = {}
 
 vc_map = {} 
+user_vc_timestamps = {}
 
-active_bots = set()
+active_bots = {}
+bot_guild_stats = {}
+
+async def assign_guilds_to_bots():
+    guild_candidates = {}
+    for ws, data in bot_guild_stats.items():
+        bot_id = data["bot_id"]
+        for g_id, g_stats in data["guilds"].items():
+            if g_id not in guild_candidates: guild_candidates[g_id] = []
+            guild_candidates[g_id].append({
+                "ws": ws,
+                "has_admin": g_stats["has_admin"],
+                "vc_count": g_stats["vc_count"],
+                "bot_id": bot_id
+            })
+
+    bot_assignments = {ws: [] for ws in bot_guild_stats.keys()}
+
+    for g_id, candidates in guild_candidates.items():
+        def sort_key(c):
+            is_pref = 1 if c["bot_id"] == PREFERRED_BOT_ID else 0
+            has_adm = 1 if c["has_admin"] else 0
+            return (has_adm, c["vc_count"], is_pref)
+
+        candidates.sort(key=sort_key, reverse=True)
+        winner = candidates[0]
+        bot_assignments[winner["ws"]].append(g_id)
+
+    for ws, g_ids in bot_assignments.items():
+        try:
+            asyncio.create_task(ws.send(json.dumps({
+                "action": "assign_guilds",
+                "guild_ids": g_ids
+            })))
+        except: pass
+
+async def try_next_dm_bot(user_id):
+    req = pending_dm_requests.get(user_id)
+    if not req: return
+    
+    if not req["bots_to_try"]:
+        try: await req["desktop_ws"].send(json.dumps({"action": "dm_verification_failed"}))
+        except: pass
+        if user_id in pending_dm_requests:
+            del pending_dm_requests[user_id]
+        return
+        
+    next_bot_ws = req["bots_to_try"].pop(0)
+    try:
+        await next_bot_ws.send(json.dumps({
+            "action": "try_dm_link",
+            "user_id": user_id,
+            "app_uuid": req["app_uuid"]
+        }))
+    except:
+        await try_next_dm_bot(user_id)
 
 def broadcast_vc_updates():
     for client_id, ws in list(active_connections.items()):
@@ -96,14 +155,20 @@ async def handle_client(websocket):
                 else:
                     unverified_connections[user_id] = {"ws": websocket, "approved_users": approved_users}
                     print(f"[Desktop] User {user_id} connected with unverified UUID. Requesting bot link.")
-                    for bot_ws in list(active_bots):
-                        try:
-                            await bot_ws.send(json.dumps({
-                                "action": "request_link",
-                                "user_id": user_id,
-                                "app_uuid": app_uuid
-                            }))
-                        except: pass
+                    
+                    pref_ws = None
+                    other_ws = []
+                    for b_ws, b_id in active_bots.items():
+                        if b_id == PREFERRED_BOT_ID: pref_ws = b_ws
+                        else: other_ws.append(b_ws)
+                    
+                    bots_to_try = ([pref_ws] if pref_ws else []) + other_ws
+                    pending_dm_requests[user_id] = {
+                        "app_uuid": app_uuid,
+                        "bots_to_try": bots_to_try,
+                        "desktop_ws": websocket
+                    }
+                    asyncio.create_task(try_next_dm_bot(user_id))
 
             elif action == "update_users":
                 if user_id:
@@ -112,12 +177,12 @@ async def handle_client(websocket):
                     broadcast_vc_updates()
 
             elif action == "resolve_ids":
-                for bot_ws in list(active_bots):
+                for bot_ws in list(active_bots.keys()):
                     try: await bot_ws.send(message)
                     except: pass
 
             elif action == "get_all_users":
-                for bot_ws in list(active_bots):
+                for bot_ws in list(active_bots.keys()):
                     try: await bot_ws.send(message)
                     except: pass
 
@@ -174,10 +239,28 @@ async def handle_client(websocket):
                 bot_id = data.get("bot_id")
                 if bot_id in ALLOWED_BOT_IDS:
                     is_bot = True
-                    active_bots.add(websocket)
+                    active_bots[websocket] = bot_id
                     print(f"[Bot] A Discord Bot authenticated with ID: {bot_id}")
                 else:
                     print(f"[Security] Rejected bot connection with invalid ID: {bot_id}")
+
+            elif action == "bot_guild_sync":
+                if websocket not in active_bots: continue
+                bot_id = data.get("bot_id")
+                guilds = data.get("guilds", {})
+                bot_guild_stats[websocket] = {"bot_id": bot_id, "guilds": guilds}
+                print(f"[Router] Synced {len(guilds)} guilds for bot {bot_id}")
+                await assign_guilds_to_bots()
+
+            elif action == "dm_result":
+                if websocket not in active_bots: continue
+                target_user = data.get("user_id")
+                success = data.get("success")
+                if success:
+                    if target_user in pending_dm_requests:
+                        del pending_dm_requests[target_user]
+                else:
+                    asyncio.create_task(try_next_dm_bot(target_user))
 
             elif action == "resolved_ids":
                 if websocket not in active_bots: continue
@@ -198,15 +281,29 @@ async def handle_client(websocket):
                 target_user = data.get("user_id")
                 channel_id = data.get("channel_id")
                 channel_name = data.get("channel_name")
-
                 user_name = data.get("user_name", "Unknown User")
+                event_ts = data.get("timestamp", 0)
+                
+                last_ts = user_vc_timestamps.get(target_user, 0)
+                
+                if event_ts < last_ts:
+                    continue
+                    
+                user_vc_timestamps[target_user] = event_ts
+                
                 if channel_id:
+                    current = vc_map.get(target_user)
+                    if current and current.get("id") == channel_id:
+                        continue
+                        
                     vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name}
                     print(f"[Bot Update] {target_user} ({user_name}) joined VC {channel_name}.")
                 else:
                     if target_user in vc_map:
                         del vc_map[target_user]
-                    print(f"[Bot Update] {target_user} left VC.")
+                        print(f"[Bot Update] {target_user} left VC.")
+                    else:
+                        continue
                 
                 broadcast_vc_updates()
 
@@ -227,7 +324,10 @@ async def handle_client(websocket):
                     print(f"[Desktop] Unverified User {user_id} disconnected.")
             elif is_bot:
                 if websocket in active_bots:
-                    active_bots.remove(websocket)
+                    del active_bots[websocket]
+                if websocket in bot_guild_stats:
+                    del bot_guild_stats[websocket]
+                    asyncio.create_task(assign_guilds_to_bots())
                 print("[Bot] A Discord Bot disconnected.")
 
 async def main():
