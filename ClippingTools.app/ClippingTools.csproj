@@ -27,4 +27,13 @@
 		<Using Remove="System.Drawing" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="sounds\clipped.wav">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="sounds\clippedteto.wav">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

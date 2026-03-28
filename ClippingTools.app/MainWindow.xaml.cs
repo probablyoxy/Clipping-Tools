@@ -56,8 +56,10 @@ namespace ClippingTools.app
 
         private readonly string configFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
         private string configFilePath => System.IO.Path.Combine(configFolder, "settings.json");
+        private string soundsFolder => System.IO.Path.Combine(configFolder, "sounds");
 
         private bool isLoaded = false;
+        private DateTime lastClipTime = DateTime.MinValue;
 
         // CHANGE WHEN UPDATE :)
         private const string AppVersion = "v0.1.5";
@@ -135,6 +137,7 @@ namespace ClippingTools.app
             }
 
             _ = CheckForUpdatesAsync(true);
+            _ = EnforceObsStartOnLaunch();
         }
 
         private void SetupTrayIcon()
@@ -192,6 +195,20 @@ namespace ClippingTools.app
 
         private void LoadSettings()
         {
+            if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string[] builtInSounds = { "clipped.wav", "clippedteto.wav" };
+            foreach (var s in builtInSounds)
+            {
+                string source = System.IO.Path.Combine(baseDir, "sounds", s);
+                string dest = System.IO.Path.Combine(soundsFolder, s);
+                if (File.Exists(source) && !File.Exists(dest))
+                {
+                    try { File.Copy(source, dest); } catch { }
+                }
+            }
+
             if (!File.Exists(configFilePath))
             {
                 appUuid = Guid.NewGuid().ToString();
@@ -220,6 +237,8 @@ namespace ClippingTools.app
 
                     AutoSyncCheck.IsChecked = settings.AutoSync;
                     StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
+                    RateLimitInput.Text = settings.RateLimitSeconds >= 0 ? settings.RateLimitSeconds.ToString() : "10";
+                    AutoStartObsCheck.IsChecked = settings.AutoStartObs;
                     AutoRestartObsCheck.IsChecked = settings.AutoRestartObs;
                     ObsIntervalInput.Text = settings.ObsCheckInterval > 0 ? settings.ObsCheckInterval.ToString() : "5";
                     ObsIntervalPanel.Visibility = (AutoRestartObsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
@@ -291,6 +310,8 @@ namespace ClippingTools.app
 
                 AutoSync = AutoSyncCheck.IsChecked ?? false,
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
+                RateLimitSeconds = int.TryParse(RateLimitInput.Text, out int parsedLimit) && parsedLimit >= 0 ? parsedLimit : 10,
+                AutoStartObs = AutoStartObsCheck.IsChecked ?? false,
                 AutoRestartObs = AutoRestartObsCheck.IsChecked ?? false,
                 ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
 
@@ -580,7 +601,12 @@ namespace ClippingTools.app
 
         private void SystemSoundCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (isLoaded) { RadioSystemSound.IsChecked = true; SaveSettings(); }
+            if (isLoaded)
+            {
+                RadioSystemSound.IsChecked = true;
+                SaveSettings();
+                PlayAlertSound(forcePlay: true);
+            }
         }
 
         private void BrowseSoundBtn_Click(object sender, RoutedEventArgs e)
@@ -591,13 +617,14 @@ namespace ClippingTools.app
 
             if (openFileDialog.ShowDialog() == true)
             {
-                if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+                if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
                 string ext = System.IO.Path.GetExtension(openFileDialog.FileName);
-                string newFileName = "sound" + ext;
-                string destPath = System.IO.Path.Combine(configFolder, newFileName);
+                string newFileName = "custom_" + DateTime.Now.Ticks + ext;
+                string destPath = System.IO.Path.Combine(soundsFolder, newFileName);
                 File.Copy(openFileDialog.FileName, destPath, true);
                 CustomSoundPathInput.Text = newFileName;
                 SaveSettings();
+                PlayAlertSound(forcePlay: true);
             }
         }
 
@@ -609,7 +636,7 @@ namespace ClippingTools.app
 
             if (RadioCustomSound.IsChecked == true && !string.IsNullOrEmpty(CustomSoundPathInput.Text))
             {
-                string soundPath = System.IO.Path.Combine(configFolder, CustomSoundPathInput.Text);
+                string soundPath = System.IO.Path.Combine(soundsFolder, CustomSoundPathInput.Text);
                 if (File.Exists(soundPath))
                 {
                     customAudioPlayer.Open(new Uri(soundPath));
@@ -625,12 +652,25 @@ namespace ClippingTools.app
                 string sysSound = (SystemSoundCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
                 switch (sysSound)
                 {
-                    case "Asterisk": System.Media.SystemSounds.Asterisk.Play(); break;
-                    case "Beep": System.Media.SystemSounds.Beep.Play(); break;
-                    case "Hand": System.Media.SystemSounds.Hand.Play(); break;
-                    case "Question": System.Media.SystemSounds.Question.Play(); break;
-                    default: System.Media.SystemSounds.Exclamation.Play(); break;
+                    case "SimpleyViridian - Clipped":
+                        PlayIncludedSound("clipped.wav");
+                        break;
+                    case "SimpleyViridian - Clipped Teto":
+                        PlayIncludedSound("clippedteto.wav");
+                        break;
+                    case "Windows - Hand": System.Media.SystemSounds.Hand.Play(); break;
+                    case "Windows - Exclamation": System.Media.SystemSounds.Exclamation.Play(); break;
                 }
+            }
+        }
+
+        private void PlayIncludedSound(string fileName)
+        {
+            string path = System.IO.Path.Combine(soundsFolder, fileName);
+            if (File.Exists(path))
+            {
+                customAudioPlayer.Open(new Uri(path));
+                customAudioPlayer.Play();
             }
         }
 
@@ -1071,7 +1111,7 @@ namespace ClippingTools.app
         private void ShowHotkeyTakenWarning()
         {
             MessageBox.Show(
-                "Windows is blocking this Trigger Key because another app (like Shadowplay, OBS, or Discord) is already using it!\n\n" +
+                "Windows is blocking this Trigger Key because another app (like OBS, Medal, or Discord) is already using it!\n\n" +
                 "To fix this, either:\n" +
                 "1. Change your Trigger Key here to something else.\n" +
                 "OR\n" +
@@ -1094,8 +1134,28 @@ namespace ClippingTools.app
             catch { }
         }
 
+        private bool CanTriggerClip()
+        {
+            int limit = 10;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (int.TryParse(RateLimitInput.Text, out int parsed)) limit = parsed;
+            });
+
+            if ((DateTime.Now - lastClipTime).TotalSeconds < limit)
+            {
+                WriteLog($"Clip ignored. Rate limit active ({limit}s cooldown).");
+                return false;
+            }
+
+            lastClipTime = DateTime.Now;
+            return true;
+        }
+
         private async void OnClipTriggered(object sender, HotkeyEventArgs e)
         {
+            if (!CanTriggerClip()) return;
+
             WriteLog($"Triggered a local clip command.");
             if (SendClipsCheck.IsChecked == true)
             {
@@ -1107,6 +1167,8 @@ namespace ClippingTools.app
 
         public async Task ReceiveNetworkClipCommand()
         {
+            if (!CanTriggerClip()) return;
+
             await PerformSafeHardwareClip();
         }
 
@@ -1309,6 +1371,92 @@ namespace ClippingTools.app
             e.Handled = regex.IsMatch(e.Text);
         }
 
+        private string GetObsPath()
+        {
+            var runningObs = Process.GetProcessesByName("obs64");
+            if (runningObs.Length > 0)
+            {
+                try { return runningObs[0].MainModule.FileName; } catch { }
+            }
+
+            try
+            {
+                using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\OBS Studio"))
+                {
+                    if (key != null)
+                    {
+                        string path = key.GetValue("") as string;
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            string exePath = System.IO.Path.Combine(path, @"bin\64bit\obs64.exe");
+                            if (File.Exists(exePath)) return exePath;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            string[] commonPaths = {
+                @"C:\Program Files\obs-studio\bin\64bit\obs64.exe",
+                @"C:\Program Files (x86)\obs-studio\bin\64bit\obs64.exe",
+                @"C:\Program Files (x86)\Steam\steamapps\common\OBS Studio\bin\64bit\obs64.exe",
+                @"C:\SteamLibrary\steamapps\common\OBS Studio\bin\64bit\obs64.exe",
+                @"D:\SteamLibrary\steamapps\common\OBS Studio\bin\64bit\obs64.exe"
+            };
+
+            foreach (var p in commonPaths)
+            {
+                if (File.Exists(p)) return p;
+            }
+
+            return null;
+        }
+
+        private async Task EnforceObsStartOnLaunch()
+        {
+            if (AutoStartObsCheck.IsChecked != true) return;
+
+            string obsPath = GetObsPath();
+            if (string.IsNullOrEmpty(obsPath) || !File.Exists(obsPath))
+            {
+                WriteLog("Auto Start OBS: Could not locate OBS executable automatically.");
+                return;
+            }
+
+            string obsDir = System.IO.Path.GetDirectoryName(obsPath);
+            var obsProcesses = Process.GetProcessesByName("obs64");
+
+            if (obsProcesses.Length > 0)
+            {
+                WriteLog("Auto Start OBS: OBS is already running. Skipping launch.");
+                return;
+            }
+            else
+            {
+                WriteLog("Auto Start OBS: OBS is not running. Launching with replay enabled...");
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string sentinelFile = System.IO.Path.Combine(appData, @"obs-studio\.sentinel");
+                string safeModeFile = System.IO.Path.Combine(appData, @"obs-studio\safe_mode");
+
+                if (Directory.Exists(sentinelFile)) { try { Directory.Delete(sentinelFile, true); } catch { } }
+                if (File.Exists(safeModeFile)) { try { File.Delete(safeModeFile); } catch { } }
+
+                string vbsPath = System.IO.Path.Combine(configFolder, "launch_obs.vbs");
+                string vbsCode = $@"
+Set objShell = CreateObject(""WScript.Shell"")
+objShell.CurrentDirectory = ""{obsDir}""
+objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimize-to-tray --disable-shutdown-check"", 1, False
+";
+                try
+                {
+                    if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+                    File.WriteAllText(vbsPath, vbsCode);
+                    Process.Start("explorer.exe", $"\"{vbsPath}\"");
+                }
+                catch (Exception ex) { WriteLog($"Auto Start OBS failed: {ex.Message}"); }
+            }
+        }
+
         private void ToggleObsWatchdog()
         {
             if (AutoRestartObsCheck.IsChecked == true)
@@ -1327,8 +1475,6 @@ namespace ClippingTools.app
 
         private async Task RunObsWatchdogAsync(CancellationToken token)
         {
-            string obsPath = @"C:\Program Files\obs-studio\bin\64bit\obs64.exe";
-            string obsDir = @"C:\Program Files\obs-studio\bin\64bit";
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string sentinelFile = System.IO.Path.Combine(appData, @"obs-studio\.sentinel");
             string logDir = System.IO.Path.Combine(appData, @"obs-studio\logs");
@@ -1351,6 +1497,16 @@ namespace ClippingTools.app
                     var obsProcesses = Process.GetProcessesByName("obs64");
                     if (obsProcesses.Length > 0 && Directory.Exists(logDir))
                     {
+                        string detectedObsPath = null;
+                        string detectedObsDir = null;
+
+                        try
+                        {
+                            detectedObsPath = obsProcesses[0].MainModule.FileName;
+                            detectedObsDir = System.IO.Path.GetDirectoryName(detectedObsPath);
+                        }
+                        catch { }
+
                         var latestLog = new DirectoryInfo(logDir).GetFiles("*.txt")
                                         .OrderByDescending(f => f.LastWriteTime)
                                         .FirstOrDefault();
@@ -1377,45 +1533,52 @@ namespace ClippingTools.app
 
                             if (needsRestart)
                             {
-                                WriteLog("OBS crash detected in log file. Attempting to restart OBS...");
-                                foreach (var p in Process.GetProcessesByName("obs64")) { try { p.Kill(); } catch { } }
-                                foreach (var p in Process.GetProcessesByName("obs-ffmpeg-mux")) { try { p.Kill(); } catch { } }
-
-                                await Task.Delay(5000, token);
-
-                                if (Directory.Exists(sentinelFile))
+                                if (string.IsNullOrEmpty(detectedObsPath) || !File.Exists(detectedObsPath))
                                 {
-                                    try { Directory.Delete(sentinelFile, true); } catch { }
+                                    WriteLog("OBS crash detected, but could not reliably determine the OBS installation path. Aborting restart to prevent leaving OBS closed.");
                                 }
-
-                                string safeModeFile = System.IO.Path.Combine(appData, @"obs-studio\safe_mode");
-                                if (File.Exists(safeModeFile))
+                                else
                                 {
-                                    try { File.Delete(safeModeFile); } catch { }
-                                }
+                                    WriteLog($"OBS crash detected in log file. Attempting to restart OBS from: {detectedObsPath}");
+                                    foreach (var p in Process.GetProcessesByName("obs64")) { try { p.Kill(); } catch { } }
+                                    foreach (var p in Process.GetProcessesByName("obs-ffmpeg-mux")) { try { p.Kill(); } catch { } }
 
-                                try { File.Move(latestLog.FullName, latestLog.FullName + ".crashed"); } catch { }
+                                    await Task.Delay(5000, token);
 
-                                string vbsPath = System.IO.Path.Combine(configFolder, "launch_obs.vbs");
-                                string vbsCode = $@"
+                                    if (Directory.Exists(sentinelFile))
+                                    {
+                                        try { Directory.Delete(sentinelFile, true); } catch { }
+                                    }
+
+                                    string safeModeFile = System.IO.Path.Combine(appData, @"obs-studio\safe_mode");
+                                    if (File.Exists(safeModeFile))
+                                    {
+                                        try { File.Delete(safeModeFile); } catch { }
+                                    }
+
+                                    try { File.Move(latestLog.FullName, latestLog.FullName + ".crashed"); } catch { }
+
+                                    string vbsPath = System.IO.Path.Combine(configFolder, "launch_obs.vbs");
+                                    string vbsCode = $@"
 Set objShell = CreateObject(""WScript.Shell"")
-objShell.CurrentDirectory = ""{obsDir}""
-objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimize-to-tray --disable-shutdown-check"", 0, False
+objShell.CurrentDirectory = ""{detectedObsDir}""
+objShell.Run Chr(34) & ""{detectedObsPath}"" & Chr(34) & "" --startreplaybuffer --minimize-to-tray --disable-shutdown-check"", 1, False
 ";
-                                try
-                                {
-                                    if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
-                                    File.WriteAllText(vbsPath, vbsCode);
+                                    try
+                                    {
+                                        if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+                                        File.WriteAllText(vbsPath, vbsCode);
 
-                                    Process.Start("explorer.exe", $"\"{vbsPath}\"");
-                                    WriteLog("Successfully restarted OBS.");
-                                }
-                                catch (Exception ex)
-                                {
-                                    WriteLog($"Failed to restart OBS: {ex.Message}");
-                                }
+                                        Process.Start("explorer.exe", $"\"{vbsPath}\"");
+                                        WriteLog("Successfully restarted OBS.");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        WriteLog($"Failed to restart OBS: {ex.Message}");
+                                    }
 
-                                await Task.Delay(10000, token);
+                                    await Task.Delay(10000, token);
+                                }
                             }
                         }
                     }
@@ -1848,6 +2011,7 @@ del ""%~f0""
         public bool EnableLogging { get; set; } = true;
         public int MaxLogLines { get; set; } = 1000;
         public string AppUuid { get; set; } = "";
+        public bool AutoStartObs { get; set; } = false;
         public bool AutoRestartObs { get; set; } = false;
         public int ObsCheckInterval { get; set; } = 5;
         public bool SendClips { get; set; } = true;
@@ -1859,10 +2023,11 @@ del ""%~f0""
 
         public bool AutoSync { get; set; } = false;
         public bool StartWithWindows { get; set; } = false;
+        public int RateLimitSeconds { get; set; } = 10;
 
         public bool EnableSound { get; set; } = true;
         public bool UseCustomSound { get; set; } = false;
-        public string SystemSoundType { get; set; } = "Exclamation";
+        public string SystemSoundType { get; set; } = "SimpleyViridian - Clipped";
         public string CustomSoundFilename { get; set; } = "";
 
         public List<string> Channels { get; set; } = new List<string>();
