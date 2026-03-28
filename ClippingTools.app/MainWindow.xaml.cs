@@ -197,15 +197,28 @@ namespace ClippingTools.app
         {
             if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
 
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             string[] builtInSounds = { "clipped.wav", "clippedteto.wav" };
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            var resourceNames = assembly.GetManifestResourceNames();
+
             foreach (var s in builtInSounds)
             {
-                string source = System.IO.Path.Combine(baseDir, "sounds", s);
                 string dest = System.IO.Path.Combine(soundsFolder, s);
-                if (File.Exists(source) && !File.Exists(dest))
+                if (!File.Exists(dest))
                 {
-                    try { File.Copy(source, dest); } catch { }
+                    try
+                    {
+                        string resourceName = resourceNames.FirstOrDefault(r => r.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+                        if (resourceName != null)
+                        {
+                            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                            using (FileStream fileStream = new FileStream(dest, FileMode.Create, FileAccess.Write))
+                            {
+                                stream.CopyTo(fileStream);
+                            }
+                        }
+                    }
+                    catch { }
                 }
             }
 

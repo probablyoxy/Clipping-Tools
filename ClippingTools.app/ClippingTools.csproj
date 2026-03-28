@@ -14,6 +14,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="sounds\clipped.wav" />
+    <None Remove="sounds\clippedteto.wav" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="littlesmall.ico" />
   </ItemGroup>
 
@@ -28,12 +33,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="sounds\clipped.wav">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="sounds\clippedteto.wav">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="sounds\clipped.wav">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="sounds\clippedteto.wav">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
