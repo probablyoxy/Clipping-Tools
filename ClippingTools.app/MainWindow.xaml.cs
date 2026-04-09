@@ -1016,7 +1016,7 @@ namespace ClippingTools.app
 
                                             if (prop.Name != myId)
                                             {
-                                                if (relationship == "mutual") { prefix = "* "; isApprovedByMe = true; }
+                                                if (relationship == "mutual") { prefix = "✔️ "; isApprovedByMe = true; }
                                                 else if (relationship == "outgoing") { prefix = "+ "; isApprovedByMe = true; }
                                                 else if (relationship == "incoming") prefix = "- ";
 
