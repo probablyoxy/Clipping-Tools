@@ -42,6 +42,7 @@ namespace ClippingTools.app
         private string appUuid = "";
         private InputSimulator simulator = new InputSimulator();
         private CancellationTokenSource obsWatchdogCts;
+        private CancellationTokenSource renamerStatusCts;
         private MediaPlayer customAudioPlayer = new MediaPlayer();
         private System.Windows.Forms.NotifyIcon trayIcon;
         private bool forceExit = false;
@@ -70,6 +71,7 @@ namespace ClippingTools.app
         private bool isSyncActive = false;
         private bool isReconnecting = false;
         private List<string> currentActiveVcFriends = new List<string>();
+        private string currentVcName = "";
 
         public MainWindow()
         {
@@ -139,6 +141,7 @@ namespace ClippingTools.app
 
             _ = CheckForUpdatesAsync(true);
             _ = EnforceObsStartOnLaunch();
+            ToggleRenamerService();
         }
 
         private void SetupTrayIcon()
@@ -253,6 +256,8 @@ namespace ClippingTools.app
                     StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
                     RateLimitInput.Text = settings.RateLimitSeconds >= 0 ? settings.RateLimitSeconds.ToString() : "10";
                     ObsLocationInput.Text = settings.ObsPath;
+                    ClipLocationInput.Text = settings.ClipPath;
+                    AutoRenameClipsCheck.IsChecked = settings.AutoRenameClips;
                     AutoStartObsCheck.IsChecked = settings.AutoStartObs;
                     AutoRestartObsCheck.IsChecked = settings.AutoRestartObs;
                     ObsIntervalInput.Text = settings.ObsCheckInterval > 0 ? settings.ObsCheckInterval.ToString() : "5";
@@ -332,6 +337,8 @@ namespace ClippingTools.app
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
                 RateLimitSeconds = int.TryParse(RateLimitInput.Text, out int parsedLimit) && parsedLimit >= 0 ? parsedLimit : 10,
                 ObsPath = ObsLocationInput.Text,
+                ClipPath = ClipLocationInput.Text,
+                AutoRenameClips = AutoRenameClipsCheck.IsChecked ?? false,
                 AutoStartObs = AutoStartObsCheck.IsChecked ?? false,
                 AutoRestartObs = AutoRestartObsCheck.IsChecked ?? false,
                 ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
@@ -352,10 +359,18 @@ namespace ClippingTools.app
             File.WriteAllText(configFilePath, json);
         }
 
-        private void Setting_Changed(object sender, RoutedEventArgs e) { SaveSettings(); }
+        private void Setting_Changed(object sender, RoutedEventArgs e) 
+        { 
+            SaveSettings(); 
+            if (sender == AutoRenameClipsCheck) ToggleRenamerService();
+        }
         private void Setting_TextChanged(object sender, TextChangedEventArgs e) { SaveSettings(); }
         private void Window_Closing(object sender, CancelEventArgs e)
         {
+            string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
+            string triggerPath = System.IO.Path.Combine(renamerFolder, "clip_trigger.txt");
+            if (File.Exists(triggerPath)) File.WriteAllText(triggerPath, "EXIT");
+
             if (!forceExit)
             {
                 e.Cancel = true;
@@ -897,6 +912,7 @@ namespace ClippingTools.app
             CurrentVcText.Visibility = Visibility.Collapsed;
             VcUsersPanel.Visibility = Visibility.Collapsed;
             currentActiveVcFriends.Clear();
+            currentVcName = "";
             WriteLog("Disconnected from the central server.");
         }
 
@@ -942,7 +958,7 @@ namespace ClippingTools.app
                                 if (matchedUser != null)
                                 {
                                     WriteLog($"Received remote clip command from user {senderId} ({matchedUser.DisplayName}).");
-                                    await ReceiveNetworkClipCommand();
+                                    await ReceiveNetworkClipCommand(matchedUser.DisplayName);
                                 }
                             }
                             else if (action == "resolved_ids")
@@ -994,11 +1010,13 @@ namespace ClippingTools.app
                                         CurrentVcText.Visibility = Visibility.Collapsed;
                                         VcUsersPanel.Visibility = Visibility.Collapsed;
                                         currentActiveVcFriends.Clear();
+                                        currentVcName = "";
                                         return;
                                     }
 
                                     string myChannelId = myVcData.GetProperty("id").GetString();
                                     string myChannelName = myVcData.GetProperty("name").GetString();
+                                    currentVcName = myChannelName;
 
                                     List<(string DisplayText, string SortName, bool IsConnected, string UserId, string RawName, bool IsApprovedByMe)> usersInMyVc = new List<(string, string, bool, string, string, bool)>();
                                     currentActiveVcFriends.Clear();
@@ -1208,13 +1226,43 @@ namespace ClippingTools.app
             }
 
             await PerformSafeHardwareClip();
+            SendRenamerTrigger(Environment.UserName);
         }
 
-        public async Task ReceiveNetworkClipCommand()
+        public async Task ReceiveNetworkClipCommand(string clipperName)
         {
             if (!CanTriggerClip()) return;
 
             await PerformSafeHardwareClip();
+            SendRenamerTrigger(clipperName);
+        }
+
+        private async void SendRenamerTrigger(string clipperName)
+        {
+            if (AutoRenameClipsCheck.IsChecked != true) return;
+
+            string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
+            if (!Directory.Exists(renamerFolder)) Directory.CreateDirectory(renamerFolder);
+
+            string queuePath = System.IO.Path.Combine(renamerFolder, "clip_queue.txt");
+            string vcName = string.IsNullOrEmpty(currentVcName) ? "No VC" : currentVcName;
+
+            for (int i = 0; i < 5; i++)
+            {
+                try
+                {
+                    File.AppendAllText(queuePath, $"{clipperName}|{vcName}{Environment.NewLine}");
+                    break;
+                }
+                catch { await Task.Delay(100); }
+            }
+        }
+
+        private async Task PerformSafeHardwareClip()
+        {
+            PlayAlertSound();
+            await WaitForAbsoluteZeroInput();
+            await InjectHardwareKeyAsync();
         }
 
         private async Task WaitForAbsoluteZeroInput()
@@ -1257,13 +1305,6 @@ namespace ClippingTools.app
             {
                 for (int i = codesToPress.Count - 1; i >= 0; i--) { simulator.Keyboard.KeyUp(codesToPress[i]); await Task.Delay(20); }
             }
-        }
-
-        private async Task PerformSafeHardwareClip()
-        {
-            PlayAlertSound();
-            await WaitForAbsoluteZeroInput();
-            await InjectHardwareKeyAsync();
         }
 
         // ==============================================================================
@@ -1410,6 +1451,222 @@ namespace ClippingTools.app
             ToggleObsWatchdog();
         }
 
+        private async void BrowseClipLocationBtn_Click(object sender, RoutedEventArgs e)
+        {
+            string currentPath = ClipLocationInput.Text;
+            string clipManagementFolder = System.IO.Path.Combine(configFolder, "clip-management");
+            if (!Directory.Exists(clipManagementFolder)) Directory.CreateDirectory(clipManagementFolder);
+
+            string psCode = @"
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = 'Select your Clip Recording Location'
+$result = $dialog.ShowDialog()
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+    Set-Content -Path '" + clipManagementFolder + @"\selected_path.txt' -Value $dialog.SelectedPath
+} else {
+    Set-Content -Path '" + clipManagementFolder + @"\selected_path.txt' -Value 'CANCELLED'
+}
+";
+            string psPath = System.IO.Path.Combine(clipManagementFolder, "browse.ps1");
+            string resultPath = System.IO.Path.Combine(clipManagementFolder, "selected_path.txt");
+            if (File.Exists(resultPath)) File.Delete(resultPath);
+            File.WriteAllText(psPath, psCode);
+
+            string launcherVbs = System.IO.Path.Combine(clipManagementFolder, "launch_browse.vbs");
+            string vbsCode = $@"CreateObject(""WScript.Shell"").Run ""powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """"{psPath}"""""", 0, False";
+            File.WriteAllText(launcherVbs, vbsCode);
+            Process.Start("explorer.exe", $"\"{launcherVbs}\"");
+
+            ClipLocationInput.Text = "Waiting for selection...";
+
+            while (!File.Exists(resultPath)) { await Task.Delay(500); }
+
+            string selected = File.ReadAllText(resultPath).Trim();
+            if (selected != "CANCELLED" && !string.IsNullOrEmpty(selected))
+            {
+                ClipLocationInput.Text = selected;
+                SaveSettings();
+                WriteLog($"Clip Recording Location set to: {selected}");
+                ToggleRenamerService();
+            }
+            else
+            {
+                ClipLocationInput.Text = currentPath;
+            }
+        }
+
+        private void ToggleRenamerService()
+        {
+            string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
+            if (!Directory.Exists(renamerFolder)) Directory.CreateDirectory(renamerFolder);
+
+            string triggerPath = System.IO.Path.Combine(renamerFolder, "clip_trigger.txt");
+            string statusPath = System.IO.Path.Combine(renamerFolder, "renamer_status.txt");
+
+            renamerStatusCts?.Cancel();
+
+            if (File.Exists(triggerPath))
+            {
+                File.WriteAllText(triggerPath, "EXIT");
+                System.Threading.Thread.Sleep(1000);
+            }
+
+            bool shouldRun = AutoRenameClipsCheck.IsChecked == true;
+            string clipFolder = ClipLocationInput.Text;
+
+            if (!shouldRun || string.IsNullOrEmpty(clipFolder)) return;
+
+            File.WriteAllText(triggerPath, "");
+            File.WriteAllText(statusPath, "");
+
+            string psCode = @"
+param($RenamerFolder, $ClipFolder)
+$triggerFile = ""$RenamerFolder\clip_trigger.txt""
+$queueFile = ""$RenamerFolder\clip_queue.txt""
+$processingFile = ""$RenamerFolder\processing_queue.txt""
+$statusFile = ""$RenamerFolder\renamer_status.txt""
+
+function Send-Status($msg) { 
+    $retry = 0
+    while($retry -lt 5) {
+        try { Set-Content -Path $statusFile -Value $msg -ErrorAction Stop; break } 
+        catch { Start-Sleep -Milliseconds 100; $retry++ }
+    }
+}
+
+if (-not (Test-Path $triggerFile)) { New-Item $triggerFile -ItemType File | Out-Null }
+$lastWrite = (Get-Item $triggerFile).LastWriteTime
+
+# Note baseline files immediately upon starting
+$baselineFiles = Get-ChildItem -Path $ClipFolder -File | Select-Object -ExpandProperty FullName
+if ($null -eq $baselineFiles) { $baselineFiles = @() }
+
+while ($true) {
+    Start-Sleep -Milliseconds 500
+    
+    # 1. Check for EXIT signal from C#
+    $currentWrite = (Get-Item $triggerFile).LastWriteTime
+    if ($currentWrite -gt $lastWrite) {
+        $lastWrite = $currentWrite
+        $content = (Get-Content $triggerFile -Raw).Trim()
+        if ($content -eq ""EXIT"") { break }
+    }
+
+    # 2. Check the Clip Queue
+    if (Test-Path $queueFile) {
+        try { 
+            Move-Item -Path $queueFile -Destination $processingFile -Force -ErrorAction Stop 
+        } catch { 
+            continue # File temporarily locked by C# App, skip and grab it next tick
+        }
+
+        $lines = Get-Content $processingFile
+        foreach ($line in $lines) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $parts = $line.Split('|')
+            if ($parts.Length -lt 2) { continue }
+            
+            $clipperName = $parts[0] -replace '[<>:""/\\|?*]', '_'
+            $vcName = $parts[1] -replace '[<>:""/\\|?*]', '_'
+            $prefix = ""$clipperName - $vcName - ""
+
+            # Instantly start scanning for a new file for THIS specific clip
+            $foundFile = $null
+            $timeout = (Get-Date).AddMinutes(5)
+            while ((Get-Date) -lt $timeout) {
+                $currentFiles = Get-ChildItem -Path $ClipFolder -File
+                foreach ($f in $currentFiles) {
+                    if ($baselineFiles -notcontains $f.FullName -and (-not $f.Name.StartsWith($prefix))) {
+                        $foundFile = $f
+                        break
+                    }
+                }
+                if ($foundFile) { break }
+                Start-Sleep -Milliseconds 500
+            }
+
+            if ($foundFile) {
+                Send-Status ""FOUND""
+                Start-Sleep -Seconds 5
+
+                $renamed = $false
+                $renameTimeout = (Get-Date).AddMinutes(5)
+                while (-not $renamed -and (Get-Date) -lt $renameTimeout) {
+                    try {
+                        $newName = $prefix + $foundFile.Name
+                        $newPath = Join-Path $foundFile.DirectoryName $newName
+                        Rename-Item -Path $foundFile.FullName -NewName $newName -ErrorAction Stop
+                        Send-Status ""RENAMED|$newName""
+                        $baselineFiles += $newPath
+                        $renamed = $true
+                    } catch {
+                        Start-Sleep -Seconds 2
+                    }
+                }
+            } else {
+                Send-Status ""TIMEOUT""
+            }
+            # Update baseline before moving to the next person in the queue
+            $baselineFiles = Get-ChildItem -Path $ClipFolder -File | Select-Object -ExpandProperty FullName
+        }
+        Remove-Item $processingFile -Force
+    }
+}
+";
+            string psPath = System.IO.Path.Combine(renamerFolder, "renamer.ps1");
+            File.WriteAllText(psPath, psCode);
+
+            string launcherVbs = System.IO.Path.Combine(renamerFolder, "launch_renamer.vbs");
+            string vbsCode = $@"CreateObject(""WScript.Shell"").Run ""powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """"{psPath}"""" """"{renamerFolder}"""" """"{clipFolder}"""""", 0, False";
+            File.WriteAllText(launcherVbs, vbsCode);
+
+            Process.Start("explorer.exe", $"\"{launcherVbs}\"");
+            WriteLog("Clip Renaming Background Service started.");
+
+            renamerStatusCts = new CancellationTokenSource();
+            _ = WatchRenamerStatusAsync(statusPath, renamerStatusCts.Token);
+        }
+
+        private async Task WatchRenamerStatusAsync(string statusFile, CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (File.Exists(statusFile))
+                    {
+                        string content = "";
+                        using (var fs = new FileStream(statusFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                        using (var reader = new StreamReader(fs))
+                        {
+                            content = reader.ReadToEnd().Trim();
+                            if (!string.IsNullOrEmpty(content))
+                            {
+                                fs.SetLength(0);
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(content))
+                        {
+                            if (content == "FOUND")
+                                WriteLog("Found new clip. Waiting 5 seconds before trying to modify...");
+                            else if (content == "TIMEOUT")
+                                WriteLog("Clip renaming timed out. No new accessible file found in the recording location.");
+                            else if (content.StartsWith("RENAMED|"))
+                            {
+                                string newName = content.Substring(8);
+                                WriteLog($"Successfully renamed new clip to: {newName}");
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                await Task.Delay(500, token);
+            }
+        }
+
         private void BrowseObsBtn_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -1531,7 +1788,8 @@ namespace ClippingTools.app
                 if (Directory.Exists(sentinelFile)) { try { Directory.Delete(sentinelFile, true); } catch { } }
                 if (File.Exists(safeModeFile)) { try { File.Delete(safeModeFile); } catch { } }
 
-                string vbsPath = System.IO.Path.Combine(configFolder, "launch_obs.vbs");
+                string obsManagementFolder = System.IO.Path.Combine(configFolder, "obs-management");
+                string vbsPath = System.IO.Path.Combine(obsManagementFolder, "launch_obs.vbs");
                 string vbsCode = $@"
 Set objShell = CreateObject(""WScript.Shell"")
 objShell.CurrentDirectory = ""{obsDir}""
@@ -1539,7 +1797,7 @@ objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimi
 ";
                 try
                 {
-                    if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+                    if (!Directory.Exists(obsManagementFolder)) Directory.CreateDirectory(obsManagementFolder);
                     File.WriteAllText(vbsPath, vbsCode);
                     Process.Start("explorer.exe", $"\"{vbsPath}\"");
                 }
@@ -1648,7 +1906,8 @@ objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimi
 
                                     try { File.Move(latestLog.FullName, latestLog.FullName + ".crashed"); } catch { }
 
-                                    string vbsPath = System.IO.Path.Combine(configFolder, "launch_obs.vbs");
+                                    string obsManagementFolder = System.IO.Path.Combine(configFolder, "obs-management");
+                                    string vbsPath = System.IO.Path.Combine(obsManagementFolder, "launch_obs.vbs");
                                     string vbsCode = $@"
 Set objShell = CreateObject(""WScript.Shell"")
 objShell.CurrentDirectory = ""{detectedObsDir}""
@@ -1656,7 +1915,7 @@ objShell.Run Chr(34) & ""{detectedObsPath}"" & Chr(34) & "" --startreplaybuffer 
 ";
                                     try
                                     {
-                                        if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+                                        if (!Directory.Exists(obsManagementFolder)) Directory.CreateDirectory(obsManagementFolder);
                                         File.WriteAllText(vbsPath, vbsCode);
 
                                         Process.Start("explorer.exe", $"\"{vbsPath}\"");
@@ -2138,6 +2397,8 @@ del ""%~f0""
         public int MaxLogLines { get; set; } = 1000;
         public string AppUuid { get; set; } = "";
         public string ObsPath { get; set; } = "";
+        public string ClipPath { get; set; } = "";
+        public bool AutoRenameClips { get; set; } = false;
         public bool AutoStartObs { get; set; } = false;
         public bool AutoRestartObs { get; set; } = false;
         public int ObsCheckInterval { get; set; } = 5;
