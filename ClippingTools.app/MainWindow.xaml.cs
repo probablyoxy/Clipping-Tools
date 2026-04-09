@@ -1013,13 +1013,16 @@ namespace ClippingTools.app
                                 {
                                     WriteLog($"Received remote clip command from user {senderId} ({matchedUser.DisplayName}).");
 
-                                    totalClipsStats.Received++;
-                                    if (!userReceivedStats.ContainsKey(senderId)) userReceivedStats[senderId] = new UserStatCount { Id = senderId, Name = matchedUser.DisplayName, Count = 0 };
-                                    userReceivedStats[senderId].Count++;
-                                    userReceivedStats[senderId].Name = matchedUser.DisplayName;
-                                    SaveStats();
+                                    bool wasClipped = await ReceiveNetworkClipCommand(matchedUser.DisplayName);
 
-                                    await ReceiveNetworkClipCommand(matchedUser.DisplayName);
+                                    if (wasClipped)
+                                    {
+                                        totalClipsStats.Received++;
+                                        if (!userReceivedStats.ContainsKey(senderId)) userReceivedStats[senderId] = new UserStatCount { Id = senderId, Name = matchedUser.DisplayName, Count = 0 };
+                                        userReceivedStats[senderId].Count++;
+                                        userReceivedStats[senderId].Name = matchedUser.DisplayName;
+                                        SaveStats();
+                                    }
                                 }
                             }
                             else if (action == "resolved_ids")
@@ -1309,12 +1312,13 @@ namespace ClippingTools.app
             SendRenamerTrigger(Environment.UserName);
         }
 
-        public async Task ReceiveNetworkClipCommand(string clipperName)
+        public async Task<bool> ReceiveNetworkClipCommand(string clipperName)
         {
-            if (!CanTriggerClip()) return;
+            if (!CanTriggerClip()) return false;
 
             await PerformSafeHardwareClip();
             SendRenamerTrigger(clipperName);
+            return true;
         }
 
         private async void SendRenamerTrigger(string clipperName)
