@@ -69,6 +69,7 @@ namespace ClippingTools.app
         private CancellationTokenSource wsCts;
         private bool isSyncActive = false;
         private bool isReconnecting = false;
+        private List<string> currentActiveVcFriends = new List<string>();
 
         public MainWindow()
         {
@@ -895,6 +896,7 @@ namespace ClippingTools.app
             ServerStatusText.Text = "Disconnected";
             CurrentVcText.Visibility = Visibility.Collapsed;
             VcUsersPanel.Visibility = Visibility.Collapsed;
+            currentActiveVcFriends.Clear();
             WriteLog("Disconnected from the central server.");
         }
 
@@ -991,6 +993,7 @@ namespace ClippingTools.app
                                     {
                                         CurrentVcText.Visibility = Visibility.Collapsed;
                                         VcUsersPanel.Visibility = Visibility.Collapsed;
+                                        currentActiveVcFriends.Clear();
                                         return;
                                     }
 
@@ -998,6 +1001,7 @@ namespace ClippingTools.app
                                     string myChannelName = myVcData.GetProperty("name").GetString();
 
                                     List<(string DisplayText, string SortName, bool IsConnected)> usersInMyVc = new List<(string, string, bool)>();
+                                    currentActiveVcFriends.Clear();
 
                                     foreach (var prop in vcMapElement.EnumerateObject())
                                     {
@@ -1013,6 +1017,11 @@ namespace ClippingTools.app
                                                 if (relationship == "mutual") prefix = "* ";
                                                 else if (relationship == "outgoing") prefix = "+ ";
                                                 else if (relationship == "incoming") prefix = "- ";
+
+                                                if (isConnected && (relationship == "mutual" || relationship == "outgoing"))
+                                                {
+                                                    currentActiveVcFriends.Add($"{prop.Name} ({displayName})");
+                                                }
                                             }
 
                                             usersInMyVc.Add((prefix + displayName, displayName, isConnected));
@@ -1176,10 +1185,15 @@ namespace ClippingTools.app
         {
             if (!CanTriggerClip()) return;
 
-            WriteLog($"Triggered a local clip command.");
             if (SendClipsCheck.IsChecked == true)
             {
+                string sentTo = currentActiveVcFriends.Count > 0 ? string.Join(", ", currentActiveVcFriends) : "nobody";
+                WriteLog($"Triggered a local clip command. Sent to: {sentTo}");
                 await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
+            }
+            else
+            {
+                WriteLog($"Triggered a local clip command. (Network sending disabled)");
             }
 
             await PerformSafeHardwareClip();
