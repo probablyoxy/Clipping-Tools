@@ -865,7 +865,7 @@ namespace ClippingTools.app
                 isReconnecting = false;
                 WriteLog("Connected to the central server.");
 
-                await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
+                await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                 AskServerToResolveNames();
 
                 _ = ReceiveMessages();
@@ -1116,7 +1116,7 @@ namespace ClippingTools.app
                         ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
                     });
 
-                    await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList() });
+                    await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                     AskServerToResolveNames();
 
                     _ = ReceiveMessages();

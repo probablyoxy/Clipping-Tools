@@ -34,8 +34,9 @@ pending_dm_requests = {}
 pending_all_users_requests = {}
 
 user_approved_lists = {}
+user_versions = {}
 
-vc_map = {} 
+vc_map = {}
 user_vc_timestamps = {}
 
 active_bots = {}
@@ -144,6 +145,7 @@ async def handle_client(websocket):
                 user_id = data.get("user_id")
                 app_uuid = data.get("app_uuid")
                 approved_users = data.get("approved_users", [])
+                app_version = data.get("version", "≤v0.1.5")
                 
                 if not user_id or not app_uuid:
                     continue
@@ -151,11 +153,12 @@ async def handle_client(websocket):
                 if verified_uuids.get(user_id) == app_uuid:
                     active_connections[user_id] = websocket
                     user_approved_lists[user_id] = approved_users
-                    print(f"[Desktop] User {user_id} connected. Friends list size: {len(approved_users)}")
+                    user_versions[user_id] = app_version
+                    print(f"[Desktop] User {user_id} connected ({app_version}). Friends list size: {len(approved_users)}")
                     broadcast_vc_updates()
                 else:
-                    unverified_connections[user_id] = {"ws": websocket, "approved_users": approved_users}
-                    print(f"[Desktop] User {user_id} connected with unverified UUID. Requesting bot link.")
+                    unverified_connections[user_id] = {"ws": websocket, "approved_users": approved_users, "version": app_version}
+                    print(f"[Desktop] User {user_id} connected with unverified UUID ({app_version}). Requesting bot link.")
                     
                     pref_ws = None
                     other_ws = []
@@ -243,6 +246,7 @@ async def handle_client(websocket):
                         conn_data = unverified_connections.pop(target_user)
                         active_connections[target_user] = conn_data["ws"]
                         user_approved_lists[target_user] = conn_data["approved_users"]
+                        user_versions[target_user] = conn_data.get("version", "≤v0.1.5")
                         print(f"[Desktop] Moved {target_user} to active connections.")
                         broadcast_vc_updates()
 
@@ -340,6 +344,8 @@ async def handle_client(websocket):
                 if user_id in active_connections and active_connections[user_id] == websocket:
                     del active_connections[user_id]
                     del user_approved_lists[user_id]
+                    if user_id in user_versions:
+                        del user_versions[user_id]
                     print(f"[Desktop] User {user_id} disconnected.")
                     broadcast_vc_updates()
                             
