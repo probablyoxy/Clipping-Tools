@@ -62,6 +62,10 @@ namespace ClippingTools.app
         private bool isLoaded = false;
         private DateTime lastClipTime = DateTime.MinValue;
 
+        private TotalClipsStat totalClipsStats = new TotalClipsStat();
+        private Dictionary<string, UserStatCount> userSentStats = new Dictionary<string, UserStatCount>();
+        private Dictionary<string, UserStatCount> userReceivedStats = new Dictionary<string, UserStatCount>();
+
         // CHANGE WHEN UPDATE :)
         private const string AppVersion = "v0.1.6";
         private string downloadUrlForUpdate = "";
@@ -120,6 +124,7 @@ namespace ClippingTools.app
             allUserView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
 
             LoadSettings();
+            LoadStats();
             isLoaded = true;
 
             CurrentVersionText.Text = AppVersion;
@@ -357,6 +362,55 @@ namespace ClippingTools.app
 
             string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(configFilePath, json);
+        }
+
+        private void LoadStats()
+        {
+            string statsFolder = System.IO.Path.Combine(configFolder, "statistics");
+            if (!Directory.Exists(statsFolder)) Directory.CreateDirectory(statsFolder);
+
+            string clipsFile = System.IO.Path.Combine(statsFolder, "clips.json");
+            string sentFile = System.IO.Path.Combine(statsFolder, "users_sent.json");
+            string receivedFile = System.IO.Path.Combine(statsFolder, "users_received.json");
+
+            try { if (File.Exists(clipsFile)) totalClipsStats = JsonSerializer.Deserialize<TotalClipsStat>(File.ReadAllText(clipsFile)) ?? new TotalClipsStat(); } catch { }
+            try { if (File.Exists(sentFile)) userSentStats = JsonSerializer.Deserialize<Dictionary<string, UserStatCount>>(File.ReadAllText(sentFile)) ?? new Dictionary<string, UserStatCount>(); } catch { }
+            try { if (File.Exists(receivedFile)) userReceivedStats = JsonSerializer.Deserialize<Dictionary<string, UserStatCount>>(File.ReadAllText(receivedFile)) ?? new Dictionary<string, UserStatCount>(); } catch { }
+
+            UpdateStatsUI();
+        }
+
+        private void SaveStats()
+        {
+            string statsFolder = System.IO.Path.Combine(configFolder, "statistics");
+            if (!Directory.Exists(statsFolder)) Directory.CreateDirectory(statsFolder);
+
+            File.WriteAllText(System.IO.Path.Combine(statsFolder, "clips.json"), JsonSerializer.Serialize(totalClipsStats, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(System.IO.Path.Combine(statsFolder, "users_sent.json"), JsonSerializer.Serialize(userSentStats, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(System.IO.Path.Combine(statsFolder, "users_received.json"), JsonSerializer.Serialize(userReceivedStats, new JsonSerializerOptions { WriteIndented = true }));
+
+            UpdateStatsUI();
+        }
+
+        private void UpdateStatsUI()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                StatsTotalSentText.Text = $"Total Clips Sent: {totalClipsStats.Sent}";
+                StatsTotalReceivedText.Text = $"Total Clips Received: {totalClipsStats.Received}";
+
+                StatsSentList.Items.Clear();
+                foreach (var stat in userSentStats.Values.OrderByDescending(s => s.Count))
+                {
+                    StatsSentList.Items.Add($"{stat.Count}  -  {stat.Name}");
+                }
+
+                StatsReceivedList.Items.Clear();
+                foreach (var stat in userReceivedStats.Values.OrderByDescending(s => s.Count))
+                {
+                    StatsReceivedList.Items.Add($"{stat.Count}  -  {stat.Name}");
+                }
+            });
         }
 
         private void Setting_Changed(object sender, RoutedEventArgs e) 
@@ -958,6 +1012,13 @@ namespace ClippingTools.app
                                 if (matchedUser != null)
                                 {
                                     WriteLog($"Received remote clip command from user {senderId} ({matchedUser.DisplayName}).");
+
+                                    totalClipsStats.Received++;
+                                    if (!userReceivedStats.ContainsKey(senderId)) userReceivedStats[senderId] = new UserStatCount { Id = senderId, Name = matchedUser.DisplayName, Count = 0 };
+                                    userReceivedStats[senderId].Count++;
+                                    userReceivedStats[senderId].Name = matchedUser.DisplayName;
+                                    SaveStats();
+
                                     await ReceiveNetworkClipCommand(matchedUser.DisplayName);
                                 }
                             }
@@ -1219,6 +1280,25 @@ namespace ClippingTools.app
                 string sentTo = currentActiveVcFriends.Count > 0 ? string.Join(", ", currentActiveVcFriends) : "nobody";
                 WriteLog($"Triggered a local clip command. Sent to: {sentTo}");
                 await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
+
+                if (currentActiveVcFriends.Count > 0)
+                {
+                    totalClipsStats.Sent++;
+                    foreach (var friendStr in currentActiveVcFriends)
+                    {
+                        int spaceIdx = friendStr.IndexOf(' ');
+                        if (spaceIdx > 0)
+                        {
+                            string id = friendStr.Substring(0, spaceIdx);
+                            string name = friendStr.Substring(spaceIdx + 2, friendStr.Length - spaceIdx - 3);
+
+                            if (!userSentStats.ContainsKey(id)) userSentStats[id] = new UserStatCount { Id = id, Name = name, Count = 0 };
+                            userSentStats[id].Count++;
+                            userSentStats[id].Name = name;
+                        }
+                    }
+                    SaveStats();
+                }
             }
             else
             {
@@ -1318,14 +1398,43 @@ namespace ClippingTools.app
             NavDiscordBtn.Background = darkBg;
             NavSettingsBtn.Background = darkBg;
             NavExtrasBtn.Background = darkBg;
-            NavUpdateBtn.Background = darkBg;
             NavLogsBtn.Background = darkBg;
+            NavStatsBtn.Background = darkBg;
+            NavUpdateBtn.Background = darkBg;
             NavHelpBtn.Background = darkBg;
+        }
+
+        private void NavHomeBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 0;
+            ResetNavBackgrounds();
+            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+        }
+
+        private void NavDiscordBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 1;
+            ResetNavBackgrounds();
+            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+        }
+
+        private void NavSettingsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 2;
+            ResetNavBackgrounds();
+            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+        }
+
+        private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 3;
+            ResetNavBackgrounds();
+            NavExtrasBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
 
         private void NavLogsBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 5;
+            MainContent.SelectedIndex = 4;
             ResetNavBackgrounds();
             NavLogsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
 
@@ -1335,9 +1444,27 @@ namespace ClippingTools.app
             }), System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
-        private void NavHelpBtn_Click(object sender, RoutedEventArgs e)
+        private void NavStatsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 5;
+            ResetNavBackgrounds();
+            NavStatsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            UpdateStatsUI();
+        }
+
+        private async void NavUpdateBtn_Click(object sender, RoutedEventArgs e)
         {
             MainContent.SelectedIndex = 6;
+            ResetNavBackgrounds();
+            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            NavUpdateBtn.Content = "Update";
+
+            await CheckForUpdatesAsync(false);
+        }
+
+        private void NavHelpBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 7;
             ResetNavBackgrounds();
             NavHelpBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
@@ -1404,44 +1531,6 @@ namespace ClippingTools.app
         {
             Process.Start(new ProcessStartInfo { FileName = e.Uri.AbsoluteUri, UseShellExecute = true });
             e.Handled = true;
-        }
-
-        private void NavHomeBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 0;
-            ResetNavBackgrounds();
-            NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-        }
-
-        private void NavDiscordBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 1;
-            ResetNavBackgrounds();
-            NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-        }
-
-        private void NavSettingsBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 2;
-            ResetNavBackgrounds();
-            NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-        }
-
-        private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 3;
-            ResetNavBackgrounds();
-            NavExtrasBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-        }
-
-        private async void NavUpdateBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.SelectedIndex = 4;
-            ResetNavBackgrounds();
-            NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-            NavUpdateBtn.Content = "Update";
-
-            await CheckForUpdatesAsync(false);
         }
 
         private void AutoRestartObsCheck_Click(object sender, RoutedEventArgs e)
@@ -2389,6 +2478,19 @@ del ""%~f0""
             pendingAddUserId = "";
             pendingAddUserName = "";
         }
+    }
+
+    public class TotalClipsStat
+    {
+        public int Sent { get; set; } = 0;
+        public int Received { get; set; } = 0;
+    }
+
+    public class UserStatCount
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int Count { get; set; } = 0;
     }
 
     public class AppSettings

@@ -20,8 +20,9 @@
             <Button x:Name="NavDiscordBtn" Content="Discord" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavDiscordBtn_Click"/>
             <Button x:Name="NavSettingsBtn" Content="Settings" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSettingsBtn_Click"/>
             <Button x:Name="NavExtrasBtn" Content="Extras" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavExtrasBtn_Click"/>
-            <Button x:Name="NavUpdateBtn" Content="Update" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavUpdateBtn_Click"/>
             <Button x:Name="NavLogsBtn" Content="Logs" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavLogsBtn_Click"/>
+            <Button x:Name="NavStatsBtn" Content="Statistics" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavStatsBtn_Click"/>
+            <Button x:Name="NavUpdateBtn" Content="Update" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavUpdateBtn_Click"/>
             <Button x:Name="NavHelpBtn" Content="Help" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavHelpBtn_Click"/>
         </StackPanel>
 
@@ -270,6 +271,71 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0">
+                        <TextBlock Text="Action Logs" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+                        <CheckBox x:Name="EnableLoggingCheck" Content="Enable Action Logging" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="EnableLoggingCheck_Click"/>
+                        <StackPanel x:Name="LogLinesPanel" Orientation="Horizontal" Margin="0,0,0,15">
+                            <TextBlock Text="Max lines to keep:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox x:Name="MaxLogLinesInput" Text="1000" Width="60" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBox x:Name="LogOutputText" Grid.Row="1" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10" FontFamily="Consolas" Padding="5"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                        <TextBlock Text="Statistics" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="StatsTotalSentText" Text="Total Clips Sent: 0" Foreground="#43b581" FontSize="16" FontWeight="Bold" Margin="0,0,30,0"/>
+                            <TextBlock x:Name="StatsTotalReceivedText" Text="Total Clips Received: 0" Foreground="#5865F2" FontSize="16" FontWeight="Bold"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Users Sent To" Foreground="#b9bbbe" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <ListBox x:Name="StatsSentList" Grid.Row="1" Background="#202225" BorderBrush="#202225" Foreground="White" ScrollViewer.VerticalScrollBarVisibility="Auto" Padding="5"/>
+                        </Grid>
+
+                        <Rectangle Grid.Column="1" Fill="#202225" Width="2" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Users Received From" Foreground="#b9bbbe" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <ListBox x:Name="StatsReceivedList" Grid.Row="1" Background="#202225" BorderBrush="#202225" Foreground="White" ScrollViewer.VerticalScrollBarVisibility="Auto" Padding="5"/>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <TabItem>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
                         <TextBlock Text="Updates" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <TextBlock Text="Current Version: " Foreground="#b9bbbe" FontSize="16"/>
@@ -289,26 +355,6 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
                         <TextBlock x:Name="ReleaseNotesText" Text="" Foreground="#b9bbbe" TextWrapping="Wrap" Visibility="Collapsed"/>
                     </ScrollViewer>
-                </Grid>
-            </TabItem>
-
-            <TabItem>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0">
-                        <TextBlock Text="Action Logs" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                        <CheckBox x:Name="EnableLoggingCheck" Content="Enable Action Logging" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="EnableLoggingCheck_Click"/>
-                        <StackPanel x:Name="LogLinesPanel" Orientation="Horizontal" Margin="0,0,0,15">
-                            <TextBlock Text="Max lines to keep:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBox x:Name="MaxLogLinesInput" Text="1000" Width="60" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <TextBox x:Name="LogOutputText" Grid.Row="1" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10" FontFamily="Consolas" Padding="5"/>
                 </Grid>
             </TabItem>
 
