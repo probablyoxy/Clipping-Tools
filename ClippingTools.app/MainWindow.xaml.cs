@@ -1000,7 +1000,7 @@ namespace ClippingTools.app
                                     string myChannelId = myVcData.GetProperty("id").GetString();
                                     string myChannelName = myVcData.GetProperty("name").GetString();
 
-                                    List<(string DisplayText, string SortName, bool IsConnected)> usersInMyVc = new List<(string, string, bool)>();
+                                    List<(string DisplayText, string SortName, bool IsConnected, string UserId, string RawName, bool IsApprovedByMe)> usersInMyVc = new List<(string, string, bool, string, string, bool)>();
                                     currentActiveVcFriends.Clear();
 
                                     foreach (var prop in vcMapElement.EnumerateObject())
@@ -1012,19 +1012,21 @@ namespace ClippingTools.app
                                             string relationship = prop.Value.TryGetProperty("relationship", out JsonElement relElem) ? relElem.GetString() : "none";
 
                                             string prefix = "";
+                                            bool isApprovedByMe = false;
+
                                             if (prop.Name != myId)
                                             {
-                                                if (relationship == "mutual") prefix = "* ";
-                                                else if (relationship == "outgoing") prefix = "+ ";
+                                                if (relationship == "mutual") { prefix = "* "; isApprovedByMe = true; }
+                                                else if (relationship == "outgoing") { prefix = "+ "; isApprovedByMe = true; }
                                                 else if (relationship == "incoming") prefix = "- ";
 
-                                                if (isConnected && (relationship == "mutual" || relationship == "outgoing"))
+                                                if (isConnected && isApprovedByMe)
                                                 {
                                                     currentActiveVcFriends.Add($"{prop.Name} ({displayName})");
                                                 }
                                             }
 
-                                            usersInMyVc.Add((prefix + displayName, displayName, isConnected));
+                                            usersInMyVc.Add((prefix + displayName, displayName, isConnected, prop.Name, displayName, isApprovedByMe));
                                         }
                                     }
 
@@ -1035,7 +1037,7 @@ namespace ClippingTools.app
 
                                     foreach (var user in usersInMyVc)
                                     {
-                                        StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 2, 0, 2) };
+                                        StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 2, 0, 2), Background = System.Windows.Media.Brushes.Transparent };
                                         TextBlock tb = new TextBlock { Text = user.DisplayText, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#b9bbbe")), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
 
                                         System.Windows.Shapes.Ellipse dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center };
@@ -1043,6 +1045,15 @@ namespace ClippingTools.app
 
                                         sp.Children.Add(tb);
                                         sp.Children.Add(dot);
+
+                                        if (!user.IsApprovedByMe && user.UserId != myId)
+                                        {
+                                            sp.Cursor = Cursors.Hand;
+                                            sp.ToolTip = "Click to add to approved users";
+                                            sp.Tag = new Tuple<string, string>(user.UserId, user.RawName);
+                                            sp.MouseLeftButtonDown += VcUser_MouseLeftButtonDown;
+                                        }
+
                                         VcUsersPanel.Children.Add(sp);
                                     }
 
@@ -2082,6 +2093,42 @@ del ""%~f0""
             }
 
             SelectUsersTitle.Text = $"Select Users ({AllVisibleUsers.Count} found)";
+        }
+
+        private string pendingAddUserId = "";
+        private string pendingAddUserName = "";
+
+        private void VcUser_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is StackPanel sp && sp.Tag is Tuple<string, string> userData)
+            {
+                pendingAddUserId = userData.Item1;
+                pendingAddUserName = userData.Item2;
+                AddUserPromptText.Text = $"Add {pendingAddUserName} to your approved users list?";
+                AddUserOverlay.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void CloseAddUserOverlayBtn_Click(object sender, RoutedEventArgs e)
+        {
+            AddUserOverlay.Visibility = Visibility.Collapsed;
+            pendingAddUserId = "";
+            pendingAddUserName = "";
+        }
+
+        private void ConfirmAddUserBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(pendingAddUserId) && !ApprovedUsers.Any(u => u.Id == pendingAddUserId))
+            {
+                ApprovedUsers.Add(new DiscordItem { Id = pendingAddUserId, DisplayName = pendingAddUserName });
+                WriteLog($"Added user {pendingAddUserName} to Approved Users from VC.");
+                SaveSettings();
+                SyncApprovedUsersToServer();
+                AskServerToResolveNames();
+            }
+            AddUserOverlay.Visibility = Visibility.Collapsed;
+            pendingAddUserId = "";
+            pendingAddUserName = "";
         }
     }
 

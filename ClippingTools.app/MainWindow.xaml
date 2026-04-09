@@ -447,5 +447,17 @@
             </Border>
         </Grid>
 
+        <Grid x:Name="AddUserOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#99000000" Panel.ZIndex="105">
+            <Border Background="#36393f" Width="350" Height="150" CornerRadius="8" Padding="20">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="AddUserPromptText" Text="Add user to whitelist?" Foreground="White" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Cancel" Width="80" Height="30" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="CloseAddUserOverlayBtn_Click"/>
+                        <Button x:Name="ConfirmAddUserBtn" Content="Add User" Width="100" Height="30" Background="#5865F2" Foreground="White" BorderThickness="0" Click="ConfirmAddUserBtn_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
     </Grid>
 </Window>
