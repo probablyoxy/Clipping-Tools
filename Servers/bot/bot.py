@@ -138,9 +138,15 @@ async def connect_to_router():
                         client_id = data.get("client_id")
                         all_users = {}
 
-                        for u in bot.users:
-                            if not u.bot:
-                                all_users[str(u.id)] = u.name
+                        try:
+                            client_id_int = int(client_id)
+                            for guild in bot.guilds:
+                                if guild.get_member(client_id_int):
+                                    for member in guild.members:
+                                        if not member.bot:
+                                            all_users[str(member.id)] = member.name
+                        except (TypeError, ValueError):
+                            pass
 
                         await ws.send(json.dumps({
                             "action": "all_users_list",

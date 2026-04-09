@@ -31,6 +31,7 @@ else:
 active_connections = {} 
 unverified_connections = {}
 pending_dm_requests = {}
+pending_all_users_requests = {}
 
 user_approved_lists = {}
 
@@ -182,9 +183,17 @@ async def handle_client(websocket):
                     except: pass
 
             elif action == "get_all_users":
-                for bot_ws in list(active_bots.keys()):
-                    try: await bot_ws.send(message)
-                    except: pass
+                client_id = data.get("client_id")
+                if client_id:
+                    if not active_bots:
+                        if client_id in active_connections:
+                            try: await active_connections[client_id].send(json.dumps({"action": "all_users_list", "client_id": client_id, "users": {}}))
+                            except: pass
+                    else:
+                        pending_all_users_requests[client_id] = {"bots_left": len(active_bots), "users": {}}
+                        for bot_ws in list(active_bots.keys()):
+                            try: await bot_ws.send(message)
+                            except: pending_all_users_requests[client_id]["bots_left"] -= 1
 
             elif action == "trigger":
                 if not user_id: continue
@@ -274,9 +283,22 @@ async def handle_client(websocket):
             elif action == "all_users_list":
                 if websocket not in active_bots: continue
                 target_client = data.get("client_id")
-                if target_client in active_connections:
-                    try: await active_connections[target_client].send(message)
-                    except: pass
+                
+                if target_client in pending_all_users_requests:
+                    pending_all_users_requests[target_client]["users"].update(data.get("users", {}))
+                    pending_all_users_requests[target_client]["bots_left"] -= 1
+                    
+                    if pending_all_users_requests[target_client]["bots_left"] <= 0:
+                        combined_users = pending_all_users_requests[target_client]["users"]
+                        if target_client in active_connections:
+                            try: 
+                                await active_connections[target_client].send(json.dumps({
+                                    "action": "all_users_list", 
+                                    "client_id": target_client, 
+                                    "users": combined_users
+                                }))
+                            except: pass
+                        del pending_all_users_requests[target_client]
 
             elif action == "vc_update":
                 if websocket not in active_bots: continue
