@@ -3,6 +3,8 @@ import websockets
 import json
 import logging
 import os
+import random
+import string
 
 logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
@@ -36,8 +38,11 @@ pending_all_users_requests = {}
 user_approved_lists = {}
 user_versions = {}
 
-vc_map = {}
+vc_map = {} 
 user_vc_timestamps = {}
+
+pools = {}
+user_pools = {}
 
 active_bots = {}
 bot_guild_stats = {}
@@ -129,6 +134,49 @@ def broadcast_vc_updates():
             })))
         except: pass
 
+def broadcast_pool_updates(pool_code):
+    if pool_code not in pools: return
+    pool_data = pools[pool_code]
+    
+    payload_members = {}
+    for uid in pool_data["members"]:
+        payload_members[uid] = {
+            "is_connected": uid in active_connections
+        }
+
+    payload = {
+        "action": "client_pool_update",
+        "pool_code": pool_code,
+        "name": pool_data["name"],
+        "owner": pool_data["owner"],
+        "is_open": pool_data["is_open"],
+        "members": payload_members
+    }
+    
+    for uid in pool_data["members"]:
+        if uid in active_connections:
+            try:
+                asyncio.create_task(active_connections[uid].send(json.dumps(payload)))
+            except: pass
+
+def remove_user_from_pool(user_id):
+    if user_id not in user_pools: return
+    pool_code = user_pools[user_id]
+    del user_pools[user_id]
+    
+    if pool_code in pools:
+        if user_id in pools[pool_code]["members"]:
+            pools[pool_code]["members"].remove(user_id)
+            
+        if not pools[pool_code]["members"]:
+            del pools[pool_code]
+            return
+            
+        if pools[pool_code]["owner"] == user_id:
+            pools[pool_code]["owner"] = pools[pool_code]["members"][0]
+            
+        broadcast_pool_updates(pool_code)
+
 async def handle_client(websocket):
     user_id = None
     is_bot = False
@@ -206,28 +254,124 @@ async def handle_client(websocket):
                     print(f"[Security] Blocked unverified trigger from {user_id}")
                     continue
 
+                target_users = set()
+                sender_name = "Unknown User"
+
                 sender_data = vc_map.get(user_id)
-                if not sender_data:
-                    print(f"[Desktop] User {user_id} clipped, but a bot doesn't see them in a VC.")
+                if sender_data:
+                    sender_channel = sender_data.get("id")
+                    sender_name = sender_data.get("user_name", "Unknown User")
+                    print(f"[Desktop] User {user_id} ({sender_name}) triggered a clip in VC {sender_channel}.")
+                    for t_user, c_data in vc_map.items():
+                        if c_data.get("id") == sender_channel and t_user != user_id:
+                            target_users.add(t_user)
+
+                pool_code = user_pools.get(user_id)
+                if pool_code and pool_code in pools:
+                    print(f"[Desktop] User {user_id} triggered a clip in Pool {pool_code}.")
+                    for t_user in pools[pool_code]["members"]:
+                        if t_user != user_id:
+                            target_users.add(t_user)
+                            
+                if not sender_data and not pool_code:
+                    print(f"[Desktop] User {user_id} clipped, but is not in a VC or a Pool.")
                     continue
 
-                sender_channel = sender_data.get("id")
-                sender_name = sender_data.get("user_name", "Unknown User")
-                print(f"[Desktop] User {user_id} ({sender_name}) triggered a clip in VC {sender_channel}.")
+                for target_user in target_users:
+                    if target_user in active_connections:
+                        target_ws = active_connections[target_user]
+                        payload = {
+                            "action": "sync_clip",
+                            "sender_id": user_id
+                        }
+                        await target_ws.send(json.dumps(payload))
+                        print(f"[Router] Sent clip signal from {user_id} -> {target_user}")
 
-                for target_user, c_data in vc_map.items():
-                    if c_data.get("id") == sender_channel and target_user != user_id:
 
-                        if target_user in active_connections:
-                            target_ws = active_connections[target_user]
-                            payload = {
-                                "action": "sync_clip",
-                                "sender_id": user_id
-                            }
-                            await target_ws.send(json.dumps(payload))
-                            target_name = c_data.get("user_name", "Unknown User")
-                            print(f"[Router] Sent clip signal from {user_id} ({sender_name}) -> {target_user} ({target_name})")
+            elif action == "create_pool":
+                if not user_id: continue
+                if user_id in user_pools: remove_user_from_pool(user_id)
+                
+                pool_name = data.get("name", "Unnamed Pool")
+                pool_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                
+                pools[pool_code] = {
+                    "name": pool_name,
+                    "owner": user_id,
+                    "members": [user_id],
+                    "banned": [],
+                    "is_open": True
+                }
+                user_pools[user_id] = pool_code
+                print(f"[Pools] User {user_id} created pool {pool_code}.")
+                broadcast_pool_updates(pool_code)
 
+            elif action == "join_pool":
+                if not user_id: continue
+                pool_code = data.get("pool_code", "").strip()
+                
+                if pool_code not in pools:
+                    await websocket.send(json.dumps({"action": "pool_error", "message": "Pool not found."}))
+                    continue
+                if not pools[pool_code]["is_open"]:
+                    await websocket.send(json.dumps({"action": "pool_error", "message": "This pool is currently closed."}))
+                    continue
+                if user_id in pools[pool_code]["banned"]:
+                    await websocket.send(json.dumps({"action": "pool_error", "message": "You are banned from this pool."}))
+                    continue
+                    
+                if user_id in user_pools: remove_user_from_pool(user_id)
+                
+                pools[pool_code]["members"].append(user_id)
+                user_pools[user_id] = pool_code
+                print(f"[Pools] User {user_id} joined pool {pool_code}.")
+                broadcast_pool_updates(pool_code)
+
+            elif action == "leave_pool":
+                if user_id: remove_user_from_pool(user_id)
+
+            elif action == "close_pool":
+                if not user_id: continue
+                pool_code = user_pools.get(user_id)
+                if pool_code and pool_code in pools and pools[pool_code]["owner"] == user_id:
+                    members_to_remove = list(pools[pool_code]["members"])
+                    for member in members_to_remove:
+                        if member in active_connections:
+                            try: await active_connections[member].send(json.dumps({"action": "pool_closed"}))
+                            except: pass
+                        if member in user_pools: del user_pools[member]
+                    del pools[pool_code]
+                    print(f"[Pools] Pool {pool_code} closed by owner.")
+
+            elif action == "toggle_pool":
+                if not user_id: continue
+                pool_code = user_pools.get(user_id)
+                if pool_code and pool_code in pools and pools[pool_code]["owner"] == user_id:
+                    pools[pool_code]["is_open"] = not pools[pool_code]["is_open"]
+                    broadcast_pool_updates(pool_code)
+
+            elif action == "pool_manage_user":
+                if not user_id: continue
+                pool_code = user_pools.get(user_id)
+                target_uid = data.get("target_id")
+                manage_action = data.get("manage_action")
+                
+                if pool_code and pool_code in pools and pools[pool_code]["owner"] == user_id:
+                    if target_uid in pools[pool_code]["members"]:
+                        if manage_action == "transfer":
+                            pools[pool_code]["owner"] = target_uid
+                            broadcast_pool_updates(pool_code)
+                        elif manage_action == "kick":
+                            if target_uid in active_connections:
+                                try: await active_connections[target_uid].send(json.dumps({"action": "pool_kicked"}))
+                                except: pass
+                            remove_user_from_pool(target_uid)
+                        elif manage_action == "ban":
+                            pools[pool_code]["banned"].append(target_uid)
+                            if target_uid in active_connections:
+                                try: await active_connections[target_uid].send(json.dumps({"action": "pool_banned"}))
+                                except: pass
+                            remove_user_from_pool(target_uid)
 
             # ==========================================
             # DISCORD BOT MESSAGES (THE EYES)
@@ -341,6 +485,7 @@ async def handle_client(websocket):
         print(f"[Error] {e}")
     finally:
             if user_id:
+                remove_user_from_pool(user_id)
                 if user_id in active_connections and active_connections[user_id] == websocket:
                     del active_connections[user_id]
                     del user_approved_lists[user_id]

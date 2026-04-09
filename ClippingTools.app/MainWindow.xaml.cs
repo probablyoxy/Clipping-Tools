@@ -77,6 +77,10 @@ namespace ClippingTools.app
         private List<string> currentActiveVcFriends = new List<string>();
         private string currentVcName = "";
 
+        private List<string> currentActivePoolFriends = new List<string>();
+        private string activePoolCode = "";
+        private bool amIPoolOwner = false;
+
         public MainWindow()
         {
             singleInstanceWatcher = new EventWaitHandle(false, EventResetMode.AutoReset, "ClippingTools_SingleInstanceEvent", out isSingleInstance);
@@ -967,7 +971,25 @@ namespace ClippingTools.app
             VcUsersPanel.Visibility = Visibility.Collapsed;
             currentActiveVcFriends.Clear();
             currentVcName = "";
+            ResetPoolUI();
             WriteLog("Disconnected from the central server.");
+        }
+
+        private void ResetPoolUI()
+        {
+            Dispatcher.Invoke(() => {
+                CurrentPoolText.Visibility = Visibility.Collapsed;
+                PoolUsersPanel.Visibility = Visibility.Collapsed;
+                currentActivePoolFriends.Clear();
+                activePoolCode = "";
+                amIPoolOwner = false;
+
+                PoolCodeInput.Text = "";
+                PoolNameInput.Text = "";
+
+                JoinCreatePoolPanel.Visibility = Visibility.Visible;
+                ActivePoolControls.Visibility = Visibility.Collapsed;
+            });
         }
 
         private async Task SendWsMessage(object payload)
@@ -1061,6 +1083,129 @@ namespace ClippingTools.app
                                 Dispatcher.Invoke(() => {
                                     MessageBox.Show("We could not send you a DM to verify your app!\n\nPlease ensure your DMs are open, or authorize the bot directly by going to:\nhttps://oxy.pizza/clippingtools/authorize\n\nAfter authorizing, click 'Activate Syncing' to try connecting again.", "Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                                     StopListening();
+                                });
+                            }
+                            else if (action == "pool_error")
+                            {
+                                Dispatcher.Invoke(() => { MessageBox.Show(doc.RootElement.GetProperty("message").GetString(), "Pool Error", MessageBoxButton.OK, MessageBoxImage.Warning); });
+                            }
+                            else if (action == "pool_kicked")
+                            {
+                                Dispatcher.Invoke(() => {
+                                    ResetPoolUI();
+                                    MessageBox.Show("You have been kicked from the pool.", "Kicked", MessageBoxButton.OK, MessageBoxImage.Information);
+                                });
+                            }
+                            else if (action == "pool_banned")
+                            {
+                                Dispatcher.Invoke(() => {
+                                    ResetPoolUI();
+                                    MessageBox.Show("You have been banned from the pool.", "Banned", MessageBoxButton.OK, MessageBoxImage.Error);
+                                });
+                            }
+                            else if (action == "pool_closed")
+                            {
+                                Dispatcher.Invoke(() => {
+                                    ResetPoolUI();
+                                    WriteLog("The pool was closed by the owner.");
+                                });
+                            }
+                            else if (action == "client_pool_update")
+                            {
+                                Dispatcher.Invoke(() => {
+                                    string myId = DiscordIdInput.Text;
+                                    activePoolCode = doc.RootElement.GetProperty("pool_code").GetString();
+                                    string poolName = doc.RootElement.GetProperty("name").GetString();
+                                    string ownerId = doc.RootElement.GetProperty("owner").GetString();
+                                    bool isOpen = doc.RootElement.GetProperty("is_open").GetBoolean();
+                                    var members = doc.RootElement.GetProperty("members");
+
+                                    amIPoolOwner = (myId == ownerId);
+
+                                    JoinCreatePoolPanel.Visibility = Visibility.Collapsed;
+                                    ActivePoolControls.Visibility = Visibility.Visible;
+                                    ActivePoolCodeDisplay.Text = activePoolCode;
+
+                                    if (amIPoolOwner)
+                                    {
+                                        TogglePoolBtn.Visibility = Visibility.Visible;
+                                        ClosePoolBtn.Visibility = Visibility.Visible;
+                                        LeavePoolBtn.Visibility = Visibility.Collapsed;
+
+                                        TogglePoolBtn.Background = isOpen ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("IndianRed"));
+                                        TogglePoolBtn.Content = isOpen ? "Joinable" : "Closed";
+                                    }
+                                    else
+                                    {
+                                        TogglePoolBtn.Visibility = Visibility.Collapsed;
+                                        ClosePoolBtn.Visibility = Visibility.Collapsed;
+                                        LeavePoolBtn.Visibility = Visibility.Visible;
+                                    }
+
+                                    currentActivePoolFriends.Clear();
+                                    PoolUsersPanel.Children.Clear();
+
+                                    List<(string DisplayText, string SortName, bool IsConnected, string UserId, string RawName)> usersInPool = new List<(string, string, bool, string, string)>();
+
+                                    foreach (var prop in members.EnumerateObject())
+                                    {
+                                        string uid = prop.Name;
+                                        bool isConnected = prop.Value.GetProperty("is_connected").GetBoolean();
+
+                                        string displayName = uid;
+
+                                        if (uid == myId)
+                                        {
+                                            displayName = "You";
+                                        }
+                                        else
+                                        {
+                                            var matchedUser = ApprovedUsers.FirstOrDefault(u => u.Id == uid);
+                                            if (matchedUser != null) displayName = matchedUser.DisplayName;
+                                            else
+                                            {
+                                                var matchedVis = AllVisibleUsers.FirstOrDefault(u => u.Id == uid);
+                                                if (matchedVis != null) displayName = matchedVis.DisplayName;
+                                            }
+                                        }
+
+                                        string prefix = (uid == ownerId) ? "👑 " : "✔️ ";
+
+                                        if (uid != myId && isConnected)
+                                        {
+                                            currentActivePoolFriends.Add($"{uid} ({displayName})");
+                                        }
+
+                                        usersInPool.Add((prefix + displayName, displayName, isConnected, uid, displayName));
+                                    }
+
+                                    usersInPool.Sort((a, b) => a.SortName.CompareTo(b.SortName));
+
+                                    foreach (var user in usersInPool)
+                                    {
+                                        StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 2, 0, 2), Background = System.Windows.Media.Brushes.Transparent };
+                                        TextBlock tb = new TextBlock { Text = user.DisplayText, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#b9bbbe")), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
+
+                                        System.Windows.Shapes.Ellipse dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center };
+                                        dot.Fill = user.IsConnected ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581")) : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#f04747"));
+
+                                        sp.Children.Add(tb);
+                                        sp.Children.Add(dot);
+
+                                        if (amIPoolOwner && user.UserId != myId)
+                                        {
+                                            sp.Cursor = Cursors.Hand;
+                                            sp.ToolTip = "Manage User";
+                                            sp.Tag = new Tuple<string, string>(user.UserId, user.RawName);
+                                            sp.MouseLeftButtonDown += PoolUser_MouseLeftButtonDown;
+                                        }
+
+                                        PoolUsersPanel.Children.Add(sp);
+                                    }
+
+                                    CurrentPoolText.Text = $"Current Pool: {poolName}";
+                                    CurrentPoolText.Visibility = Visibility.Visible;
+                                    PoolUsersPanel.Visibility = Visibility.Visible;
                                 });
                             }
                             else if (action == "client_vc_update")
@@ -1280,14 +1425,17 @@ namespace ClippingTools.app
 
             if (SendClipsCheck.IsChecked == true)
             {
-                string sentTo = currentActiveVcFriends.Count > 0 ? string.Join(", ", currentActiveVcFriends) : "nobody";
+                var combinedFriends = new HashSet<string>(currentActiveVcFriends);
+                foreach (var f in currentActivePoolFriends) combinedFriends.Add(f);
+
+                string sentTo = combinedFriends.Count > 0 ? string.Join(", ", combinedFriends) : "nobody";
                 WriteLog($"Triggered a local clip command. Sent to: {sentTo}");
                 await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
 
-                if (currentActiveVcFriends.Count > 0)
+                if (combinedFriends.Count > 0)
                 {
                     totalClipsStats.Sent++;
-                    foreach (var friendStr in currentActiveVcFriends)
+                    foreach (var friendStr in combinedFriends)
                     {
                         int spaceIdx = friendStr.IndexOf(' ');
                         if (spaceIdx > 0)
@@ -2481,6 +2629,80 @@ del ""%~f0""
             AddUserOverlay.Visibility = Visibility.Collapsed;
             pendingAddUserId = "";
             pendingAddUserName = "";
+        }
+
+        private async void JoinPoolBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(PoolCodeInput.Text)) return;
+            await SendWsMessage(new { action = "join_pool", pool_code = PoolCodeInput.Text.Trim().ToUpper() });
+        }
+
+        private async void CreatePoolBtn_Click(object sender, RoutedEventArgs e)
+        {
+            string name = string.IsNullOrWhiteSpace(PoolNameInput.Text) ? "Unnamed Pool" : PoolNameInput.Text.Trim();
+            await SendWsMessage(new { action = "create_pool", name = name });
+        }
+
+        private async void LeavePoolBtn_Click(object sender, RoutedEventArgs e)
+        {
+            await SendWsMessage(new { action = "leave_pool" });
+            ResetPoolUI();
+        }
+
+        private void ActivePoolCodeDisplay_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(activePoolCode))
+            {
+                Clipboard.SetText(activePoolCode);
+                WriteLog("Pool code copied to clipboard.");
+            }
+        }
+
+        private async void ClosePoolBtn_Click(object sender, RoutedEventArgs e)
+        {
+            await SendWsMessage(new { action = "close_pool" });
+            ResetPoolUI();
+        }
+
+        private async void TogglePoolBtn_Click(object sender, RoutedEventArgs e)
+        {
+            await SendWsMessage(new { action = "toggle_pool" });
+        }
+
+        private string pendingPoolUserId = "";
+
+        private void PoolUser_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is StackPanel sp && sp.Tag is Tuple<string, string> userData)
+            {
+                pendingPoolUserId = userData.Item1;
+                PoolActionPromptText.Text = $"Manage {userData.Item2}";
+                PoolActionOverlay.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void ClosePoolActionOverlayBtn_Click(object sender, RoutedEventArgs e)
+        {
+            PoolActionOverlay.Visibility = Visibility.Collapsed;
+            pendingPoolUserId = "";
+        }
+
+        private async void PoolTransferBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(pendingPoolUserId)) await SendWsMessage(new { action = "pool_manage_user", target_id = pendingPoolUserId, manage_action = "transfer" });
+            ClosePoolActionOverlayBtn_Click(null, null);
+        }
+
+        private async void PoolKickBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(pendingPoolUserId)) await SendWsMessage(new { action = "pool_manage_user", target_id = pendingPoolUserId, manage_action = "kick" });
+            ClosePoolActionOverlayBtn_Click(null, null);
+        }
+
+        private async void PoolBanBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(pendingPoolUserId)) await SendWsMessage(new { action = "pool_manage_user", target_id = pendingPoolUserId, manage_action = "ban" });
+            ClosePoolActionOverlayBtn_Click(null, null);
         }
     }
 
