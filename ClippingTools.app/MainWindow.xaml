@@ -507,13 +507,13 @@
                             <Run Text=", "/>
                             <Run FontWeight="Bold" Foreground="White" Text="-"/>
                             <Run Text=", "/>
-                            <Run FontWeight="Bold" Foreground="White" Text="*"/>
+                            <Run FontWeight="Bold" Foreground="White" Text="✔️"/>
                             <Run Text=", or nothing. "/>
                             <Run FontWeight="Bold" Foreground="White" Text="+"/>
                             <Run Text=" is when only you approve them, "/>
                             <Run FontWeight="Bold" Foreground="White" Text="-"/>
                             <Run Text=" is when only they approve you, "/>
-                            <Run FontWeight="Bold" Foreground="White" Text="*"/>
+                            <Run FontWeight="Bold" Foreground="White" Text="✔️"/>
                             <Run Text=" is when you both approve each other, and nothing will show when neither approves the other."/>
                         </TextBlock>
                     </StackPanel>
