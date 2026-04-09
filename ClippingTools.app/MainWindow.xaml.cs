@@ -62,7 +62,7 @@ namespace ClippingTools.app
         private DateTime lastClipTime = DateTime.MinValue;
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.5";
+        private const string AppVersion = "v0.1.6";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -251,6 +251,7 @@ namespace ClippingTools.app
                     AutoSyncCheck.IsChecked = settings.AutoSync;
                     StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
                     RateLimitInput.Text = settings.RateLimitSeconds >= 0 ? settings.RateLimitSeconds.ToString() : "10";
+                    ObsLocationInput.Text = settings.ObsPath;
                     AutoStartObsCheck.IsChecked = settings.AutoStartObs;
                     AutoRestartObsCheck.IsChecked = settings.AutoRestartObs;
                     ObsIntervalInput.Text = settings.ObsCheckInterval > 0 ? settings.ObsCheckInterval.ToString() : "5";
@@ -298,6 +299,11 @@ namespace ClippingTools.app
             }
 
             RebuildClipKeyUI();
+
+            if (string.IsNullOrEmpty(ObsLocationInput.Text))
+            {
+                Task.Run(() => GetObsPath());
+            }
         }
 
         private void SaveSettings()
@@ -324,6 +330,7 @@ namespace ClippingTools.app
                 AutoSync = AutoSyncCheck.IsChecked ?? false,
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
                 RateLimitSeconds = int.TryParse(RateLimitInput.Text, out int parsedLimit) && parsedLimit >= 0 ? parsedLimit : 10,
+                ObsPath = ObsLocationInput.Text,
                 AutoStartObs = AutoStartObsCheck.IsChecked ?? false,
                 AutoRestartObs = AutoRestartObsCheck.IsChecked ?? false,
                 ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
@@ -1378,6 +1385,26 @@ namespace ClippingTools.app
             ToggleObsWatchdog();
         }
 
+        private void BrowseObsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "OBS Executable (obs64.exe)|obs64.exe";
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                if (openFileDialog.FileName.EndsWith("obs64.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    ObsLocationInput.Text = openFileDialog.FileName;
+                    SaveSettings();
+                    WriteLog($"OBS Location manually set to: {openFileDialog.FileName}");
+                }
+                else
+                {
+                    MessageBox.Show("Please select a valid obs64.exe file.", "Invalid File", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
         {
             System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex("[^0-9]+");
@@ -1386,40 +1413,65 @@ namespace ClippingTools.app
 
         private string GetObsPath()
         {
+            string savedPath = "";
+            Application.Current.Dispatcher.Invoke(() => { savedPath = ObsLocationInput.Text; });
+
+            if (!string.IsNullOrEmpty(savedPath) && File.Exists(savedPath) && savedPath.EndsWith("obs64.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                return savedPath;
+            }
+
+            string detectedPath = null;
             var runningObs = Process.GetProcessesByName("obs64");
             if (runningObs.Length > 0)
             {
-                try { return runningObs[0].MainModule.FileName; } catch { }
+                try { detectedPath = runningObs[0].MainModule.FileName; } catch { }
             }
 
-            try
+            if (string.IsNullOrEmpty(detectedPath))
             {
-                using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\OBS Studio"))
+                try
                 {
-                    if (key != null)
+                    using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\OBS Studio"))
                     {
-                        string path = key.GetValue("") as string;
-                        if (!string.IsNullOrEmpty(path))
+                        if (key != null)
                         {
-                            string exePath = System.IO.Path.Combine(path, @"bin\64bit\obs64.exe");
-                            if (File.Exists(exePath)) return exePath;
+                            string path = key.GetValue("") as string;
+                            if (!string.IsNullOrEmpty(path))
+                            {
+                                string exePath = System.IO.Path.Combine(path, @"bin\64bit\obs64.exe");
+                                if (File.Exists(exePath)) detectedPath = exePath;
+                            }
                         }
                     }
                 }
+                catch { }
             }
-            catch { }
 
-            string[] commonPaths = {
-                @"C:\Program Files\obs-studio\bin\64bit\obs64.exe",
-                @"C:\Program Files (x86)\obs-studio\bin\64bit\obs64.exe",
-                @"C:\Program Files (x86)\Steam\steamapps\common\OBS Studio\bin\64bit\obs64.exe",
-                @"C:\SteamLibrary\steamapps\common\OBS Studio\bin\64bit\obs64.exe",
-                @"D:\SteamLibrary\steamapps\common\OBS Studio\bin\64bit\obs64.exe"
-            };
-
-            foreach (var p in commonPaths)
+            if (string.IsNullOrEmpty(detectedPath))
             {
-                if (File.Exists(p)) return p;
+                string[] commonPaths = {
+                    @"C:\Program Files\obs-studio\bin\64bit\obs64.exe",
+                    @"C:\Program Files (x86)\obs-studio\bin\64bit\obs64.exe",
+                    @"C:\Program Files (x86)\Steam\steamapps\common\OBS Studio\bin\64bit\obs64.exe",
+                    @"C:\SteamLibrary\steamapps\common\OBS Studio\bin\64bit\obs64.exe",
+                    @"D:\SteamLibrary\steamapps\common\OBS Studio\bin\64bit\obs64.exe"
+                };
+
+                foreach (var p in commonPaths)
+                {
+                    if (File.Exists(p)) { detectedPath = p; break; }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(detectedPath))
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    ObsLocationInput.Text = detectedPath;
+                    SaveSettings();
+                });
+                return detectedPath;
             }
 
             return null;
@@ -2024,6 +2076,7 @@ del ""%~f0""
         public bool EnableLogging { get; set; } = true;
         public int MaxLogLines { get; set; } = 1000;
         public string AppUuid { get; set; } = "";
+        public string ObsPath { get; set; } = "";
         public bool AutoStartObs { get; set; } = false;
         public bool AutoRestartObs { get; set; } = false;
         public int ObsCheckInterval { get; set; } = 5;
