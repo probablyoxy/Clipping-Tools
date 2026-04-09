@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import string
+import time
 
 logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
@@ -30,7 +31,18 @@ else:
     ALLOWED_BOT_IDS = []
     PREFERRED_BOT_ID = ""
 
-active_connections = {} 
+STATS_FILE = "stats.json"
+if os.path.exists(STATS_FILE):
+    with open(STATS_FILE, "r") as f:
+        server_stats = json.load(f)
+else:
+    server_stats = {"clips_synced": 0, "clips_taken": 0}
+
+def save_stats():
+    with open(STATS_FILE, "w") as f:
+        json.dump(server_stats, f)
+
+active_connections = {}
 unverified_connections = {}
 pending_dm_requests = {}
 pending_all_users_requests = {}
@@ -40,6 +52,8 @@ user_versions = {}
 
 vc_map = {} 
 user_vc_timestamps = {}
+
+user_last_clip_time = {}
 
 pools = {}
 user_pools = {}
@@ -254,6 +268,14 @@ async def handle_client(websocket):
                     print(f"[Security] Blocked unverified trigger from {user_id}")
                     continue
 
+                current_time = time.time()
+                if user_id in user_last_clip_time:
+                    if current_time - user_last_clip_time[user_id] < 5.0:
+                        print(f"[Rate Limit] Ignored clip trigger from {user_id} (Too fast).")
+                        continue
+                
+                user_last_clip_time[user_id] = current_time
+
                 target_users = set()
                 sender_name = "Unknown User"
 
@@ -277,6 +299,9 @@ async def handle_client(websocket):
                     print(f"[Desktop] User {user_id} clipped, but is not in a VC or a Pool.")
                     continue
 
+                server_stats["clips_synced"] += 1
+                server_stats["clips_taken"] += 1
+
                 for target_user in target_users:
                     if target_user in active_connections:
                         target_ws = active_connections[target_user]
@@ -286,6 +311,9 @@ async def handle_client(websocket):
                         }
                         await target_ws.send(json.dumps(payload))
                         print(f"[Router] Sent clip signal from {user_id} -> {target_user}")
+                        server_stats["clips_taken"] += 1
+                
+                save_stats()
 
 
             elif action == "create_pool":
