@@ -14,8 +14,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="clip_renamer\ClipRenamer.exe" />
     <None Remove="sounds\clipped.wav" />
     <None Remove="sounds\clippedteto.wav" />
+    <None Remove="sounds\confusedindividual-clipped.mp3" />
+    <None Remove="sounds\simpleyviridian-clipped.wav" />
+    <None Remove="sounds\simpleyviridian-clippedteto.wav" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,12 +37,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="sounds\clipped.wav">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="sounds\clippedteto.wav">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
+    <EmbeddedResource Include="clip_renamer\ClipRenamer.exe" />
+    <EmbeddedResource Include="sounds\confusedindividual-clipped.mp3" />
+    <EmbeddedResource Include="sounds\simpleyviridian-clipped.wav" />
+    <EmbeddedResource Include="sounds\simpleyviridian-clippedteto.wav" />
   </ItemGroup>
 
 </Project>

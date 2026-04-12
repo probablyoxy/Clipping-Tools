@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="ClippingTools.app/ClippingTools.csproj" />
+  <Project Path="ClipRenamer/ClipRenamer.csproj" Id="fc8c0e59-1fd3-4705-9ac0-fef7655119b7" />
   <Project Path="Installer/Installer.csproj" Id="cf770e31-c43e-4eeb-92ea-3a6573317e9b" />
 </Solution>

@@ -67,7 +67,7 @@ namespace ClippingTools.app
         private Dictionary<string, UserStatCount> userReceivedStats = new Dictionary<string, UserStatCount>();
 
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.6";
+        private const string AppVersion = "v0.1.7";
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -210,7 +210,7 @@ namespace ClippingTools.app
         {
             if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
 
-            string[] builtInSounds = { "clipped.wav", "clippedteto.wav" };
+            string[] builtInSounds = { "simpleyviridian-clipped.wav", "simpleyviridian-clippedteto.wav", "confusedindividual-clipped.mp3" };
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var resourceNames = assembly.GetManifestResourceNames();
 
@@ -310,7 +310,7 @@ namespace ClippingTools.app
             if (IsKeybindCollision(TriggerKeyInput.Text, ClipKeysList))
             {
                 TriggerKeyInput.Text = "";
-                WriteLog("[Security] Trigger keybind wiped on startup due to collision with Software Clip keybind.");
+                WriteLog("Trigger keybind wiped on startup due to collision with Software Clip keybind.");
             }
 
             RebuildClipKeyUI();
@@ -417,16 +417,26 @@ namespace ClippingTools.app
             });
         }
 
-        private void Setting_Changed(object sender, RoutedEventArgs e) 
-        { 
-            SaveSettings(); 
+        private void Setting_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender == AutoRenameClipsCheck && AutoRenameClipsCheck.IsChecked == true)
+            {
+                if (string.IsNullOrWhiteSpace(ClipLocationInput.Text) || ClipLocationInput.Text == "Waiting for selection...")
+                {
+                    MessageBox.Show("Please set your Clip Recording Location first before enabling the Clip Renaming feature.", "Missing Location", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    AutoRenameClipsCheck.IsChecked = false;
+                    return;
+                }
+            }
+
+            SaveSettings();
             if (sender == AutoRenameClipsCheck) ToggleRenamerService();
         }
         private void Setting_TextChanged(object sender, TextChangedEventArgs e) { SaveSettings(); }
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
-            string triggerPath = System.IO.Path.Combine(renamerFolder, "clip_trigger.txt");
+            string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
             if (File.Exists(triggerPath)) File.WriteAllText(triggerPath, "EXIT");
 
             if (!forceExit)
@@ -747,10 +757,13 @@ namespace ClippingTools.app
                 switch (sysSound)
                 {
                     case "SimpleyViridian - Clipped":
-                        PlayIncludedSound("clipped.wav");
+                        PlayIncludedSound("simpleyviridian-clipped.wav");
                         break;
                     case "SimpleyViridian - Clipped Teto":
-                        PlayIncludedSound("clippedteto.wav");
+                        PlayIncludedSound("simpleyviridian-clippedteto.wav");
+                        break;
+                    case "ConfusedIndividual - Clipped":
+                        PlayIncludedSound("confusedindividual-clipped.mp3");
                         break;
                     case "Windows - Hand": System.Media.SystemSounds.Hand.Play(); break;
                     case "Windows - Exclamation": System.Media.SystemSounds.Exclamation.Play(); break;
@@ -1082,18 +1095,23 @@ namespace ClippingTools.app
                             {
                                 Dispatcher.Invoke(() => {
                                     MessageBox.Show("We could not send you a DM to verify your app!\n\nPlease ensure your DMs are open, or authorize the bot directly by going to:\nhttps://oxy.pizza/clippingtools/authorize\n\nAfter authorizing, click 'Activate Syncing' to try connecting again.", "Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                                    WriteLog("Discord DM Verification Error");
                                     StopListening();
                                 });
                             }
                             else if (action == "pool_error")
                             {
-                                Dispatcher.Invoke(() => { MessageBox.Show(doc.RootElement.GetProperty("message").GetString(), "Pool Error", MessageBoxButton.OK, MessageBoxImage.Warning); });
+                                Dispatcher.Invoke(() => {
+                                    MessageBox.Show(doc.RootElement.GetProperty("message").GetString(), "Pool Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                    WriteLog("The connection to the pool encountered an error.");
+                                });
                             }
                             else if (action == "pool_kicked")
                             {
                                 Dispatcher.Invoke(() => {
                                     ResetPoolUI();
                                     MessageBox.Show("You have been kicked from the pool.", "Kicked", MessageBoxButton.OK, MessageBoxImage.Information);
+                                    WriteLog("You were kicked from the pool.");
                                 });
                             }
                             else if (action == "pool_banned")
@@ -1101,6 +1119,7 @@ namespace ClippingTools.app
                                 Dispatcher.Invoke(() => {
                                     ResetPoolUI();
                                     MessageBox.Show("You have been banned from the pool.", "Banned", MessageBoxButton.OK, MessageBoxImage.Error);
+                                    WriteLog("You were banned from the pool.");
                                 });
                             }
                             else if (action == "pool_closed")
@@ -1343,6 +1362,8 @@ namespace ClippingTools.app
                         ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
                     });
 
+                    WriteLog("Successfully reconnected to the central server.");
+
                     await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                     AskServerToResolveNames();
 
@@ -1441,11 +1462,14 @@ namespace ClippingTools.app
                         if (spaceIdx > 0)
                         {
                             string id = friendStr.Substring(0, spaceIdx);
-                            string name = friendStr.Substring(spaceIdx + 2, friendStr.Length - spaceIdx - 3);
+                            string fallbackName = friendStr.Substring(spaceIdx + 2, friendStr.Length - spaceIdx - 3);
 
-                            if (!userSentStats.ContainsKey(id)) userSentStats[id] = new UserStatCount { Id = id, Name = name, Count = 0 };
+                            var matchedUser = ApprovedUsers.FirstOrDefault(u => u.Id == id);
+                            string trueName = matchedUser != null ? matchedUser.DisplayName : fallbackName;
+
+                            if (!userSentStats.ContainsKey(id)) userSentStats[id] = new UserStatCount { Id = id, Name = trueName, Count = 0 };
                             userSentStats[id].Count++;
-                            userSentStats[id].Name = name;
+                            userSentStats[id].Name = trueName;
                         }
                     }
                     SaveStats();
@@ -1742,7 +1766,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
             if (!Directory.Exists(renamerFolder)) Directory.CreateDirectory(renamerFolder);
 
-            string triggerPath = System.IO.Path.Combine(renamerFolder, "clip_trigger.txt");
+            string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
             string statusPath = System.IO.Path.Combine(renamerFolder, "renamer_status.txt");
 
             renamerStatusCts?.Cancel();
@@ -1761,109 +1785,62 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             File.WriteAllText(triggerPath, "");
             File.WriteAllText(statusPath, "");
 
-            string psCode = @"
-param($RenamerFolder, $ClipFolder)
-$triggerFile = ""$RenamerFolder\clip_trigger.txt""
-$queueFile = ""$RenamerFolder\clip_queue.txt""
-$processingFile = ""$RenamerFolder\processing_queue.txt""
-$statusFile = ""$RenamerFolder\renamer_status.txt""
+            string renamerExe = System.IO.Path.Combine(renamerFolder, "ClipRenamer.exe");
 
-function Send-Status($msg) { 
-    $retry = 0
-    while($retry -lt 5) {
-        try { Set-Content -Path $statusFile -Value $msg -ErrorAction Stop; break } 
-        catch { Start-Sleep -Milliseconds 100; $retry++ }
-    }
-}
-
-if (-not (Test-Path $triggerFile)) { New-Item $triggerFile -ItemType File | Out-Null }
-$lastWrite = (Get-Item $triggerFile).LastWriteTime
-
-# Note baseline files immediately upon starting
-$baselineFiles = Get-ChildItem -Path $ClipFolder -File | Select-Object -ExpandProperty FullName
-if ($null -eq $baselineFiles) { $baselineFiles = @() }
-
-while ($true) {
-    Start-Sleep -Milliseconds 500
-    
-    # 1. Check for EXIT signal from C#
-    $currentWrite = (Get-Item $triggerFile).LastWriteTime
-    if ($currentWrite -gt $lastWrite) {
-        $lastWrite = $currentWrite
-        $content = (Get-Content $triggerFile -Raw).Trim()
-        if ($content -eq ""EXIT"") { break }
-    }
-
-    # 2. Check the Clip Queue
-    if (Test-Path $queueFile) {
-        try { 
-            Move-Item -Path $queueFile -Destination $processingFile -Force -ErrorAction Stop 
-        } catch { 
-            continue # File temporarily locked by C# App, skip and grab it next tick
-        }
-
-        $lines = Get-Content $processingFile
-        foreach ($line in $lines) {
-            if ([string]::IsNullOrWhiteSpace($line)) { continue }
-            $parts = $line.Split('|')
-            if ($parts.Length -lt 2) { continue }
-            
-            $clipperName = $parts[0] -replace '[<>:""/\\|?*]', '_'
-            $vcName = $parts[1] -replace '[<>:""/\\|?*]', '_'
-            $prefix = ""$clipperName - $vcName - ""
-
-            # Instantly start scanning for a new file for THIS specific clip
-            $foundFile = $null
-            $timeout = (Get-Date).AddMinutes(5)
-            while ((Get-Date) -lt $timeout) {
-                $currentFiles = Get-ChildItem -Path $ClipFolder -File
-                foreach ($f in $currentFiles) {
-                    if ($baselineFiles -notcontains $f.FullName -and (-not $f.Name.StartsWith($prefix))) {
-                        $foundFile = $f
-                        break
-                    }
+            bool needsExtraction = false;
+            if (!File.Exists(renamerExe))
+            {
+                needsExtraction = true;
+            }
+            else
+            {
+                string mainAppPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                if (File.GetLastWriteTime(mainAppPath) > File.GetLastWriteTime(renamerExe))
+                {
+                    needsExtraction = true;
+                    WriteLog("Newer version of Clipping Tools detected. Updating ClipRenamer.exe...");
                 }
-                if ($foundFile) { break }
-                Start-Sleep -Milliseconds 500
             }
 
-            if ($foundFile) {
-                Send-Status ""FOUND""
-                Start-Sleep -Seconds 5
+            if (needsExtraction)
+            {
+                try
+                {
+                    var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    var resourceName = System.Linq.Enumerable.FirstOrDefault(assembly.GetManifestResourceNames(), n => n.EndsWith("ClipRenamer.exe"));
 
-                $renamed = $false
-                $renameTimeout = (Get-Date).AddMinutes(5)
-                while (-not $renamed -and (Get-Date) -lt $renameTimeout) {
-                    try {
-                        $newName = $prefix + $foundFile.Name
-                        $newPath = Join-Path $foundFile.DirectoryName $newName
-                        Rename-Item -Path $foundFile.FullName -NewName $newName -ErrorAction Stop
-                        Send-Status ""RENAMED|$newName""
-                        $baselineFiles += $newPath
-                        $renamed = $true
-                    } catch {
-                        Start-Sleep -Seconds 2
+                    if (resourceName != null)
+                    {
+                        using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                        using (FileStream fileStream = new FileStream(renamerExe, FileMode.Create, FileAccess.Write))
+                        {
+                            stream.CopyTo(fileStream);
+                        }
+                        WriteLog("Successfully unpacked ClipRenamer.exe.");
+                    }
+                    else
+                    {
+                        WriteLog("Error: ClipRenamer.exe was not found in the embedded resources. Please report on Github!! (compiler error!)");
+                        return;
                     }
                 }
-            } else {
-                Send-Status ""TIMEOUT""
+                catch (Exception ex)
+                {
+                    WriteLog($"Error unpacking ClipRenamer.exe: {ex.Message}");
+                    return;
+                }
             }
-            # Update baseline before moving to the next person in the queue
-            $baselineFiles = Get-ChildItem -Path $ClipFolder -File | Select-Object -ExpandProperty FullName
-        }
-        Remove-Item $processingFile -Force
-    }
-}
-";
-            string psPath = System.IO.Path.Combine(renamerFolder, "renamer.ps1");
-            File.WriteAllText(psPath, psCode);
 
             string launcherVbs = System.IO.Path.Combine(renamerFolder, "launch_renamer.vbs");
-            string vbsCode = $@"CreateObject(""WScript.Shell"").Run ""powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """"{psPath}"""" """"{renamerFolder}"""" """"{clipFolder}"""""", 0, False";
+
+            string vbsCode = $@"
+Set objShell = CreateObject(""WScript.Shell"")
+objShell.Run Chr(34) & ""{renamerExe}"" & Chr(34) & "" "" & Chr(34) & ""{renamerFolder}"" & Chr(34) & "" "" & Chr(34) & ""{clipFolder}"" & Chr(34), 0, False
+";
             File.WriteAllText(launcherVbs, vbsCode);
 
             Process.Start("explorer.exe", $"\"{launcherVbs}\"");
-            WriteLog("Clip Renaming Background Service started.");
+            WriteLog("ClipRenamer.exe started.");
 
             renamerStatusCts = new CancellationTokenSource();
             _ = WatchRenamerStatusAsync(statusPath, renamerStatusCts.Token);
@@ -2007,7 +1984,7 @@ while ($true) {
             string obsPath = GetObsPath();
             if (string.IsNullOrEmpty(obsPath) || !File.Exists(obsPath))
             {
-                WriteLog("Auto Start OBS: Could not locate OBS executable automatically.");
+                WriteLog("Auto Start OBS: Could not locate OBS executable.");
                 return;
             }
 
@@ -2021,7 +1998,7 @@ while ($true) {
             }
             else
             {
-                WriteLog("Auto Start OBS: OBS is not running. Launching with replay enabled...");
+                WriteLog("Auto Start OBS: Launching OBS with replay enabled...");
                 string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string sentinelFile = System.IO.Path.Combine(appData, @"obs-studio\.sentinel");
                 string safeModeFile = System.IO.Path.Combine(appData, @"obs-studio\safe_mode");

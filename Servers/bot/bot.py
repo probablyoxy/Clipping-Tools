@@ -164,10 +164,16 @@ async def connect_to_router():
             print(f"[Bot] Disconnected from Router. Retrying in 5s... ({e})")
             await asyncio.sleep(5)
 
+router_task_started = False
+
 @bot.event
 async def on_ready():
+    global router_task_started
     print(f"Bot logged in as {bot.user}")
-    bot.loop.create_task(connect_to_router())
+    
+    if not router_task_started:
+        router_task_started = True
+        bot.loop.create_task(connect_to_router())
 
 @bot.event
 async def on_guild_join(guild):

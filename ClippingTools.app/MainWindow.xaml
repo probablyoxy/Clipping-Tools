@@ -37,11 +37,11 @@
                 <Grid>
                     <StackPanel>
                         <TextBlock Text="Home" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                        <CheckBox x:Name="SendClipsCheck" Content="Send clipping actions to others" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
-                        <CheckBox x:Name="ReceiveClipsCheck" Content="Receive clipping actions from others" Foreground="White" IsChecked="True" Margin="0,0,0,30" Click="Setting_Changed"/>
+                        <CheckBox x:Name="SendClipsCheck" HorizontalAlignment="Left" Content="Send clipping actions to others" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="ReceiveClipsCheck" HorizontalAlignment="Left" Content="Receive clipping actions from others" Foreground="White" IsChecked="True" Margin="0,0,0,30" Click="Setting_Changed"/>
                         <Button x:Name="ConnectButton" Content="Activate Syncing" Height="40" Width="200" HorizontalAlignment="Left" Background="#5865F2" Foreground="White" FontWeight="Bold" Click="ConnectButton_Click"/>
-                        <CheckBox x:Name="AutoSyncCheck" Content="Sync Automatically on startup" Foreground="White" Margin="0,15,0,10" Click="Setting_Changed"/>
-                        <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Foreground="White" Margin="0,0,0,10" Click="StartWithWindowsCheck_Click"/>
+                        <CheckBox x:Name="AutoSyncCheck" HorizontalAlignment="Left" Content="Sync Automatically on startup" Foreground="White" Margin="0,15,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="StartWithWindowsCheck" HorizontalAlignment="Left" Content="Start with Windows" Foreground="White" Margin="0,0,0,10" Click="StartWithWindowsCheck_Click"/>
 
                         <Rectangle Height="1" Fill="#202225" Margin="0,15,0,15"/>
 
@@ -167,8 +167,8 @@
                     <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
                     <TextBlock Text="Voice Channel Sync Rules:" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
                     <StackPanel>
-                        <RadioButton x:Name="RadioAnyVC" GroupName="VCRules" Content="Sync in any Voice Channel with Approved Users" Foreground="#b9bbbe" IsChecked="True" Margin="0,0,0,10" Checked="RadioVCRules_Changed"/>
-                        <RadioButton x:Name="RadioSpecificVC" GroupName="VCRules" Content="Only sync when in these specific Channel IDs:" Foreground="#b9bbbe" Margin="0,0,0,5" Checked="RadioVCRules_Changed"/>
+                        <RadioButton x:Name="RadioAnyVC" HorizontalAlignment="Left" GroupName="VCRules" Content="Sync in any Voice Channel with Approved Users" Foreground="#b9bbbe" IsChecked="True" Margin="0,0,0,10" Checked="RadioVCRules_Changed"/>
+                        <RadioButton x:Name="RadioSpecificVC" HorizontalAlignment="Left" GroupName="VCRules" Content="Only sync when in these specific Channel IDs:" Foreground="#b9bbbe" Margin="0,0,0,5" Checked="RadioVCRules_Changed"/>
                         <Grid x:Name="ChannelListContainer" Margin="20,0,0,0" IsEnabled="False" Opacity="0.5">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -228,7 +228,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="80"/>
                         </Grid.ColumnDefinitions>
-                        <CheckBox x:Name="EnableSoundCheck" Grid.Column="0" Content="Play sound effect when a clip is taken" Foreground="White" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
+                        <CheckBox x:Name="EnableSoundCheck" HorizontalAlignment="Left" Grid.Column="0" Content="Play sound effect when a clip is taken" Foreground="White" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
                         <Button Grid.Column="1" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestSoundBtn_Click"/>
                     </Grid>
                     <Grid Margin="20,0,0,20">
@@ -242,10 +242,11 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="80"/>
                             </Grid.ColumnDefinitions>
-                            <RadioButton x:Name="RadioSystemSound" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="RadioSystemSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
                             <ComboBox x:Name="SystemSoundCombo" Grid.Column="1" Margin="0,0,5,0" SelectionChanged="SystemSoundCombo_SelectionChanged">
                                 <ComboBoxItem Content="SimpleyViridian - Clipped" IsSelected="True"/>
                                 <ComboBoxItem Content="SimpleyViridian - Clipped Teto"/>
+                                <ComboBoxItem Content="ConfusedIndividual - Clipped"/>
                                 <ComboBoxItem Content="Windows - Exclamation"/>
                                 <ComboBoxItem Content="Windows - Hand"/>
                             </ComboBox>
@@ -256,7 +257,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="80"/>
                             </Grid.ColumnDefinitions>
-                            <RadioButton x:Name="RadioCustomSound" Grid.Column="0" Content="Use Custom Audio File:" Foreground="#b9bbbe" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="RadioCustomSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use Custom Audio File:" Foreground="#b9bbbe" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
                             <TextBox x:Name="CustomSoundPathInput" Grid.Column="1" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                             <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseSoundBtn_Click"/>
                         </Grid>
@@ -291,7 +292,7 @@
                         <TextBox x:Name="ClipLocationInput" Grid.Column="0" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                         <Button Grid.Column="1" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseClipLocationBtn_Click"/>
                     </Grid>
-                    <CheckBox x:Name="AutoRenameClipsCheck" Content="Clip Renaming (Adds VC and clipping user's name to video file)" Foreground="White" FontSize="14" Margin="0,0,0,20" Click="Setting_Changed"/>
+                    <CheckBox x:Name="AutoRenameClipsCheck" HorizontalAlignment="Left" Content="Clip Renaming (Adds VC and clipping user's name to video file)" Foreground="White" FontSize="14" Margin="0,0,0,20" Click="Setting_Changed"/>
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
 
@@ -305,8 +306,8 @@
                         <TextBox x:Name="ObsLocationInput" Grid.Column="0" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                         <Button Grid.Column="1" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseObsBtn_Click"/>
                     </Grid>
-                    <CheckBox x:Name="AutoStartObsCheck" Content="Automatically Start OBS Replay on Clipping Tools Launch" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
-                    <CheckBox x:Name="AutoRestartObsCheck" Content="Automatically Restart OBS Replay on Failure" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="AutoRestartObsCheck_Click"/>
+                    <CheckBox x:Name="AutoStartObsCheck" HorizontalAlignment="Left" Content="Automatically Start OBS Replay on Clipping Tools Launch" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
+                    <CheckBox x:Name="AutoRestartObsCheck" HorizontalAlignment="Left" Content="Automatically Restart OBS Replay on Failure" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="AutoRestartObsCheck_Click"/>
                     <StackPanel x:Name="ObsIntervalPanel" Visibility="Collapsed" Margin="20,0,0,10">
                         <TextBlock Text="OBS Checking Interval (Seconds)" Foreground="#b9bbbe" Margin="0,0,0,5"/>
                         <TextBox x:Name="ObsIntervalInput" Text="5" Width="50" Height="25" HorizontalAlignment="Left" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
@@ -323,7 +324,7 @@
 
                     <StackPanel Grid.Row="0">
                         <TextBlock Text="Action Logs" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                        <CheckBox x:Name="EnableLoggingCheck" Content="Enable Action Logging" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="EnableLoggingCheck_Click"/>
+                        <CheckBox x:Name="EnableLoggingCheck" HorizontalAlignment="Left" Content="Enable Action Logging" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="EnableLoggingCheck_Click"/>
                         <StackPanel x:Name="LogLinesPanel" Orientation="Horizontal" Margin="0,0,0,15">
                             <TextBlock Text="Max lines to keep:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
                             <TextBox x:Name="MaxLogLinesInput" Text="1000" Width="60" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
