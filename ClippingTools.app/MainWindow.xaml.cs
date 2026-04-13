@@ -1157,7 +1157,7 @@ start """" ""{targetExe}""
                 ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                 ServerStatusText.Text = "Connected";
                 isReconnecting = false;
-                WriteLog("Connected to the central server.");
+                WriteLog($"Connected to the central server. ({AppVersion})");
 
                 await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                 AskServerToResolveNames();
