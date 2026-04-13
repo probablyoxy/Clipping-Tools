@@ -588,6 +588,12 @@ start """" ""{targetExe}""
             if (sender == AutoRenameClipsCheck) ToggleRenamerService();
         }
         private void Setting_TextChanged(object sender, TextChangedEventArgs e) { SaveSettings(); }
+
+        private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            Keyboard.ClearFocus();
+        }
+
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
