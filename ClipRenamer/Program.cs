@@ -101,7 +101,7 @@ namespace ClipRenamer
                             Thread.Sleep(5000);
 
                             string foundFile = null;
-                            DateTime timeout = DateTime.Now.AddMinutes(5);
+                            DateTime timeout = DateTime.Now.AddMinutes(1);
 
                             while (DateTime.Now < timeout)
                             {
