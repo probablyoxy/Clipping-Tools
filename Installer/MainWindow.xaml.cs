@@ -65,7 +65,7 @@ namespace ClippingToolsInstaller
                 }
 
                 StatusText.Text = "Downloading Clipping Tools...";
-                string exePath = Path.Combine(installDir, "ClippingTools.app.exe");
+                string exePath = Path.Combine(installDir, "ClippingTools.exe");
 
                 using (HttpClient client = new HttpClient())
                 {

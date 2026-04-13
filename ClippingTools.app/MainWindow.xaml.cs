@@ -131,6 +131,8 @@ namespace ClippingTools.app
             LoadStats();
             isLoaded = true;
 
+            CheckAndUpdateVersion();
+
             CurrentVersionText.Text = AppVersion;
 
             SetupTrayIcon();
@@ -417,6 +419,157 @@ namespace ClippingTools.app
             });
         }
 
+        private void CheckAndUpdateVersion()
+        {
+            string statsFolder = System.IO.Path.Combine(configFolder, "statistics");
+            if (!Directory.Exists(statsFolder)) Directory.CreateDirectory(statsFolder);
+            string versionFile = System.IO.Path.Combine(statsFolder, "version.json");
+
+            AppVersionStat currentStat = new AppVersionStat();
+            if (File.Exists(versionFile))
+            {
+                try { currentStat = JsonSerializer.Deserialize<AppVersionStat>(File.ReadAllText(versionFile)) ?? new AppVersionStat(); }
+                catch { }
+            }
+
+            Version storedVersion = GetVersion(currentStat.Version);
+            Version appVersion = GetVersion(AppVersion);
+
+            // ==========================================
+            // MIGRATION PIPELINE
+            // ==========================================
+
+
+
+            // --- Migration: v0.1.7 (Rename Executable) ---
+            Version v017 = new Version(0, 1, 7);
+            if (storedVersion < v017)
+            {
+                string exePath = Process.GetCurrentProcess().MainModule.FileName;
+                if (exePath.EndsWith(".app.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    WriteLog("Detected app running as old ClippingTools.app.exe. Renaming to ClippingTools.exe...");
+                    string targetExe = exePath.Replace(".app.exe", ".exe");
+                    string batPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClippingToolsRename.cmd");
+
+                    string batContent = $@"@echo off
+timeout /t 4 /nobreak >nul
+taskkill /f /im ""{System.IO.Path.GetFileName(exePath)}"" >nul 2>&1
+move /y ""{exePath}"" ""{targetExe}""
+start """" ""{targetExe}""
+(goto) 2>nul & del ""%~f0""";
+
+                    File.WriteAllText(batPath, batContent);
+                    Process.Start(new ProcessStartInfo { FileName = batPath, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });
+
+                    Environment.Exit(0);
+                    return;
+                }
+                else
+                {
+                    if (StartWithWindowsCheck.IsChecked == true)
+                    {
+                        StartWithWindowsCheck_Click(null, null);
+                        WriteLog("Migrated Start with Windows task.");
+                    }
+
+                    UpdateShortcuts(exePath);
+
+                    currentStat.Version = "v0.1.7";
+                    storedVersion = v017;
+                    WriteVersionFile(currentStat);
+                }
+            }
+
+
+
+            // --- Future Migrations Go Here ---
+
+
+
+
+
+            if (storedVersion < appVersion)
+            {
+                currentStat.Version = AppVersion;
+                WriteVersionFile(currentStat);
+            }
+        }
+
+        private void UpdateShortcuts(string newExePath)
+        {
+            try
+            {
+                Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+                dynamic shell = Activator.CreateInstance(shellType);
+
+                string startMenuPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+                string startShortcutPath = System.IO.Path.Combine(startMenuPath, "Clipping Tools.lnk");
+                if (System.IO.File.Exists(startShortcutPath))
+                {
+                    dynamic startMenuShortcut = shell.CreateShortcut(startShortcutPath);
+                    startMenuShortcut.TargetPath = newExePath;
+                    startMenuShortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(newExePath);
+                    startMenuShortcut.Save();
+                    WriteLog("Migrated Start Menu shortcut.");
+                }
+
+                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                string desktopShortcutPath = System.IO.Path.Combine(desktopPath, "Clipping Tools.lnk");
+                if (System.IO.File.Exists(desktopShortcutPath))
+                {
+                    dynamic desktopShortcut = shell.CreateShortcut(desktopShortcutPath);
+                    desktopShortcut.TargetPath = newExePath;
+                    desktopShortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(newExePath);
+                    desktopShortcut.Save();
+                    WriteLog("Migrated Desktop shortcut.");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Failed to migrate shortcuts: {ex.Message}");
+            }
+        }
+
+        private Version GetVersion(string v)
+        {
+            if (string.IsNullOrEmpty(v)) return new Version(0, 0, 0, 0);
+            v = v.TrimStart('v', 'V', '≤', '<');
+            if (Version.TryParse(v, out Version ver)) return ver;
+            return new Version(0, 0, 0, 0);
+        }
+
+        private void WriteVersionFile(AppVersionStat stat = null)
+        {
+            try
+            {
+                string statsFolder = System.IO.Path.Combine(configFolder, "statistics");
+                if (!Directory.Exists(statsFolder)) Directory.CreateDirectory(statsFolder);
+                string versionFile = System.IO.Path.Combine(statsFolder, "version.json");
+
+                if (stat == null)
+                {
+                    stat = new AppVersionStat { Version = AppVersion, LastUpdated = DateTime.Now };
+                    if (File.Exists(versionFile))
+                    {
+                        try
+                        {
+                            var existing = JsonSerializer.Deserialize<AppVersionStat>(File.ReadAllText(versionFile));
+                            if (existing != null) stat.Version = existing.Version;
+                        }
+                        catch { }
+                    }
+                }
+                else
+                {
+                    stat.LastUpdated = DateTime.Now;
+                }
+
+                File.WriteAllText(versionFile, JsonSerializer.Serialize(stat, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+
         private void Setting_Changed(object sender, RoutedEventArgs e)
         {
             if (sender == AutoRenameClipsCheck && AutoRenameClipsCheck.IsChecked == true)
@@ -438,6 +591,8 @@ namespace ClippingTools.app
             string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
             string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
             if (File.Exists(triggerPath)) File.WriteAllText(triggerPath, "EXIT");
+
+            WriteVersionFile();
 
             if (!forceExit)
             {
@@ -2760,5 +2915,11 @@ del ""%~f0""
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
+    }
+
+    public class AppVersionStat
+    {
+        public string Version { get; set; } = "";
+        public DateTime LastUpdated { get; set; } = DateTime.MinValue;
     }
 }
