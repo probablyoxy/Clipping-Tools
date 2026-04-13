@@ -95,6 +95,7 @@ namespace ClippingTools.app
         private bool isReconnecting = false;
         private List<string> currentActiveVcFriends = new List<string>();
         private string currentVcName = "";
+        private string currentVcId = "";
 
         private List<string> currentActivePoolFriends = new List<string>();
         private string activePoolCode = "";
@@ -1189,6 +1190,7 @@ start """" ""{targetExe}""
             VcUsersPanel.Visibility = Visibility.Collapsed;
             currentActiveVcFriends.Clear();
             currentVcName = "";
+            currentVcId = "";
             currentServerName = "";
             currentPerspectiveName = "";
             ResetPoolUI();
@@ -1250,6 +1252,20 @@ start """" ""{targetExe}""
                             if (action == "sync_clip" && ReceiveClipsCheck.IsChecked == true)
                             {
                                 string senderId = doc.RootElement.GetProperty("sender_id").GetString();
+
+                                bool anyVc = true;
+                                Dispatcher.Invoke(() => { anyVc = RadioAnyVC.IsChecked ?? true; });
+                                bool isVcApproved = anyVc || (!string.IsNullOrEmpty(currentVcId) && ApprovedChannels.Any(c => c.Id == currentVcId));
+
+                                if (!isVcApproved)
+                                {
+                                    bool isPoolFriend = currentActivePoolFriends.Any(f => f.StartsWith(senderId + " "));
+                                    if (!isPoolFriend)
+                                    {
+                                        WriteLog($"Ignored remote clip command from user {senderId} (Current VC is not approved).");
+                                        continue;
+                                    }
+                                }
 
                                 var matchedUser = ApprovedUsers.FirstOrDefault(u => u.Id == senderId);
                                 if (matchedUser != null)
@@ -1448,12 +1464,14 @@ start """" ""{targetExe}""
                                         VcUsersPanel.Visibility = Visibility.Collapsed;
                                         currentActiveVcFriends.Clear();
                                         currentVcName = "";
+                                        currentVcId = "";
                                         return;
                                     }
 
                                     string myChannelId = myVcData.GetProperty("id").GetString();
                                     string myChannelName = myVcData.GetProperty("name").GetString();
                                     currentVcName = myChannelName;
+                                    currentVcId = myChannelId;
                                     currentServerName = myVcData.TryGetProperty("server_name", out JsonElement srvElem) ? srvElem.GetString() : "";
                                     currentPerspectiveName = myVcData.TryGetProperty("user_name", out JsonElement usrElem) ? usrElem.GetString() : Environment.UserName;
 
@@ -1490,6 +1508,17 @@ start """" ""{targetExe}""
                                     usersInMyVc.Sort((a, b) => a.SortName.CompareTo(b.SortName));
 
                                     CurrentVcText.Text = $"Current VC: {myChannelName}";
+                                    CurrentVcText.Tag = new Tuple<string, string>(myChannelId, myChannelName);
+                                    if (!ApprovedChannels.Any(c => c.Id == myChannelId))
+                                    {
+                                        CurrentVcText.Cursor = Cursors.Hand;
+                                        CurrentVcText.ToolTip = "Click to add to approved channels";
+                                    }
+                                    else
+                                    {
+                                        CurrentVcText.Cursor = Cursors.Arrow;
+                                        CurrentVcText.ToolTip = null;
+                                    }
                                     VcUsersPanel.Children.Clear();
 
                                     foreach (var user in usersInMyVc)
@@ -1657,15 +1686,23 @@ start """" ""{targetExe}""
 
             if (SendClipsCheck.IsChecked == true)
             {
-                var combinedFriends = new HashSet<string>(currentActiveVcFriends);
-                foreach (var f in currentActivePoolFriends) combinedFriends.Add(f);
+                bool anyVc = true;
+                Application.Current.Dispatcher.Invoke(() => { anyVc = RadioAnyVC.IsChecked ?? true; });
+                bool isVcApproved = anyVc || (!string.IsNullOrEmpty(currentVcId) && ApprovedChannels.Any(c => c.Id == currentVcId));
 
-                string sentTo = combinedFriends.Count > 0 ? string.Join(", ", combinedFriends) : "nobody";
-                WriteLog($"Triggered a local clip command. Sent to: {sentTo}");
-                await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
+                var combinedFriends = new HashSet<string>();
+                if (isVcApproved)
+                {
+                    foreach (var f in currentActiveVcFriends) combinedFriends.Add(f);
+                }
+                foreach (var f in currentActivePoolFriends) combinedFriends.Add(f);
 
                 if (combinedFriends.Count > 0)
                 {
+                    string sentTo = string.Join(", ", combinedFriends);
+                    WriteLog($"Triggered a local clip command. Sent to: {sentTo}");
+                    await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
+
                     totalClipsStats.Sent++;
                     foreach (var friendStr in combinedFriends)
                     {
@@ -1684,6 +1721,10 @@ start """" ""{targetExe}""
                         }
                     }
                     SaveStats();
+                }
+                else
+                {
+                    WriteLog($"Triggered a local clip command. (Not in an approved VC or Pool)");
                 }
             }
             else
@@ -2842,6 +2883,47 @@ del ""%~f0""
             }
 
             SelectUsersTitle.Text = $"Select Users ({AllVisibleUsers.Count} found)";
+        }
+
+        private string pendingAddChannelId = "";
+        private string pendingAddChannelName = "";
+
+        private void CurrentVcText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (CurrentVcText.Tag is Tuple<string, string> channelData)
+            {
+                if (!ApprovedChannels.Any(c => c.Id == channelData.Item1))
+                {
+                    pendingAddChannelId = channelData.Item1;
+                    pendingAddChannelName = channelData.Item2;
+                    AddChannelPromptText.Text = $"Add '{pendingAddChannelName}' to your approved channels list?";
+                    AddChannelOverlay.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void CloseAddChannelOverlayBtn_Click(object sender, RoutedEventArgs e)
+        {
+            AddChannelOverlay.Visibility = Visibility.Collapsed;
+            pendingAddChannelId = "";
+            pendingAddChannelName = "";
+        }
+
+        private void ConfirmAddChannelBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(pendingAddChannelId) && !ApprovedChannels.Any(c => c.Id == pendingAddChannelId))
+            {
+                ApprovedChannels.Add(new DiscordItem { Id = pendingAddChannelId, DisplayName = pendingAddChannelName });
+                WriteLog($"Added channel {pendingAddChannelName} to Approved Channels from VC status.");
+                SaveSettings();
+                AskServerToResolveNames();
+
+                CurrentVcText.Cursor = Cursors.Arrow;
+                CurrentVcText.ToolTip = null;
+            }
+            AddChannelOverlay.Visibility = Visibility.Collapsed;
+            pendingAddChannelId = "";
+            pendingAddChannelName = "";
         }
 
         private string pendingAddUserId = "";

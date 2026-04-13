@@ -100,7 +100,7 @@
                             <Ellipse x:Name="ServerStatusDot" Width="10" Height="10" Fill="IndianRed" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock x:Name="ServerStatusText" Text="Disconnected" Foreground="#b9bbbe" FontSize="12" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock x:Name="CurrentVcText" Text="Current VC: Unknown" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Right" Margin="0,15,0,10" Visibility="Collapsed"/>
+                        <TextBlock x:Name="CurrentVcText" Text="Current VC: Unknown" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Right" Margin="0,15,0,10" Visibility="Collapsed" MouseLeftButtonDown="CurrentVcText_MouseLeftButtonDown"/>
                         <StackPanel x:Name="VcUsersPanel" HorizontalAlignment="Right" Visibility="Collapsed"/>
                     </StackPanel>
                 </Grid>
@@ -599,6 +599,18 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Content="Cancel" Width="80" Height="30" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="CloseAddUserOverlayBtn_Click"/>
                         <Button x:Name="ConfirmAddUserBtn" Content="Add User" Width="100" Height="30" Background="#5865F2" Foreground="White" BorderThickness="0" Click="ConfirmAddUserBtn_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="AddChannelOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#99000000" Panel.ZIndex="106">
+            <Border Background="#36393f" Width="350" Height="150" CornerRadius="8" Padding="20">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="AddChannelPromptText" Text="Add channel to whitelist?" Foreground="White" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,20"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Cancel" Width="80" Height="30" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="CloseAddChannelOverlayBtn_Click"/>
+                        <Button x:Name="ConfirmAddChannelBtn" Content="Add Channel" Width="100" Height="30" Background="#5865F2" Foreground="White" BorderThickness="0" Click="ConfirmAddChannelBtn_Click"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
