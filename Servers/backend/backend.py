@@ -137,6 +137,7 @@ def broadcast_vc_updates():
                         "id": c["id"],
                         "name": c["name"],
                         "user_name": c.get("user_name", "Unknown User"),
+                        "server_name": c.get("server_name", ""),
                         "is_connected": u in active_connections,
                         "relationship": rel
                     }
@@ -482,6 +483,7 @@ async def handle_client(websocket):
                 channel_id = data.get("channel_id")
                 channel_name = data.get("channel_name")
                 user_name = data.get("user_name", "Unknown User")
+                server_name = data.get("server_name", "")
                 event_ts = data.get("timestamp", 0)
                 
                 last_ts = user_vc_timestamps.get(target_user, 0)
@@ -496,8 +498,8 @@ async def handle_client(websocket):
                     if current and current.get("id") == channel_id:
                         continue
                         
-                    vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name}
-                    print(f"[Bot Update] {target_user} ({user_name}) joined VC {channel_name}.")
+                    vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name, "server_name": server_name}
+                    print(f"[Bot Update] {target_user} ({user_name}) joined VC {channel_name} in {server_name}.")
                 else:
                     if target_user in vc_map:
                         del vc_map[target_user]

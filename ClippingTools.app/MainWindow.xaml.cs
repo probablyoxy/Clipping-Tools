@@ -36,6 +36,25 @@ namespace ClippingTools.app
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+        private string GetActiveWindowTitle()
+        {
+            const int nChars = 256;
+            StringBuilder buff = new StringBuilder(nChars);
+            IntPtr handle = GetForegroundWindow();
+
+            if (GetWindowText(handle, buff, nChars) > 0)
+            {
+                return buff.ToString();
+            }
+            return null;
+        }
+
         private EventWaitHandle singleInstanceWatcher;
         private bool isSingleInstance;
 
@@ -80,6 +99,9 @@ namespace ClippingTools.app
         private List<string> currentActivePoolFriends = new List<string>();
         private string activePoolCode = "";
         private bool amIPoolOwner = false;
+        private string currentPoolName = "";
+        private string currentServerName = "";
+        private string currentPerspectiveName = "";
 
         public MainWindow()
         {
@@ -270,6 +292,15 @@ namespace ClippingTools.app
                     ObsLocationInput.Text = settings.ObsPath;
                     ClipLocationInput.Text = settings.ClipPath;
                     AutoRenameClipsCheck.IsChecked = settings.AutoRenameClips;
+
+                    RenameGameCheck.IsChecked = settings.RenameGame;
+                    RenamePerspectiveCheck.IsChecked = settings.RenamePerspective;
+                    RenameClipperCheck.IsChecked = settings.RenameClipper;
+                    RenameVCCheck.IsChecked = settings.RenameVC;
+                    RenameServerCheck.IsChecked = settings.RenameServer;
+                    RenamePoolCheck.IsChecked = settings.RenamePool;
+                    RenamerOptionsPanel.Visibility = (settings.AutoRenameClips) ? Visibility.Visible : Visibility.Collapsed;
+
                     AutoStartObsCheck.IsChecked = settings.AutoStartObs;
                     AutoRestartObsCheck.IsChecked = settings.AutoRestartObs;
                     ObsIntervalInput.Text = settings.ObsCheckInterval > 0 ? settings.ObsCheckInterval.ToString() : "5";
@@ -352,6 +383,12 @@ namespace ClippingTools.app
                 ObsPath = ObsLocationInput.Text,
                 ClipPath = ClipLocationInput.Text,
                 AutoRenameClips = AutoRenameClipsCheck.IsChecked ?? false,
+                RenameGame = RenameGameCheck.IsChecked ?? true,
+                RenamePerspective = RenamePerspectiveCheck.IsChecked ?? true,
+                RenameClipper = RenameClipperCheck.IsChecked ?? true,
+                RenameVC = RenameVCCheck.IsChecked ?? true,
+                RenameServer = RenameServerCheck.IsChecked ?? true,
+                RenamePool = RenamePoolCheck.IsChecked ?? true,
                 AutoStartObs = AutoStartObsCheck.IsChecked ?? false,
                 AutoRestartObs = AutoRestartObsCheck.IsChecked ?? false,
                 ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
@@ -582,6 +619,11 @@ start """" ""{targetExe}""
                     AutoRenameClipsCheck.IsChecked = false;
                     return;
                 }
+            }
+
+            if (RenamerOptionsPanel != null)
+            {
+                RenamerOptionsPanel.Visibility = (AutoRenameClipsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
             }
 
             SaveSettings();
@@ -1147,6 +1189,8 @@ start """" ""{targetExe}""
             VcUsersPanel.Visibility = Visibility.Collapsed;
             currentActiveVcFriends.Clear();
             currentVcName = "";
+            currentServerName = "";
+            currentPerspectiveName = "";
             ResetPoolUI();
             WriteLog("Disconnected from the central server.");
         }
@@ -1158,6 +1202,7 @@ start """" ""{targetExe}""
                 PoolUsersPanel.Visibility = Visibility.Collapsed;
                 currentActivePoolFriends.Clear();
                 activePoolCode = "";
+                currentPoolName = "";
                 amIPoolOwner = false;
 
                 PoolCodeInput.Text = "";
@@ -1298,6 +1343,7 @@ start """" ""{targetExe}""
                                     string myId = DiscordIdInput.Text;
                                     activePoolCode = doc.RootElement.GetProperty("pool_code").GetString();
                                     string poolName = doc.RootElement.GetProperty("name").GetString();
+                                    currentPoolName = poolName;
                                     string ownerId = doc.RootElement.GetProperty("owner").GetString();
                                     bool isOpen = doc.RootElement.GetProperty("is_open").GetBoolean();
                                     var members = doc.RootElement.GetProperty("members");
@@ -1408,6 +1454,8 @@ start """" ""{targetExe}""
                                     string myChannelId = myVcData.GetProperty("id").GetString();
                                     string myChannelName = myVcData.GetProperty("name").GetString();
                                     currentVcName = myChannelName;
+                                    currentServerName = myVcData.TryGetProperty("server_name", out JsonElement srvElem) ? srvElem.GetString() : "";
+                                    currentPerspectiveName = myVcData.TryGetProperty("user_name", out JsonElement usrElem) ? usrElem.GetString() : Environment.UserName;
 
                                     List<(string DisplayText, string SortName, bool IsConnected, string UserId, string RawName, bool IsApprovedByMe)> usersInMyVc = new List<(string, string, bool, string, string, bool)>();
                                     currentActiveVcFriends.Clear();
@@ -1676,19 +1724,62 @@ start """" ""{targetExe}""
 
         private async void SendRenamerTrigger(string clipperName)
         {
-            if (AutoRenameClipsCheck.IsChecked != true) return;
+            bool? isAutoRename = false;
+            bool? useGame = false, usePersp = false, useClip = false, useVc = false, useServ = false, usePool = false;
+
+            Application.Current.Dispatcher.Invoke(() => {
+                isAutoRename = AutoRenameClipsCheck.IsChecked;
+                useGame = RenameGameCheck.IsChecked;
+                usePersp = RenamePerspectiveCheck.IsChecked;
+                useClip = RenameClipperCheck.IsChecked;
+                useVc = RenameVCCheck.IsChecked;
+                useServ = RenameServerCheck.IsChecked;
+                usePool = RenamePoolCheck.IsChecked;
+            });
+
+            if (isAutoRename != true) return;
 
             string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
             if (!Directory.Exists(renamerFolder)) Directory.CreateDirectory(renamerFolder);
 
             string queuePath = System.IO.Path.Combine(renamerFolder, "clip_queue.txt");
-            string vcName = string.IsNullOrEmpty(currentVcName) ? "No VC" : currentVcName;
+
+            List<string> parts = new List<string>();
+
+            if (useGame == true)
+            {
+                string gameName = GetActiveWindowTitle();
+                if (!string.IsNullOrEmpty(gameName)) parts.Add($"g.{gameName}");
+            }
+            if (usePersp == true)
+            {
+                string pName = string.IsNullOrEmpty(currentPerspectiveName) ? Environment.UserName : currentPerspectiveName;
+                parts.Add($"r.{pName}");
+            }
+            if (useClip == true && !string.IsNullOrEmpty(clipperName)) parts.Add($"c.{clipperName}");
+            if (useVc == true && !string.IsNullOrEmpty(currentVcName)) parts.Add($"v.{currentVcName}");
+            if (useServ == true && !string.IsNullOrEmpty(currentServerName)) parts.Add($"s.{currentServerName}");
+            if (usePool == true && !string.IsNullOrEmpty(currentPoolName)) parts.Add($"p.{currentPoolName}");
+
+            string finalPrefix1 = "Clip";
+            string finalPrefix2 = "Saved";
+
+            if (parts.Count >= 2)
+            {
+                finalPrefix1 = string.Join(" - ", parts.Take(parts.Count - 1));
+                finalPrefix2 = parts.Last();
+            }
+            else if (parts.Count == 1)
+            {
+                finalPrefix1 = "Clip";
+                finalPrefix2 = parts[0];
+            }
 
             for (int i = 0; i < 5; i++)
             {
                 try
                 {
-                    File.AppendAllText(queuePath, $"{clipperName}|{vcName}{Environment.NewLine}");
+                    File.AppendAllText(queuePath, $"{finalPrefix1}|{finalPrefix2}{Environment.NewLine}");
                     break;
                 }
                 catch { await Task.Delay(100); }
@@ -2885,6 +2976,12 @@ del ""%~f0""
         public string ObsPath { get; set; } = "";
         public string ClipPath { get; set; } = "";
         public bool AutoRenameClips { get; set; } = false;
+        public bool RenameGame { get; set; } = true;
+        public bool RenamePerspective { get; set; } = true;
+        public bool RenameClipper { get; set; } = true;
+        public bool RenameVC { get; set; } = true;
+        public bool RenameServer { get; set; } = true;
+        public bool RenamePool { get; set; } = true;
         public bool AutoStartObs { get; set; } = false;
         public bool AutoRestartObs { get; set; } = false;
         public int ObsCheckInterval { get; set; } = 5;
