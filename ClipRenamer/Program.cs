@@ -98,6 +98,8 @@ namespace ClipRenamer
 
                             string prefix = $"{clipperName} - {vcName} - ";
 
+                            Thread.Sleep(5000);
+
                             string foundFile = null;
                             DateTime timeout = DateTime.Now.AddMinutes(5);
 
@@ -106,13 +108,25 @@ namespace ClipRenamer
                                 try
                                 {
                                     var currentFiles = Directory.GetFiles(clipFolder);
+                                    string newestFile = null;
+                                    DateTime newestTime = DateTime.MinValue;
+
                                     foreach (var f in currentFiles)
                                     {
                                         if (!baselineFiles.Contains(f) && !Path.GetFileName(f).StartsWith(prefix))
                                         {
-                                            foundFile = f;
-                                            break;
+                                            DateTime fileTime = File.GetLastWriteTime(f);
+                                            if (newestFile == null || fileTime > newestTime)
+                                            {
+                                                newestFile = f;
+                                                newestTime = fileTime;
+                                            }
                                         }
+                                    }
+
+                                    if (newestFile != null && (DateTime.Now - newestTime).TotalSeconds <= 10)
+                                    {
+                                        foundFile = newestFile;
                                     }
                                 }
                                 catch { }
@@ -124,7 +138,6 @@ namespace ClipRenamer
                             if (foundFile != null)
                             {
                                 SendStatus("FOUND");
-                                Thread.Sleep(5000);
 
                                 bool renamed = false;
                                 DateTime renameTimeout = DateTime.Now.AddMinutes(5);

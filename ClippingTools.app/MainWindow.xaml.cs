@@ -1868,7 +1868,7 @@ objShell.Run Chr(34) & ""{renamerExe}"" & Chr(34) & "" "" & Chr(34) & ""{renamer
                         if (!string.IsNullOrEmpty(content))
                         {
                             if (content == "FOUND")
-                                WriteLog("Found new clip. Waiting 5 seconds before trying to modify...");
+                                WriteLog("Found new clip. Attempting to modify...");
                             else if (content == "TIMEOUT")
                                 WriteLog("Clip renaming timed out. No new accessible file found in the recording location.");
                             else if (content.StartsWith("RENAMED|"))

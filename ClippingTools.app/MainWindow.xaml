@@ -307,7 +307,7 @@
                         <Button Grid.Column="1" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseObsBtn_Click"/>
                     </Grid>
                     <CheckBox x:Name="AutoStartObsCheck" HorizontalAlignment="Left" Content="Automatically Start OBS Replay on Clipping Tools Launch" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
-                    <CheckBox x:Name="AutoRestartObsCheck" HorizontalAlignment="Left" Content="Automatically Restart OBS Replay on Failure" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="AutoRestartObsCheck_Click"/>
+                    <CheckBox x:Name="AutoRestartObsCheck" HorizontalAlignment="Left" Content="Automatically Restart OBS Replay on Recording Failure" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="AutoRestartObsCheck_Click"/>
                     <StackPanel x:Name="ObsIntervalPanel" Visibility="Collapsed" Margin="20,0,0,10">
                         <TextBlock Text="OBS Checking Interval (Seconds)" Foreground="#b9bbbe" Margin="0,0,0,5"/>
                         <TextBox x:Name="ObsIntervalInput" Text="5" Width="50" Height="25" HorizontalAlignment="Left" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
