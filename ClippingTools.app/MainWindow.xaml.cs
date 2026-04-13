@@ -1154,7 +1154,7 @@ start """" ""{targetExe}""
 
                 await webSocket.ConnectAsync(new Uri("wss://clip.oxy.pizza"), wsCts.Token);
 
-                ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
+                ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                 ServerStatusText.Text = "Connected";
                 isReconnecting = false;
                 WriteLog("Connected to the central server.");
@@ -1166,7 +1166,7 @@ start """" ""{targetExe}""
             }
             catch
             {
-                ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+                ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#f04747"));
                 ServerStatusText.Text = "Server Offline";
                 TriggerAutoReconnect();
             }
@@ -1186,7 +1186,7 @@ start """" ""{targetExe}""
             webSocket?.Dispose();
             wsCts?.Dispose();
 
-            ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+            ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#f04747"));
             ServerStatusText.Text = "Disconnected";
             CurrentVcText.Visibility = Visibility.Collapsed;
             VcUsersPanel.Visibility = Visibility.Collapsed;
@@ -1557,7 +1557,7 @@ start """" ""{targetExe}""
             finally
             {
                 Dispatcher.Invoke(() => {
-                    ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+                    ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#f04747"));
                     ServerStatusText.Text = "Disconnected";
                     CurrentVcText.Visibility = Visibility.Collapsed;
                     VcUsersPanel.Visibility = Visibility.Collapsed;
@@ -1601,7 +1601,7 @@ start """" ""{targetExe}""
                     isReconnecting = false;
                     Dispatcher.Invoke(() => {
                         ServerStatusText.Text = "Connected";
-                        ServerStatusDot.Fill = System.Windows.Media.Brushes.LightGreen;
+                        ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                     });
 
                     WriteLog("Successfully reconnected to the central server.");
@@ -1616,7 +1616,7 @@ start """" ""{targetExe}""
                 {
                     Dispatcher.Invoke(() => {
                         ServerStatusText.Text = "Server Offline";
-                        ServerStatusDot.Fill = System.Windows.Media.Brushes.IndianRed;
+                        ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#f04747"));
                     });
 
                     if (currentDelay == 0) currentDelay = 5;

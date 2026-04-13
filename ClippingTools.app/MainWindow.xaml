@@ -97,7 +97,7 @@
 
                     <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,0,0">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Cursor="Hand" MouseLeftButtonDown="ServerStatus_Click" ToolTip="Click to force reconnect">
-                            <Ellipse x:Name="ServerStatusDot" Width="10" Height="10" Fill="IndianRed" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Ellipse x:Name="ServerStatusDot" Width="10" Height="10" Fill="#f04747" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock x:Name="ServerStatusText" Text="Disconnected" Foreground="#b9bbbe" FontSize="12" VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock x:Name="CurrentVcText" Text="Current VC: Unknown" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Right" Margin="0,15,0,10" Visibility="Collapsed" MouseLeftButtonDown="CurrentVcText_MouseLeftButtonDown"/>
