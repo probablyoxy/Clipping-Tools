@@ -630,5 +630,18 @@
             </Border>
         </Grid>
 
+        <Grid x:Name="GenericMessageOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#99000000" Panel.ZIndex="120">
+            <Border Background="#36393f" Width="400" MinHeight="150" CornerRadius="8" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel>
+                    <TextBlock x:Name="GenericMessageTitle" Text="Title" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="GenericMessageText" Text="Message goes here..." Foreground="#b9bbbe" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,20"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="GenericMessageCancelBtn" Content="No" Width="80" Height="30" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="GenericMessageCancelBtn_Click"/>
+                        <Button x:Name="GenericMessageOkBtn" Content="OK" Width="80" Height="30" Background="#5865F2" Foreground="White" BorderThickness="0" Click="GenericMessageOkBtn_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
     </Grid>
 </Window>

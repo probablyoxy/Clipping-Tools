@@ -610,13 +610,13 @@ start """" ""{targetExe}""
             catch { }
         }
 
-        private void Setting_Changed(object sender, RoutedEventArgs e)
+        private async void Setting_Changed(object sender, RoutedEventArgs e)
         {
             if (sender == AutoRenameClipsCheck && AutoRenameClipsCheck.IsChecked == true)
             {
                 if (string.IsNullOrWhiteSpace(ClipLocationInput.Text) || ClipLocationInput.Text == "Waiting for selection...")
                 {
-                    MessageBox.Show("Please set your Clip Recording Location first before enabling the Clip Renaming feature.", "Missing Location", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await ShowCustomDialog("Missing Location", "Please set your Clip Recording Location first before enabling the Clip Renaming feature.");
                     AutoRenameClipsCheck.IsChecked = false;
                     return;
                 }
@@ -701,11 +701,11 @@ start """" ""{targetExe}""
         // IMPORT, EXPORT, AND UUID MANAGEMENT
         // ==============================================================================
 
-        private void ImportSettingsBtn_Click(object sender, RoutedEventArgs e)
+        private async void ImportSettingsBtn_Click(object sender, RoutedEventArgs e)
         {
             if (isSyncActive)
             {
-                MessageBox.Show("You cannot import settings while actively syncing. Please disconnect first.", "Sync Active", MessageBoxButton.OK, MessageBoxImage.Warning);
+                await ShowCustomDialog("Sync Active", "You cannot import settings while actively syncing. Please disconnect first.");
                 return;
             }
 
@@ -721,29 +721,30 @@ start """" ""{targetExe}""
 
                     if (testSettings == null || testSettings.AppUuid == null)
                     {
-                        MessageBox.Show("Invalid settings file format.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                        await ShowCustomDialog("Import Failed", "Invalid settings file format.");
                         return;
                     }
 
                     File.Copy(openFileDialog.FileName, configFilePath, true);
                     LoadSettings();
                     WriteLog("Successfully imported new settings from file.");
-                    MessageBox.Show("Settings imported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await ShowCustomDialog("Success", "Settings imported successfully!");
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Failed to read the settings file: " + ex.Message, "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowCustomDialog("Import Error", "Failed to read the settings file: " + ex.Message);
                 }
             }
         }
 
-        private void ExportSettingsBtn_Click(object sender, RoutedEventArgs e)
+        private async void ExportSettingsBtn_Click(object sender, RoutedEventArgs e)
         {
-            MessageBoxResult result = MessageBox.Show(
+            bool result = await ShowCustomDialog(
+                "Security Warning",
                 "WARNING: This settings file contains your App UUID and Discord ID. Anyone with this file can connect as you and trigger clips on your behalf. Keep it safe!\n\nDo you want to proceed with exporting?",
-                "Security Warning", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                true);
 
-            if (result == MessageBoxResult.Yes)
+            if (result)
             {
                 SaveSettings();
 
@@ -756,34 +757,35 @@ start """" ""{targetExe}""
                     try
                     {
                         File.Copy(configFilePath, saveFileDialog.FileName, true);
-                        MessageBox.Show("Settings exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                        await ShowCustomDialog("Success", "Settings exported successfully!");
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Failed to export settings: " + ex.Message, "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        await ShowCustomDialog("Export Error", "Failed to export settings: " + ex.Message);
                     }
                 }
             }
         }
 
-        private void ResetUuidBtn_Click(object sender, RoutedEventArgs e)
+        private async void ResetUuidBtn_Click(object sender, RoutedEventArgs e)
         {
             if (isSyncActive)
             {
-                MessageBox.Show("You cannot reset your UUID while actively syncing. Please disconnect first.", "Sync Active", MessageBoxButton.OK, MessageBoxImage.Warning);
+                await ShowCustomDialog("Sync Active", "You cannot reset your UUID while actively syncing. Please disconnect first.");
                 return;
             }
 
-            MessageBoxResult result = MessageBox.Show(
+            bool result = await ShowCustomDialog(
+                "Confirm Reset",
                 "Are you sure you want to reset your App UUID? This will unlink your app from the network. You will need to reverify it via Discord DM on your next connection.",
-                "Confirm Reset", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                true);
 
-            if (result == MessageBoxResult.Yes)
+            if (result)
             {
                 appUuid = Guid.NewGuid().ToString();
                 SaveSettings();
                 WriteLog("App UUID reset.");
-                MessageBox.Show("UUID has been reset. Please re-authenticate the next time you connect.", "UUID Reset", MessageBoxButton.OK, MessageBoxImage.Information);
+                await ShowCustomDialog("UUID Reset", "UUID has been reset. Please re-authenticate the next time you connect.");
             }
         }
 
@@ -814,7 +816,7 @@ start """" ""{targetExe}""
                 try { listener.Start(); }
                 catch
                 {
-                    MessageBox.Show("Could not start local server. Port 5050 might be in use.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowCustomDialog("Error", "Could not start local server. Port 5050 might be in use.");
                     ResetDiscordButton();
                     return;
                 }
@@ -892,8 +894,8 @@ start """" ""{targetExe}""
             }
             catch
             {
-                Dispatcher.Invoke(() => {
-                    MessageBox.Show("Failed to connect to Discord's servers.", "Network Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.InvokeAsync(async () => {
+                    await ShowCustomDialog("Network Error", "Failed to connect to Discord's servers.");
                     ResetDiscordButton();
                 });
             }
@@ -940,7 +942,7 @@ start """" ""{targetExe}""
 
         private void TestSoundBtn_Click(object sender, RoutedEventArgs e) { PlayAlertSound(forcePlay: true); }
 
-        private void PlayAlertSound(bool forcePlay = false)
+        private async void PlayAlertSound(bool forcePlay = false)
         {
             if (!forcePlay && EnableSoundCheck.IsChecked != true) return;
 
@@ -954,7 +956,7 @@ start """" ""{targetExe}""
                 }
                 else if (forcePlay)
                 {
-                    MessageBox.Show("Custom audio file not found. Please browse for it again.", "File Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await ShowCustomDialog("File Missing", "Custom audio file not found. Please browse for it again.");
                 }
             }
             else
@@ -1029,7 +1031,7 @@ start """" ""{targetExe}""
             return tb;
         }
 
-        private void SingleClipKeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        private async void SingleClipKeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             e.Handled = true;
             TextBox tb = sender as TextBox;
@@ -1059,7 +1061,7 @@ start """" ""{targetExe}""
 
             if (IsKeybindCollision(TriggerKeyInput.Text, testList))
             {
-                MessageBox.Show("You cannot set the Software Clip Keybind to be the exact same as the Trigger Keybind!", "Keybind Collision", MessageBoxButton.OK, MessageBoxImage.Error);
+                await ShowCustomDialog("Keybind Collision", "You cannot set the Software Clip Keybind to be the exact same as the Trigger Keybind!");
                 Keyboard.ClearFocus();
                 return;
             }
@@ -1094,7 +1096,7 @@ start """" ""{targetExe}""
         {
             if (string.IsNullOrEmpty(DiscordIdInput.Text))
             {
-                MessageBox.Show("Please sign in to Discord first so the server knows your ID.", "Missing ID", MessageBoxButton.OK, MessageBoxImage.Warning);
+                await ShowCustomDialog("Missing ID", "Please sign in to Discord first so the server knows your ID.");
                 return;
             }
 
@@ -1122,7 +1124,7 @@ start """" ""{targetExe}""
             {
                 isSyncActive = false;
                 StopListening();
-                MessageBox.Show("Error setting hotkey. Check your formatting.\n\n" + ex.Message);
+                await ShowCustomDialog("Error", "Error setting hotkey. Check your formatting.\n\n" + ex.Message);
             }
         }
 
@@ -1317,32 +1319,32 @@ start """" ""{targetExe}""
                             }
                             else if (action == "dm_verification_failed")
                             {
-                                Dispatcher.Invoke(() => {
-                                    MessageBox.Show("We could not send you a DM to verify your app!\n\nPlease ensure your DMs are open, or authorize the bot directly by going to:\nhttps://oxy.pizza/clippingtools/authorize\n\nAfter authorizing, click 'Activate Syncing' to try connecting again.", "Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                                Dispatcher.InvokeAsync(async () => {
+                                    await ShowCustomDialog("Verification Failed", "We could not send you a DM to verify your app!\n\nPlease ensure your DMs are open, or authorize the bot directly by going to:\nhttps://oxy.pizza/clippingtools/authorize\n\nAfter authorizing, click 'Activate Syncing' to try connecting again.");
                                     WriteLog("Discord DM Verification Error");
                                     StopListening();
                                 });
                             }
                             else if (action == "pool_error")
                             {
-                                Dispatcher.Invoke(() => {
-                                    MessageBox.Show(doc.RootElement.GetProperty("message").GetString(), "Pool Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                Dispatcher.InvokeAsync(async () => {
+                                    await ShowCustomDialog("Pool Error", doc.RootElement.GetProperty("message").GetString());
                                     WriteLog("The connection to the pool encountered an error.");
                                 });
                             }
                             else if (action == "pool_kicked")
                             {
-                                Dispatcher.Invoke(() => {
+                                Dispatcher.InvokeAsync(async () => {
                                     ResetPoolUI();
-                                    MessageBox.Show("You have been kicked from the pool.", "Kicked", MessageBoxButton.OK, MessageBoxImage.Information);
+                                    await ShowCustomDialog("Kicked", "You have been kicked from the pool.");
                                     WriteLog("You were kicked from the pool.");
                                 });
                             }
                             else if (action == "pool_banned")
                             {
-                                Dispatcher.Invoke(() => {
+                                Dispatcher.InvokeAsync(async () => {
                                     ResetPoolUI();
-                                    MessageBox.Show("You have been banned from the pool.", "Banned", MessageBoxButton.OK, MessageBoxImage.Error);
+                                    await ShowCustomDialog("Banned", "You have been banned from the pool.");
                                     WriteLog("You were banned from the pool.");
                                 });
                             }
@@ -1636,15 +1638,15 @@ start """" ""{targetExe}""
             }
         }
 
-        private void ShowHotkeyTakenWarning()
+        private async void ShowHotkeyTakenWarning()
         {
-            MessageBox.Show(
+            await ShowCustomDialog(
+                "Hotkey Blocked by Windows",
                 "Windows is blocking this Trigger Key because another app (like OBS, Medal, or Discord) is already using it!\n\n" +
                 "To fix this, either:\n" +
                 "1. Change your Trigger Key here to something else.\n" +
                 "OR\n" +
-                "2. Go into the conflicting app and change its keybind so this app can use it.",
-                "Hotkey Blocked by Windows", MessageBoxButton.OK, MessageBoxImage.Error);
+                "2. Go into the conflicting app and change its keybind so this app can use it.");
         }
 
         private void TestTriggerKeyAvailability(string keyString)
@@ -2198,7 +2200,7 @@ objShell.Run Chr(34) & ""{renamerExe}"" & Chr(34) & "" "" & Chr(34) & ""{renamer
             }
         }
 
-        private void BrowseObsBtn_Click(object sender, RoutedEventArgs e)
+        private async void BrowseObsBtn_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "OBS Executable (obs64.exe)|obs64.exe";
@@ -2213,7 +2215,7 @@ objShell.Run Chr(34) & ""{renamerExe}"" & Chr(34) & "" "" & Chr(34) & ""{renamer
                 }
                 else
                 {
-                    MessageBox.Show("Please select a valid obs64.exe file.", "Invalid File", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowCustomDialog("Invalid File", "Please select a valid obs64.exe file.");
                 }
             }
         }
@@ -2618,7 +2620,7 @@ del ""%~f0""
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Update failed: " + ex.Message);
+                await ShowCustomDialog("Update Failed", "Update failed: " + ex.Message);
                 PerformUpdateBtn.IsEnabled = true;
                 PerformUpdateBtn.Content = "Download and Update";
                 UpdateProgressBar.Visibility = Visibility.Collapsed;
@@ -2648,7 +2650,7 @@ del ""%~f0""
             tb.Text = string.Join("+", parts);
         }
 
-        private void HotkeyInput_PreviewKeyUp(object sender, KeyEventArgs e)
+        private async void HotkeyInput_PreviewKeyUp(object sender, KeyEventArgs e)
         {
             e.Handled = true;
             Key key = (e.Key == Key.System ? e.SystemKey : e.Key);
@@ -2662,7 +2664,7 @@ del ""%~f0""
                 if (tb == TriggerKeyInput && IsKeybindCollision(tb.Text, ClipKeysList))
                 {
                     tb.Text = "";
-                    MessageBox.Show("You cannot set the Trigger Keybind to be the exact same as the Software Clip Keybind!", "Keybind Collision", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowCustomDialog("Keybind Collision", "You cannot set the Trigger Keybind to be the exact same as the Software Clip Keybind!");
                 }
 
                 Keyboard.ClearFocus();
@@ -2724,14 +2726,14 @@ del ""%~f0""
             }
         }
 
-        private void RemoveUserBtn_Click(object sender, RoutedEventArgs e)
+        private async void RemoveUserBtn_Click(object sender, RoutedEventArgs e)
         {
             Button btn = sender as Button;
             DiscordItem itemToRemove = btn.DataContext as DiscordItem;
             if (itemToRemove != null)
             {
-                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{itemToRemove.DisplayName}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes)
+                bool result = await ShowCustomDialog("Confirm Removal", $"Are you sure you want to remove '{itemToRemove.DisplayName}'?", true);
+                if (result)
                 {
                     ApprovedUsers.Remove(itemToRemove);
                     WriteLog($"Removed user {itemToRemove.DisplayName} from Approved Users.");
@@ -2788,14 +2790,14 @@ del ""%~f0""
             if (itemsAdded) { AskServerToResolveNames(); }
         }
 
-        private void RemoveChannelBtn_Click(object sender, RoutedEventArgs e)
+        private async void RemoveChannelBtn_Click(object sender, RoutedEventArgs e)
         {
             Button btn = sender as Button;
             DiscordItem itemToRemove = btn.DataContext as DiscordItem;
             if (itemToRemove != null)
             {
-                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove '{itemToRemove.DisplayName}'?", "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes)
+                bool result = await ShowCustomDialog("Confirm Removal", $"Are you sure you want to remove '{itemToRemove.DisplayName}'?", true);
+                if (result)
                 {
                     ApprovedChannels.Remove(itemToRemove);
                     WriteLog($"Removed channel {itemToRemove.DisplayName} from Approved Channels.");
@@ -2812,7 +2814,7 @@ del ""%~f0""
         {
             if (webSocket == null || webSocket.State != WebSocketState.Open)
             {
-                MessageBox.Show("You must be connected to the network to view and search for users.\n\nPlease go to the Home tab and click 'Activate Syncing' first.", "Not Connected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                await ShowCustomDialog("Not Connected", "You must be connected to the network to view and search for users.\n\nPlease go to the Home tab and click 'Activate Syncing' first.");
                 return;
             }
 
@@ -3034,6 +3036,43 @@ del ""%~f0""
         {
             if (!string.IsNullOrEmpty(pendingPoolUserId)) await SendWsMessage(new { action = "pool_manage_user", target_id = pendingPoolUserId, manage_action = "ban" });
             ClosePoolActionOverlayBtn_Click(null, null);
+        }
+
+        private TaskCompletionSource<bool> _currentDialogTcs;
+
+        private async Task<bool> ShowCustomDialog(string title, string message, bool isConfirmDialog = false)
+        {
+            GenericMessageTitle.Text = title;
+            GenericMessageText.Text = message;
+
+            if (isConfirmDialog)
+            {
+                GenericMessageCancelBtn.Visibility = Visibility.Visible;
+                GenericMessageCancelBtn.Content = "No";
+                GenericMessageOkBtn.Content = "Yes";
+            }
+            else
+            {
+                GenericMessageCancelBtn.Visibility = Visibility.Collapsed;
+                GenericMessageOkBtn.Content = "OK";
+            }
+
+            GenericMessageOverlay.Visibility = Visibility.Visible;
+
+            _currentDialogTcs = new TaskCompletionSource<bool>();
+            return await _currentDialogTcs.Task;
+        }
+
+        private void GenericMessageOkBtn_Click(object sender, RoutedEventArgs e)
+        {
+            GenericMessageOverlay.Visibility = Visibility.Collapsed;
+            _currentDialogTcs?.TrySetResult(true);
+        }
+
+        private void GenericMessageCancelBtn_Click(object sender, RoutedEventArgs e)
+        {
+            GenericMessageOverlay.Visibility = Visibility.Collapsed;
+            _currentDialogTcs?.TrySetResult(false);
         }
     }
 
