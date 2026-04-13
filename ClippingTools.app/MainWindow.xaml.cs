@@ -266,6 +266,7 @@ namespace ClippingTools.app
                     AutoSyncCheck.IsChecked = settings.AutoSync;
                     StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
                     RateLimitInput.Text = settings.RateLimitSeconds >= 0 ? settings.RateLimitSeconds.ToString() : "10";
+                    ClipDelayInput.Text = settings.ClipDelaySeconds >= 0 ? settings.ClipDelaySeconds.ToString() : "0";
                     ObsLocationInput.Text = settings.ObsPath;
                     ClipLocationInput.Text = settings.ClipPath;
                     AutoRenameClipsCheck.IsChecked = settings.AutoRenameClips;
@@ -347,6 +348,7 @@ namespace ClippingTools.app
                 AutoSync = AutoSyncCheck.IsChecked ?? false,
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
                 RateLimitSeconds = int.TryParse(RateLimitInput.Text, out int parsedLimit) && parsedLimit >= 0 ? parsedLimit : 10,
+                ClipDelaySeconds = int.TryParse(ClipDelayInput.Text, out int parsedDelay) && parsedDelay >= 0 ? parsedDelay : 0,
                 ObsPath = ObsLocationInput.Text,
                 ClipPath = ClipLocationInput.Text,
                 AutoRenameClips = AutoRenameClipsCheck.IsChecked ?? false,
@@ -1635,6 +1637,15 @@ start """" ""{targetExe}""
                 WriteLog($"Triggered a local clip command. (Network sending disabled)");
             }
 
+            int delay = 0;
+            Application.Current.Dispatcher.Invoke(() => { if (int.TryParse(ClipDelayInput.Text, out int parsed)) delay = parsed; });
+
+            if (delay > 0)
+            {
+                WriteLog($"Local clip delayed by {delay} seconds.");
+                await Task.Delay(delay * 1000);
+            }
+
             await PerformSafeHardwareClip();
             SendRenamerTrigger(Environment.UserName);
         }
@@ -1642,6 +1653,15 @@ start """" ""{targetExe}""
         public async Task<bool> ReceiveNetworkClipCommand(string clipperName)
         {
             if (!CanTriggerClip()) return false;
+
+            int delay = 0;
+            Application.Current.Dispatcher.Invoke(() => { if (int.TryParse(ClipDelayInput.Text, out int parsed)) delay = parsed; });
+
+            if (delay > 0)
+            {
+                WriteLog($"Network clip from {clipperName} delayed by {delay} seconds.");
+                await Task.Delay(delay * 1000);
+            }
 
             await PerformSafeHardwareClip();
             SendRenamerTrigger(clipperName);
@@ -2872,6 +2892,7 @@ del ""%~f0""
         public bool AutoSync { get; set; } = false;
         public bool StartWithWindows { get; set; } = false;
         public int RateLimitSeconds { get; set; } = 10;
+        public int ClipDelaySeconds { get; set; } = 0;
 
         public bool EnableSound { get; set; } = true;
         public bool UseCustomSound { get; set; } = false;

@@ -269,11 +269,30 @@
                     <WrapPanel x:Name="ClipKeyPanel" Margin="0,0,0,20" Orientation="Horizontal"/>
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
-                    <TextBlock Text="Clip Rate Limit" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="Minimum seconds between clips:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBox x:Name="RateLimitInput" Text="10" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
-                    </StackPanel>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Clip Rate Limit" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Minimum seconds between clips:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="RateLimitInput" Text="10" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Clip Delay Time" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Delays the clip by this many seconds:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="ClipDelayInput" Text="0" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
                     <Button x:Name="ResetUuidBtn" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
