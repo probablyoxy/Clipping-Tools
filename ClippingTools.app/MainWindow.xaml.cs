@@ -161,11 +161,13 @@ namespace ClippingTools.app
             allUserView.LiveSortingProperties.Add("DisplayName");
             allUserView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
 
+            isLoaded = true;
+            CheckAndUpdateVersion();
+            isLoaded = false;
+
             LoadSettings();
             LoadStats();
             isLoaded = true;
-
-            CheckAndUpdateVersion();
 
             CurrentVersionText.Text = AppVersion;
 
@@ -615,6 +617,26 @@ namespace ClippingTools.app
             Version v017 = new Version(0, 1, 7);
             if (storedVersion < v017)
             {
+                try
+                {
+                    string clipMgmtFolder = System.IO.Path.Combine(configFolder, "clip-management");
+                    if (Directory.Exists(clipMgmtFolder))
+                    {
+                        Directory.Delete(clipMgmtFolder, true);
+                        WriteLog("Migration v0.1.7: Deleted legacy clip-management folder.");
+                    }
+
+                    if (Directory.Exists(soundsFolder))
+                    {
+                        Directory.Delete(soundsFolder, true);
+                        WriteLog("Migration v0.1.7: Deleted legacy sounds folder.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteLog($"Migration v0.1.7 folder cleanup failed: {ex.Message}");
+                }
+
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
                 if (exePath.EndsWith(".app.exe", StringComparison.OrdinalIgnoreCase))
                 {
@@ -639,31 +661,15 @@ start """" ""{targetExe}""
                 {
                     if (StartWithWindowsCheck.IsChecked == true)
                     {
-                        StartWithWindowsCheck_Click(null, null);
-                        WriteLog("Migration v0.1.7: Migrated Start with Windows task.");
+                        Dispatcher.InvokeAsync(async () =>
+                        {
+                            await Task.Delay(10000);
+                            StartWithWindowsCheck_Click(null, null);
+                            WriteLog("Migration v0.1.7: Migrated Start with Windows task.");
+                        });
                     }
 
                     UpdateShortcuts(exePath);
-
-                    try
-                    {
-                        string clipMgmtFolder = System.IO.Path.Combine(configFolder, "clip-management");
-                        if (Directory.Exists(clipMgmtFolder))
-                        {
-                            Directory.Delete(clipMgmtFolder, true);
-                            WriteLog("Migration v0.1.7: Deleted legacy clip-management folder.");
-                        }
-
-                        if (Directory.Exists(soundsFolder))
-                        {
-                            Directory.Delete(soundsFolder, true);
-                            WriteLog("Migration v0.1.7: Deleted legacy sounds folder.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"Migration v0.1.7 folder cleanup failed: {ex.Message}");
-                    }
 
                     currentStat.Version = "v0.1.7";
                     storedVersion = v017;
