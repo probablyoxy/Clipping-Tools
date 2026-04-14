@@ -609,6 +609,10 @@
                             <Run Text="• Change your "/>
                             <Run FontWeight="Bold" Foreground="White" Text="Software Clip Keybind"/>
                             <Run Text=" to the actual keybind used for your clipping software (the buttons you usually press to make a clip in OBS, Medal, Shadowplay, etc.)."/>
+                            <LineBreak/>
+                            <Run Text="•"/>
+                            <Run FontStyle="Italic" FontWeight="Bold" Foreground="White" Text="Local Trigger Keybind:"/>
+                            <Run Text="This lets you create clips using Clipping Tools and all of its features, but without sending the signal to the server."/>
                         </TextBlock>
 
                         <TextBlock Text="3. Connect to the Network" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
