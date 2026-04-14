@@ -292,6 +292,7 @@
                                 <ComboBoxItem Content="SimpleyViridian - Clipped" IsSelected="True"/>
                                 <ComboBoxItem Content="SimpleyViridian - Clipped Teto"/>
                                 <ComboBoxItem Content="ConfusedIndividual - Clipped"/>
+                                <ComboBoxItem Content="ConfusedIndividual - Clipped!"/>
                                 <ComboBoxItem Content="Windows - Exclamation"/>
                                 <ComboBoxItem Content="Windows - Hand"/>
                             </ComboBox>

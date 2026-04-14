@@ -236,7 +236,7 @@ namespace ClippingTools.app
         {
             if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
 
-            string[] builtInSounds = { "simpleyviridian-clipped.wav", "simpleyviridian-clippedteto.wav", "confusedindividual-clipped.mp3" };
+            string[] builtInSounds = { "simpleyviridian-clipped.wav", "simpleyviridian-clippedteto.wav", "confusedindividual-clipped.mp3", "confusedindividual-clipped!.wav" };
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var resourceNames = assembly.GetManifestResourceNames();
 
@@ -1002,6 +1002,9 @@ start """" ""{targetExe}""
                         break;
                     case "ConfusedIndividual - Clipped":
                         PlayIncludedSound("confusedindividual-clipped.mp3");
+                        break;
+                    case "ConfusedIndividual - Clipped!":
+                        PlayIncludedSound("confusedindividual-clipped!.wav");
                         break;
                     case "Windows - Hand": System.Media.SystemSounds.Hand.Play(); break;
                     case "Windows - Exclamation": System.Media.SystemSounds.Exclamation.Play(); break;
