@@ -552,7 +552,12 @@
             <TabItem>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
                     <StackPanel>
-                        <TextBlock Text="Clipping Tools" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,0,0,10">
+                            <Run Text="Clipping Tools   -   made by"/>
+                            <Hyperlink NavigateUri="https://oxy.pizza/" RequestNavigate="Hyperlink_RequestNavigate" TextDecorations="None">
+                                <Run Foreground="#ff00e6" Text="oxy 💕"/>
+                            </Hyperlink>
+                        </TextBlock>
                         <TextBlock Foreground="#b9bbbe" TextWrapping="Wrap" Margin="0,0,0,15" FontSize="14">
                             <Run FontWeight="Bold" Foreground="White" Text="Clipping Tools"/>
                             <Run Text=" is a lightweight app that lets you sync your game capture software with all of your friends. When one person clips, everyone will."/>
