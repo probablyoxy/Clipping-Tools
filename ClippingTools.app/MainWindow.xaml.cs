@@ -65,6 +65,7 @@ namespace ClippingTools.app
         private MediaPlayer customAudioPlayer = new MediaPlayer();
         private System.Windows.Forms.NotifyIcon trayIcon;
         private bool forceExit = false;
+        private CancellationTokenSource windowSaveCts;
 
         public ObservableCollection<DiscordItem> ApprovedUsers { get; set; } = new ObservableCollection<DiscordItem>();
         public ObservableCollection<DiscordItem> ApprovedChannels { get; set; } = new ObservableCollection<DiscordItem>();
@@ -751,6 +752,21 @@ start """" ""{targetExe}""
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Keyboard.ClearFocus();
+        }
+
+        private async void Window_LayoutChanged(object sender, EventArgs e)
+        {
+            if (!isLoaded) return;
+
+            windowSaveCts?.Cancel();
+            windowSaveCts = new CancellationTokenSource();
+
+            try
+            {
+                await Task.Delay(500, windowSaveCts.Token);
+                SaveSettings();
+            }
+            catch (TaskCanceledException) { }
         }
 
         private void Window_Closing(object sender, CancelEventArgs e)

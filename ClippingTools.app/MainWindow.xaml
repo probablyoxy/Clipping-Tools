@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:ClippingTools.app"
         mc:Ignorable="d"
         Title="Clipping Tools" Height="640" Width="800" Background="#1e1e1e"
-        Closing="Window_Closing" MouseDown="Window_MouseDown">
+        Closing="Window_Closing" MouseDown="Window_MouseDown" LocationChanged="Window_LayoutChanged" SizeChanged="Window_LayoutChanged">
     <Grid Background="#36393f">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200"/>
