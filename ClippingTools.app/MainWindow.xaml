@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ClippingTools.app"
         mc:Ignorable="d"
-        Title="Clipping Tools" Height="600" Width="800" Background="#1e1e1e"
+        Title="Clipping Tools" Height="640" Width="800" Background="#1e1e1e"
         Closing="Window_Closing" MouseDown="Window_MouseDown">
     <Grid Background="#36393f">
         <Grid.ColumnDefinitions>
@@ -266,49 +266,143 @@
             </TabItem>
 
             <TabItem>
-                <StackPanel>
-                    <TextBlock Text="Sounds" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="80"/>
-                        </Grid.ColumnDefinitions>
-                        <CheckBox x:Name="EnableSoundCheck" HorizontalAlignment="Left" Grid.Column="0" Content="Play sound effect when a clip is taken" Foreground="White" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
-                        <Button Grid.Column="1" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestSoundBtn_Click"/>
-                    </Grid>
-                    <Grid Margin="20,0,0,20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock Text="Sounds" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                        <TextBlock Text="Clip Sound" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <CheckBox x:Name="EnableSoundCheck" HorizontalAlignment="Left" Content="Play sound effect when a clip is taken" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <Grid Margin="20,0,0,20">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <RadioButton x:Name="RadioSystemSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="SystemSoundCombo" Grid.Column="1" Margin="0,0,10,0" SelectionChanged="SystemSoundCombo_SelectionChanged">
+                                    <ComboBoxItem Content="SimpleyViridian - Clipped" IsSelected="True"/>
+                                    <ComboBoxItem Content="SimpleyViridian - Clipped Teto"/>
+                                    <ComboBoxItem Content="ConfusedIndividual - Clipped"/>
+                                    <ComboBoxItem Content="ConfusedIndividual - Clipped!"/>
+                                    <ComboBoxItem Content="Windows - Exclamation"/>
+                                    <ComboBoxItem Content="Windows - Hand"/>
+                                </ComboBox>
+                                <Button Grid.Column="2" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestSoundBtn_Click"/>
+                            </Grid>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <RadioButton x:Name="RadioCustomSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use Custom Audio File:" Foreground="#b9bbbe" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                                <TextBox x:Name="CustomSoundPathInput" Grid.Column="1" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                                <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="BrowseSoundBtn_Click"/>
+                            </Grid>
+                        </Grid>
+
+                        <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
+
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="160"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="80"/>
                             </Grid.ColumnDefinitions>
-                            <RadioButton x:Name="RadioSystemSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
-                            <ComboBox x:Name="SystemSoundCombo" Grid.Column="1" Margin="0,0,5,0" SelectionChanged="SystemSoundCombo_SelectionChanged">
-                                <ComboBoxItem Content="SimpleyViridian - Clipped" IsSelected="True"/>
-                                <ComboBoxItem Content="SimpleyViridian - Clipped Teto"/>
-                                <ComboBoxItem Content="ConfusedIndividual - Clipped"/>
-                                <ComboBoxItem Content="ConfusedIndividual - Clipped!"/>
-                                <ComboBoxItem Content="Windows - Exclamation"/>
-                                <ComboBoxItem Content="Windows - Hand"/>
-                            </ComboBox>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Connect Sound" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnConnectVC" Grid.Row="0" Grid.Column="1" Content="VC" ToolTip="Plays this sound when a mutually approved user connects to your VC" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnConnectVC_Click"/>
+
+                            <CheckBox x:Name="EnableConnectSoundCheck" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" Content="Play sound effect when connecting to the server" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnConnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a mutually approved user connects to your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnConnectPool_Click"/>
                         </Grid>
-                        <Grid Grid.Row="1">
+                        <Grid Margin="20,0,0,20">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <RadioButton x:Name="RadioSystemConnectSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="ConnectSoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="SystemConnectSoundCombo" Grid.Column="1" Margin="0,0,10,0" SelectionChanged="SystemConnectSoundCombo_SelectionChanged">
+                                    <ComboBoxItem Content="ConfusedIndividual - Server Connect" IsSelected="True"/>
+                                    <ComboBoxItem Content="SimpleyViridian - Connected"/>
+                                </ComboBox>
+                                <Button Grid.Column="2" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestConnectSoundBtn_Click"/>
+                            </Grid>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <RadioButton x:Name="RadioCustomConnectSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use Custom Audio File:" Foreground="#b9bbbe" GroupName="ConnectSoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                                <TextBox x:Name="CustomConnectSoundPathInput" Grid.Column="1" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                                <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="BrowseConnectSoundBtn_Click"/>
+                            </Grid>
+                        </Grid>
+
+                        <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
+
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="160"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="80"/>
                             </Grid.ColumnDefinitions>
-                            <RadioButton x:Name="RadioCustomSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use Custom Audio File:" Foreground="#b9bbbe" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
-                            <TextBox x:Name="CustomSoundPathInput" Grid.Column="1" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
-                            <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseSoundBtn_Click"/>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Disconnect Sound" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnDisconnectVC" Grid.Row="0" Grid.Column="1" Content="VC" ToolTip="Plays this sound when a mutually approved user disconnects from your VC" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnDisconnectVC_Click"/>
+
+                            <CheckBox x:Name="EnableDisconnectSoundCheck" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" Content="Play sound effect when disconnecting from the server" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnDisconnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a mutually approved user disconnects from your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnDisconnectPool_Click"/>
                         </Grid>
-                    </Grid>
-                </StackPanel>
+                        <Grid Margin="20,0,0,20">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <RadioButton x:Name="RadioSystemDisconnectSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="DisconnectSoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="SystemDisconnectSoundCombo" Grid.Column="1" Margin="0,0,10,0" SelectionChanged="SystemDisconnectSoundCombo_SelectionChanged">
+                                    <ComboBoxItem Content="ConfusedIndividual - Server Disconnect" IsSelected="True"/>
+                                    <ComboBoxItem Content="SimpleyViridian - Disconnected"/>
+                                </ComboBox>
+                                <Button Grid.Column="2" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestDisconnectSoundBtn_Click"/>
+                            </Grid>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <RadioButton x:Name="RadioCustomDisconnectSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use Custom Audio File:" Foreground="#b9bbbe" GroupName="DisconnectSoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
+                                <TextBox x:Name="CustomDisconnectSoundPathInput" Grid.Column="1" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                                <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="BrowseDisconnectSoundBtn_Click"/>
+                            </Grid>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem>
