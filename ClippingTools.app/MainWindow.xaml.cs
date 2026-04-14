@@ -206,6 +206,19 @@ namespace ClippingTools.app
             };
 
             var contextMenu = new System.Windows.Forms.ContextMenuStrip();
+
+            var toggleSyncItem = new System.Windows.Forms.ToolStripMenuItem();
+            toggleSyncItem.Click += (s, args) =>
+            {
+                Dispatcher.Invoke(() => ConnectButton_Click(null, null));
+            };
+            contextMenu.Opening += (s, args) =>
+            {
+                toggleSyncItem.Text = isSyncActive ? "Connected" : "Disconnected";
+                toggleSyncItem.Checked = isSyncActive;
+            };
+
+            contextMenu.Items.Add(toggleSyncItem);
             contextMenu.Items.Add("Open", null, (s, args) => { this.Show(); this.WindowState = WindowState.Normal; this.Activate(); });
             contextMenu.Items.Add("Exit", null, (s, args) => { forceExit = true; System.Windows.Application.Current.Shutdown(); });
             trayIcon.ContextMenuStrip = contextMenu;
