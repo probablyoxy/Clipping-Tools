@@ -103,6 +103,7 @@ namespace ClippingTools.app
         private string currentPoolName = "";
         private string currentServerName = "";
         private string currentPerspectiveName = "";
+        private string myGlobalDiscordName = "";
 
         public MainWindow()
         {
@@ -1293,6 +1294,12 @@ start """" ""{targetExe}""
 
                                 Dispatcher.Invoke(() =>
                                 {
+                                    string myId = DiscordIdInput.Text;
+                                    if (usersJson.TryGetProperty(myId, out JsonElement myNameElem))
+                                    {
+                                        myGlobalDiscordName = myNameElem.GetString();
+                                    }
+
                                     foreach (var user in ApprovedUsers)
                                     {
                                         if (usersJson.TryGetProperty(user.Id, out JsonElement nameElement))
@@ -1744,7 +1751,8 @@ start """" ""{targetExe}""
             }
 
             await PerformSafeHardwareClip();
-            SendRenamerTrigger(Environment.UserName);
+            string myName = !string.IsNullOrEmpty(myGlobalDiscordName) ? myGlobalDiscordName : Environment.UserName;
+            SendRenamerTrigger(myName);
         }
 
         public async Task<bool> ReceiveNetworkClipCommand(string clipperName)
@@ -1796,7 +1804,8 @@ start """" ""{targetExe}""
             }
             if (usePersp == true)
             {
-                string pName = string.IsNullOrEmpty(currentPerspectiveName) ? Environment.UserName : currentPerspectiveName;
+                string pName = !string.IsNullOrEmpty(myGlobalDiscordName) ? myGlobalDiscordName :
+                               (string.IsNullOrEmpty(currentPerspectiveName) ? Environment.UserName : currentPerspectiveName);
                 parts.Add($"r.{pName}");
             }
             if (useClip == true && !string.IsNullOrEmpty(clipperName)) parts.Add($"c.{clipperName}");
@@ -2756,11 +2765,14 @@ del ""%~f0""
         {
             if (webSocket != null && webSocket.State == WebSocketState.Open)
             {
+                var usersToResolve = ApprovedUsers.Select(u => u.Id).ToList();
+                if (!string.IsNullOrEmpty(DiscordIdInput.Text)) usersToResolve.Add(DiscordIdInput.Text);
+
                 var payload = new
                 {
                     action = "resolve_ids",
                     client_id = DiscordIdInput.Text,
-                    users = ApprovedUsers.Select(u => u.Id).ToList(),
+                    users = usersToResolve,
                     channels = ApprovedChannels.Select(c => c.Id).ToList()
                 };
                 await SendWsMessage(payload);
