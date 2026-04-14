@@ -2550,8 +2550,8 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             }
             else
             {
-                string mainAppPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                if (File.GetLastWriteTime(mainAppPath) > File.GetLastWriteTime(renamerExe))
+                string mainAppPath = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(mainAppPath) && File.GetLastWriteTime(mainAppPath) > File.GetLastWriteTime(renamerExe))
                 {
                     needsExtraction = true;
                     WriteLog("Newer version of Clipping Tools detected. Updating ClipRenamer.exe...");
