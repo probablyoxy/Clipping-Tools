@@ -618,7 +618,7 @@ namespace ClippingTools.app
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
                 if (exePath.EndsWith(".app.exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    WriteLog("Detected app running as old ClippingTools.app.exe. Renaming to ClippingTools.exe...");
+                    WriteLog("Migration v0.1.7: Detected app running as old ClippingTools.app.exe. Renaming to ClippingTools.exe...");
                     string targetExe = exePath.Replace(".app.exe", ".exe");
                     string batPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClippingToolsRename.cmd");
 
@@ -640,10 +640,30 @@ start """" ""{targetExe}""
                     if (StartWithWindowsCheck.IsChecked == true)
                     {
                         StartWithWindowsCheck_Click(null, null);
-                        WriteLog("Migrated Start with Windows task.");
+                        WriteLog("Migration v0.1.7: Migrated Start with Windows task.");
                     }
 
                     UpdateShortcuts(exePath);
+
+                    try
+                    {
+                        string clipMgmtFolder = System.IO.Path.Combine(configFolder, "clip-management");
+                        if (Directory.Exists(clipMgmtFolder))
+                        {
+                            Directory.Delete(clipMgmtFolder, true);
+                            WriteLog("Migration v0.1.7: Deleted legacy clip-management folder.");
+                        }
+
+                        if (Directory.Exists(soundsFolder))
+                        {
+                            Directory.Delete(soundsFolder, true);
+                            WriteLog("Migration v0.1.7: Deleted legacy sounds folder.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteLog($"Migration v0.1.7 folder cleanup failed: {ex.Message}");
+                    }
 
                     currentStat.Version = "v0.1.7";
                     storedVersion = v017;
