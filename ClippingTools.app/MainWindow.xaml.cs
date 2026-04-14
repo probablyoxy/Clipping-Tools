@@ -286,6 +286,19 @@ namespace ClippingTools.app
                     RadioAnyVC.IsChecked = settings.AnyVCRule;
                     RadioSpecificVC.IsChecked = !settings.AnyVCRule;
                     TriggerKeyInput.Text = settings.TriggerKey;
+                    LocalTriggerKeyInput.Text = settings.LocalTriggerKey ?? "";
+
+                    if (settings.WindowWidth > 0 && settings.WindowHeight > 0)
+                    {
+                        this.Width = settings.WindowWidth;
+                        this.Height = settings.WindowHeight;
+                    }
+                    if (settings.WindowLeft != -1 && settings.WindowTop != -1)
+                    {
+                        this.WindowStartupLocation = WindowStartupLocation.Manual;
+                        this.Left = settings.WindowLeft;
+                        this.Top = settings.WindowTop;
+                    }
 
                     AutoSyncCheck.IsChecked = settings.AutoSync;
                     StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
@@ -349,6 +362,12 @@ namespace ClippingTools.app
                 WriteLog("Trigger keybind wiped on startup due to collision with Software Clip keybind.");
             }
 
+            if (IsKeybindCollision(LocalTriggerKeyInput.Text, ClipKeysList))
+            {
+                LocalTriggerKeyInput.Text = "";
+                WriteLog("Local Trigger keybind wiped on startup due to collision with Software Clip keybind.");
+            }
+
             RebuildClipKeyUI();
 
             if (string.IsNullOrEmpty(ObsLocationInput.Text))
@@ -365,6 +384,10 @@ namespace ClippingTools.app
             {
                 TriggerKeyInput.Text = "";
             }
+            if (IsKeybindCollision(LocalTriggerKeyInput.Text, ClipKeysList))
+            {
+                LocalTriggerKeyInput.Text = "";
+            }
 
             if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
 
@@ -376,7 +399,13 @@ namespace ClippingTools.app
                 DiscordId = DiscordIdInput.Text,
                 AnyVCRule = RadioAnyVC.IsChecked ?? true,
                 TriggerKey = TriggerKeyInput.Text,
+                LocalTriggerKey = LocalTriggerKeyInput.Text,
                 ClipKeys = ClipKeysList,
+
+                WindowLeft = this.Left,
+                WindowTop = this.Top,
+                WindowWidth = this.Width,
+                WindowHeight = this.Height,
 
                 AutoSync = AutoSyncCheck.IsChecked ?? false,
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
@@ -1104,10 +1133,20 @@ start """" ""{targetExe}""
             try
             {
                 HotkeyManager.Current.Remove("SyncClip");
+                HotkeyManager.Current.Remove("LocalSyncClip");
                 var converter = new KeyGestureConverter();
-                KeyGesture triggerGesture = (KeyGesture)converter.ConvertFromString(TriggerKeyInput.Text);
 
-                HotkeyManager.Current.AddOrReplace("SyncClip", triggerGesture.Key, triggerGesture.Modifiers, OnClipTriggered);
+                if (!string.IsNullOrWhiteSpace(TriggerKeyInput.Text))
+                {
+                    KeyGesture triggerGesture = (KeyGesture)converter.ConvertFromString(TriggerKeyInput.Text);
+                    HotkeyManager.Current.AddOrReplace("SyncClip", triggerGesture.Key, triggerGesture.Modifiers, OnClipTriggered);
+                }
+
+                if (!string.IsNullOrWhiteSpace(LocalTriggerKeyInput.Text))
+                {
+                    KeyGesture localTriggerGesture = (KeyGesture)converter.ConvertFromString(LocalTriggerKeyInput.Text);
+                    HotkeyManager.Current.AddOrReplace("LocalSyncClip", localTriggerGesture.Key, localTriggerGesture.Modifiers, OnLocalClipTriggered);
+                }
 
                 ConnectButton.Content = "Listening...";
                 ConnectButton.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(67, 181, 129));
@@ -1134,6 +1173,7 @@ start """" ""{targetExe}""
             isSyncActive = false;
             isReconnecting = false;
             HotkeyManager.Current.Remove("SyncClip");
+            HotkeyManager.Current.Remove("LocalSyncClip");
             ConnectButton.Content = "Activate Syncing";
             ConnectButton.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#5865F2"));
 
@@ -1698,48 +1738,75 @@ start """" ""{targetExe}""
                 bool anyVc = true;
                 Application.Current.Dispatcher.Invoke(() => { anyVc = RadioAnyVC.IsChecked ?? true; });
                 bool isVcApproved = anyVc || (!string.IsNullOrEmpty(currentVcId) && ApprovedChannels.Any(c => c.Id == currentVcId));
+                bool isInPool = !string.IsNullOrEmpty(activePoolCode);
 
                 var combinedFriends = new HashSet<string>();
                 if (isVcApproved)
                 {
                     foreach (var f in currentActiveVcFriends) combinedFriends.Add(f);
                 }
-                foreach (var f in currentActivePoolFriends) combinedFriends.Add(f);
-
-                if (combinedFriends.Count > 0)
+                if (isInPool)
                 {
-                    string sentTo = string.Join(", ", combinedFriends);
-                    WriteLog($"Triggered a local clip command. Sent to: {sentTo}");
+                    foreach (var f in currentActivePoolFriends) combinedFriends.Add(f);
+                }
+
+                if (isVcApproved || isInPool)
+                {
+                    string sentTo = combinedFriends.Count > 0 ? string.Join(", ", combinedFriends) : "nobody";
+                    WriteLog($"Triggered a clip command. Sent to: {sentTo}");
                     await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
 
-                    totalClipsStats.Sent++;
-                    foreach (var friendStr in combinedFriends)
+                    if (combinedFriends.Count > 0)
                     {
-                        int spaceIdx = friendStr.IndexOf(' ');
-                        if (spaceIdx > 0)
+                        totalClipsStats.Sent++;
+                        foreach (var friendStr in combinedFriends)
                         {
-                            string id = friendStr.Substring(0, spaceIdx);
-                            string fallbackName = friendStr.Substring(spaceIdx + 2, friendStr.Length - spaceIdx - 3);
+                            int spaceIdx = friendStr.IndexOf(' ');
+                            if (spaceIdx > 0)
+                            {
+                                string id = friendStr.Substring(0, spaceIdx);
+                                string fallbackName = friendStr.Substring(spaceIdx + 2, friendStr.Length - spaceIdx - 3);
 
-                            var matchedUser = ApprovedUsers.FirstOrDefault(u => u.Id == id);
-                            string trueName = matchedUser != null ? matchedUser.DisplayName : fallbackName;
+                                var matchedUser = ApprovedUsers.FirstOrDefault(u => u.Id == id);
+                                string trueName = matchedUser != null ? matchedUser.DisplayName : fallbackName;
 
-                            if (!userSentStats.ContainsKey(id)) userSentStats[id] = new UserStatCount { Id = id, Name = trueName, Count = 0 };
-                            userSentStats[id].Count++;
-                            userSentStats[id].Name = trueName;
+                                if (!userSentStats.ContainsKey(id)) userSentStats[id] = new UserStatCount { Id = id, Name = trueName, Count = 0 };
+                                userSentStats[id].Count++;
+                                userSentStats[id].Name = trueName;
+                            }
                         }
+                        SaveStats();
                     }
-                    SaveStats();
                 }
                 else
                 {
-                    WriteLog($"Triggered a local clip command. (Not in an approved VC or Pool)");
+                    WriteLog($"Triggered a clip command. (Not in an approved VC or Pool)");
                 }
             }
             else
             {
-                WriteLog($"Triggered a local clip command. (Network sending disabled)");
+                WriteLog($"Triggered a clip command. (Network sending disabled)");
             }
+
+            int delay = 0;
+            Application.Current.Dispatcher.Invoke(() => { if (int.TryParse(ClipDelayInput.Text, out int parsed)) delay = parsed; });
+
+            if (delay > 0)
+            {
+                WriteLog($"Clip delayed by {delay} seconds.");
+                await Task.Delay(delay * 1000);
+            }
+
+            await PerformSafeHardwareClip();
+            string myName = !string.IsNullOrEmpty(myGlobalDiscordName) ? myGlobalDiscordName : Environment.UserName;
+            SendRenamerTrigger(myName);
+        }
+
+        private async void OnLocalClipTriggered(object sender, HotkeyEventArgs e)
+        {
+            if (!CanTriggerClip()) return;
+
+            WriteLog($"Triggered a local clip command.");
 
             int delay = 0;
             Application.Current.Dispatcher.Invoke(() => { if (int.TryParse(ClipDelayInput.Text, out int parsed)) delay = parsed; });
@@ -1897,6 +1964,7 @@ start """" ""{targetExe}""
             NavHomeBtn.Background = darkBg;
             NavDiscordBtn.Background = darkBg;
             NavSettingsBtn.Background = darkBg;
+            NavSoundsBtn.Background = darkBg;
             NavExtrasBtn.Background = darkBg;
             NavLogsBtn.Background = darkBg;
             NavStatsBtn.Background = darkBg;
@@ -1925,16 +1993,23 @@ start """" ""{targetExe}""
             NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
 
-        private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
+        private void NavSoundsBtn_Click(object sender, RoutedEventArgs e)
         {
             MainContent.SelectedIndex = 3;
+            ResetNavBackgrounds();
+            NavSoundsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+        }
+
+        private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 4;
             ResetNavBackgrounds();
             NavExtrasBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
 
         private void NavLogsBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 4;
+            MainContent.SelectedIndex = 5;
             ResetNavBackgrounds();
             NavLogsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
 
@@ -1946,7 +2021,7 @@ start """" ""{targetExe}""
 
         private void NavStatsBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 5;
+            MainContent.SelectedIndex = 6;
             ResetNavBackgrounds();
             NavStatsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
             UpdateStatsUI();
@@ -1954,7 +2029,7 @@ start """" ""{targetExe}""
 
         private async void NavUpdateBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 6;
+            MainContent.SelectedIndex = 7;
             ResetNavBackgrounds();
             NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
             NavUpdateBtn.Content = "Update";
@@ -1964,7 +2039,7 @@ start """" ""{targetExe}""
 
         private void NavHelpBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 7;
+            MainContent.SelectedIndex = 8;
             ResetNavBackgrounds();
             NavHelpBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
@@ -2105,6 +2180,16 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             string clipFolder = ClipLocationInput.Text;
 
             if (!shouldRun || string.IsNullOrEmpty(clipFolder)) return;
+
+            try
+            {
+                var queueFiles = Directory.GetFiles(renamerFolder, "*queue*.txt");
+                foreach (var file in queueFiles)
+                {
+                    File.Delete(file);
+                }
+            }
+            catch { }
 
             File.WriteAllText(triggerPath, "");
             File.WriteAllText(statusPath, "");
@@ -2670,10 +2755,10 @@ del ""%~f0""
                 key != Key.System)
             {
                 TextBox tb = sender as TextBox;
-                if (tb == TriggerKeyInput && IsKeybindCollision(tb.Text, ClipKeysList))
+                if ((tb == TriggerKeyInput || tb == LocalTriggerKeyInput) && IsKeybindCollision(tb.Text, ClipKeysList))
                 {
                     tb.Text = "";
-                    await ShowCustomDialog("Keybind Collision", "You cannot set the Trigger Keybind to be the exact same as the Software Clip Keybind!");
+                    await ShowCustomDialog("Keybind Collision", "You cannot set a Trigger Keybind to be the exact same as the Software Clip Keybind!");
                 }
 
                 Keyboard.ClearFocus();
@@ -3123,7 +3208,13 @@ del ""%~f0""
         public string DiscordId { get; set; } = "";
         public bool AnyVCRule { get; set; } = true;
         public string TriggerKey { get; set; } = "Ctrl+Alt+F10";
+        public string LocalTriggerKey { get; set; } = "Ctrl+Alt+F9";
         public List<string> ClipKeys { get; set; } = new List<string>();
+
+        public double WindowLeft { get; set; } = -1;
+        public double WindowTop { get; set; } = -1;
+        public double WindowWidth { get; set; } = 800;
+        public double WindowHeight { get; set; } = 600;
 
         public bool AutoSync { get; set; } = false;
         public bool StartWithWindows { get; set; } = false;

@@ -9,7 +9,6 @@
 	<UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 	<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-	<DebugType>None</DebugType>
 	<ApplicationIcon>littlesmall.ico</ApplicationIcon>
   </PropertyGroup>
 

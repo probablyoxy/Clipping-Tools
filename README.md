@@ -17,8 +17,9 @@ Follow this basic setup to get connected:
 * When you first connect to the network, the bot will DM you to verify your Discord account and link it to the backend. Make sure it can message you or you will not be able to verify your account. *(This is a strict security feature to prevent people from pretending to be you and sending false clip commands).*
 
 ### 2. Configure Keybinds
-* Go to the **Settings** tab and change the **Trigger Keybind** to something you like. This is the key used to make a shared clip with everyone connected. *Note: This MUST be different than your normal clipping keys.*
 * Change your **Software Clip Keybind** to the actual keybind used for your clipping software (the buttons you usually press to make a clip in OBS, Medal, Shadowplay, etc.).
+* Go to the **Settings** tab and change the **Global Trigger Keybind** to something you like. This is the key used to make a shared clip with everyone connected. *Note: This MUST be different than your normal clipping keys.*
+* *Local Trigger Keybind:* This lets you create clips using Clipping Tools and all of its features, but without sending the signal to the server.
 
 ### 3. Connect to the Network
 * Go to the **Home** tab and press **Activate Syncing**. This connects you to the routing network and allows you to start syncing clips! 

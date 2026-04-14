@@ -19,6 +19,7 @@
             <Button x:Name="NavHomeBtn" Content="Home" Height="40" Margin="10,0,10,10" Background="#4f545c" Foreground="White" BorderThickness="0" Click="NavHomeBtn_Click"/>
             <Button x:Name="NavDiscordBtn" Content="Discord" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavDiscordBtn_Click"/>
             <Button x:Name="NavSettingsBtn" Content="Settings" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSettingsBtn_Click"/>
+            <Button x:Name="NavSoundsBtn" Content="Sounds" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSoundsBtn_Click"/>
             <Button x:Name="NavExtrasBtn" Content="Extras" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavExtrasBtn_Click"/>
             <Button x:Name="NavLogsBtn" Content="Logs" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavLogsBtn_Click"/>
             <Button x:Name="NavStatsBtn" Content="Statistics" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavStatsBtn_Click"/>
@@ -223,6 +224,50 @@
                             <Button x:Name="ExportSettingsBtn" Content="Export" Background="#4f545c" Foreground="White" BorderThickness="0" Width="60" Height="25" Click="ExportSettingsBtn_Click"/>
                         </StackPanel>
                     </Grid>
+
+                    <TextBlock Text="Software Clip Keybind (Click each box and press ONE key at a time. Press Esc to clear):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <WrapPanel x:Name="ClipKeyPanel" Margin="0,0,0,15" Orientation="Horizontal"/>
+
+                    <TextBlock Text="Global Trigger Keybind (Keybind used to create a synced clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Alt+F10" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
+
+                    <TextBlock Text="Local Trigger Keybind (Keybind used to make a local only clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBox x:Name="LocalTriggerKeyInput" Text="Ctrl+Alt+F9" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
+
+                    <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Clip Rate Limit" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Minimum seconds between clips:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="RateLimitInput" Text="10" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Clip Delay Time" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Delays the clip by this many seconds:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="ClipDelayInput" Text="0" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
+                    <Button x:Name="ResetUuidBtn" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem>
+                <StackPanel>
+                    <TextBlock Text="Sounds" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -262,40 +307,6 @@
                             <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseSoundBtn_Click"/>
                         </Grid>
                     </Grid>
-                    <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
-                    <TextBlock Text="Trigger Keybind (Keybind used to create a synced clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                    <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Alt+F10" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225"/>
-                    <TextBlock Text="Software Clip Keybind (Click each box and press ONE key at a time. Press Esc to clear):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                    <WrapPanel x:Name="ClipKeyPanel" Margin="0,0,0,20" Orientation="Horizontal"/>
-
-                    <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
-
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="30"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Clip Rate Limit" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Minimum seconds between clips:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="RateLimitInput" Text="10" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="Clip Delay Time" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Delays the clip by this many seconds:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="ClipDelayInput" Text="0" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-
-                    <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
-                    <Button x:Name="ResetUuidBtn" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
                 </StackPanel>
             </TabItem>
 
