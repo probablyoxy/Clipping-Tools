@@ -1,4 +1,4 @@
-# Clipping Tools
+# Clipping Tools   -   made by oxy 💕
 
 **Clipping Tools** is a lightweight app that lets you sync your game capture software with all of your friends. When one person clips, everyone will.
 

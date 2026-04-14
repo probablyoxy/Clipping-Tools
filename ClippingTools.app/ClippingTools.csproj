@@ -9,11 +9,12 @@
 	<UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 	<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-	<ApplicationIcon>littlesmall.ico</ApplicationIcon>
+	<ApplicationIcon>sosmall.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="clip_renamer\ClipRenamer.exe" />
+    <None Remove="sosmall.ico" />
     <None Remove="sounds\clipped.wav" />
     <None Remove="sounds\clippedteto.wav" />
     <None Remove="sounds\confusedindividual-clipped!.wav" />
@@ -27,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="littlesmall.ico" />
+    <Content Include="sosmall.ico" />
   </ItemGroup>
 
   <ItemGroup>
