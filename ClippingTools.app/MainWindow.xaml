@@ -62,7 +62,7 @@
                                             <ColumnDefinition Width="150"/>
                                             <ColumnDefinition Width="80"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="PoolNameInput" Grid.Column="0" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
+                                        <TextBox x:Name="PoolNameInput" Text="Enter Pool Name" Grid.Column="0" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                                         <Button x:Name="CreatePoolBtn" Grid.Column="1" Content="Create Pool" Background="#5865F2" Foreground="White" BorderThickness="0" Click="CreatePoolBtn_Click"/>
                                     </Grid>
 
@@ -72,7 +72,7 @@
                                             <ColumnDefinition Width="150"/>
                                             <ColumnDefinition Width="80"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="PoolCodeInput" Grid.Column="0" Height="25" CharacterCasing="Upper" Background="#202225" Foreground="White" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
+                                        <TextBox x:Name="PoolCodeInput" Text="Enter Pool Code" Grid.Column="0" Height="25" CharacterCasing="Upper" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                                         <Button x:Name="JoinPoolBtn" Grid.Column="1" Content="Join Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Click="JoinPoolBtn_Click"/>
                                     </Grid>
                                 </StackPanel>
@@ -120,8 +120,8 @@
                         <Button x:Name="DiscordSignInBtn" Grid.Column="1" Content="Sign In w/ Discord" Background="#5865F2" Foreground="White" BorderThickness="0" Click="DiscordSignInBtn_Click"/>
                     </Grid>
                     <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
-                    <TextBlock Text="Approved Users List (Mutual sync required):" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
-                    <TextBlock Text="Paste User IDs here (one per line, space, or comma). Click an ID to remove it." Foreground="#b9bbbe" FontSize="11" Margin="0,0,0,10"/>
+                    <TextBlock Text="Approved Users List" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="Add users you want to sync clips with here (Mutual sync required):" Foreground="#b9bbbe" FontSize="11" Margin="0,0,0,10"/>
                     <Grid Margin="0,0,0,20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -133,7 +133,7 @@
                                 <ColumnDefinition Width="90"/>
                                 <ColumnDefinition Width="60"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="NewUserIdInput" Grid.Column="0" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" Margin="0,0,5,0" KeyDown="NewUserIdInput_KeyDown"/>
+                            <TextBox x:Name="NewUserIdInput" ToolTip="Paste User IDs here (one per entry, space, or comma)" Grid.Column="0" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" Margin="0,0,5,0" KeyDown="NewUserIdInput_KeyDown"/>
                             <Button Grid.Column="1" Content="Select Users" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,5,0" Click="OpenSelectUsersBtn_Click"/>
                             <Button Grid.Column="2" Content="Add" Background="#4f545c" Foreground="White" BorderThickness="0" Click="AddUserBtn_Click"/>
                         </Grid>
@@ -166,7 +166,7 @@
                         </ListBox>
                     </Grid>
                     <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
-                    <TextBlock Text="Voice Channel Sync Rules:" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="Voice Channel Sync Rules" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
                     <StackPanel>
                         <RadioButton x:Name="RadioAnyVC" HorizontalAlignment="Left" GroupName="VCRules" Content="Sync in any Voice Channel with Approved Users" Foreground="#b9bbbe" IsChecked="True" Margin="0,0,0,10" Checked="RadioVCRules_Changed"/>
                         <RadioButton x:Name="RadioSpecificVC" HorizontalAlignment="Left" GroupName="VCRules" Content="Only sync when in these specific Channel IDs:" Foreground="#b9bbbe" Margin="0,0,0,5" Checked="RadioVCRules_Changed"/>
@@ -225,21 +225,21 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Software Clip Keybind (Click each box and press ONE key at a time. Press Esc to clear):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                    <WrapPanel x:Name="ClipKeyPanel" Margin="0,0,0,15" Orientation="Horizontal"/>
+                    <TextBlock Text="Software Clip Keybind:" ToolTip="Keybind you press to create a clip normally" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <WrapPanel x:Name="ClipKeyPanel" ToolTip="Click each box and press one key at a time. Press Esc to clear" Margin="0,0,0,15" Orientation="Horizontal"/>
 
-                    <TextBlock Text="Global Trigger Keybind (Keybind used to create a synced clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                    <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Alt+F10" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
+                    <TextBlock Text="Global Trigger Keybind:" ToolTip="Keybind used to create a synced clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Alt+F10" ToolTip="Keybind used to create a synced clip" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
 
-                    <TextBlock Text="Local Trigger Keybind (Keybind used to make a local only clip):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                    <TextBox x:Name="LocalTriggerKeyInput" Text="Ctrl+Alt+F9" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
+                    <TextBlock Text="Local Trigger Keybind:" ToolTip="Keybind used to make a local only clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBox x:Name="LocalTriggerKeyInput" Text="Ctrl+Alt+F9" ToolTip="Keybind used to make a local only clip" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
 
                     <StackPanel x:Name="ControllerTriggersPanel" Visibility="Collapsed">
-                        <TextBlock Text="Global Controller Trigger Keybind:" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                        <TextBox x:Name="ControllerTriggerKeyInput" IsReadOnly="True" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="ControllerInput_PreviewMouseDown" LostFocus="ControllerInput_LostFocus" PreviewKeyDown="ControllerInput_PreviewKeyDown" Cursor="Hand" ToolTip="Click here, then press a controller button to bind. Press ESC to clear."/>
+                        <TextBlock Text="Global Controller Trigger Keybind:" ToolTip="Controller keybind used to create a synced clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBox x:Name="ControllerTriggerKeyInput" ToolTip="Controller keybind used to create a synced clip" IsReadOnly="True" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="ControllerInput_PreviewMouseDown" LostFocus="ControllerInput_LostFocus" PreviewKeyDown="ControllerInput_PreviewKeyDown" Cursor="Hand"/>
 
-                        <TextBlock Text="Local Controller Trigger Keybind:" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                        <TextBox x:Name="ControllerLocalTriggerKeyInput" IsReadOnly="True" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="ControllerInput_PreviewMouseDown" LostFocus="ControllerInput_LostFocus" PreviewKeyDown="ControllerInput_PreviewKeyDown" Cursor="Hand" ToolTip="Click here, then press a controller button to bind. Press ESC to clear."/>
+                        <TextBlock Text="Local Controller Trigger Keybind:" ToolTip="Controller keybind used to make a local only clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBox x:Name="ControllerLocalTriggerKeyInput" ToolTip="Controller keybind used to make a local only clip" IsReadOnly="True" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="ControllerInput_PreviewMouseDown" LostFocus="ControllerInput_LostFocus" PreviewKeyDown="ControllerInput_PreviewKeyDown" Cursor="Hand"/>
                     </StackPanel>
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
@@ -270,7 +270,7 @@
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
                     <Grid>
-                        <Button x:Name="ResetUuidBtn" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
+                        <Button x:Name="ResetUuidBtn" ToolTip="Resets the app's unique code, allowing you to reverify with the server and invalidate all old sessions" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
                         <Button x:Name="UninstallAppBtn" Content="Uninstall" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Right" Click="UninstallAppBtn_Click"/>
                     </Grid>
                 </StackPanel>
@@ -487,7 +487,7 @@
                                     </StackPanel>
                                 </Grid>
                             </Grid>
-                            <Button x:Name="BtnConnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a mutually approved user connects to your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnConnectPool_Click"/>
+                            <Button x:Name="BtnConnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a user connects to your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnConnectPool_Click"/>
                         </Grid>
                         <Grid Margin="20,0,0,20">
                             <Grid.RowDefinitions>
@@ -609,7 +609,7 @@
                                     </StackPanel>
                                 </Grid>
                             </Grid>
-                            <Button x:Name="BtnDisconnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a mutually approved user disconnects from your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnDisconnectPool_Click"/>
+                            <Button x:Name="BtnDisconnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a user disconnects from your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnDisconnectPool_Click"/>
                         </Grid>
                         <Grid Margin="20,0,0,20">
                             <Grid.RowDefinitions>
@@ -647,16 +647,16 @@
             <TabItem>
                 <StackPanel>
                     <TextBlock Text="Clip Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <TextBlock Text="Clip Recording Location:" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBlock Text="Clip Recording Location:" ToolTip="This is the location that your clipping software saves your clips to" Foreground="#b9bbbe" Margin="0,0,0,5"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="80"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="ClipLocationInput" Grid.Column="0" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="ClipLocationInput" ToolTip="This is the location that your clipping software saves your clips to" Grid.Column="0" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                         <Button Grid.Column="1" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseClipLocationBtn_Click"/>
                     </Grid>
-                    <CheckBox x:Name="AutoRenameClipsCheck" HorizontalAlignment="Left" Content="Clip Renaming (Adds information to clip file name)" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
+                    <CheckBox x:Name="AutoRenameClipsCheck" HorizontalAlignment="Left" Content="Clip Renaming" ToolTip="Watches the clip folder for new clips, adding information to their titles after creation" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
 
                     <StackPanel x:Name="RenamerOptionsPanel" Orientation="Horizontal" Margin="20,0,0,20" Visibility="Collapsed">
                         <CheckBox x:Name="RenameGameCheck" Content="Game" ToolTip="Includes the name of the window tabbed into while the clip is taken" Foreground="#b9bbbe" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
@@ -675,26 +675,26 @@
                     <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
 
                     <TextBlock Text="OBS Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <TextBlock Text="OBS Location:" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                    <TextBlock Text="OBS Location:" ToolTip="This is the location where OBS is installed on your PC" Foreground="#b9bbbe" Margin="0,0,0,5"/>
                     <Grid Margin="0,0,0,20">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="80"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="ObsLocationInput" Grid.Column="0" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="ObsLocationInput" ToolTip="This is the location where OBS is installed on your PC" Grid.Column="0" IsReadOnly="True" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
                         <Button Grid.Column="1" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseObsBtn_Click"/>
                     </Grid>
-                    <CheckBox x:Name="AutoStartObsCheck" HorizontalAlignment="Left" Content="Automatically Start OBS Replay on Clipping Tools Launch" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
-                    <CheckBox x:Name="AutoRestartObsCheck" HorizontalAlignment="Left" Content="Automatically Restart OBS Replay on Recording Failure" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="AutoRestartObsCheck_Click"/>
+                    <CheckBox x:Name="AutoStartObsCheck" HorizontalAlignment="Left" Content="Automatically Start OBS Replay Buffer on Clipping Tools Launch" ToolTip="Starts OBS with Replay Buffer enabled during every app launch" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
+                    <CheckBox x:Name="AutoRestartObsCheck" HorizontalAlignment="Left" Content="Automatically Restart OBS Replay Buffer on Recording Failure" ToolTip="Watches the OBS log for errors, and forcibly restarts OBS with Replay Buffer enabled when OBS crashes" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="AutoRestartObsCheck_Click"/>
                     <StackPanel x:Name="ObsIntervalPanel" Visibility="Collapsed" Margin="20,0,0,10">
-                        <TextBlock Text="OBS Checking Interval (Seconds)" Foreground="#b9bbbe" Margin="0,0,0,5"/>
-                        <TextBox x:Name="ObsIntervalInput" Text="5" Width="50" Height="25" HorizontalAlignment="Left" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                        <TextBlock Text="OBS Checking Interval (Seconds)" ToolTip="The time interval that the OBS log is checked for errors" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBox x:Name="ObsIntervalInput" ToolTip="The time interval that the OBS log is checked for errors" Text="5" Width="50" Height="25" HorizontalAlignment="Left" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
                     </StackPanel>
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,20,0,20"/>
 
                     <TextBlock Text="Audio Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <CheckBox x:Name="EnsureMicMaxCheck" HorizontalAlignment="Left" Content="Ensure Windows Microphone is 100%" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
+                    <CheckBox x:Name="EnsureMicMaxCheck" ToolTip="Monitors your Windows Audio Input volume and sets it to 100% if it isn't already" HorizontalAlignment="Left" Content="Ensure Windows Microphone is 100%" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
 
                 </StackPanel>
             </TabItem>
@@ -708,7 +708,7 @@
 
                     <StackPanel Grid.Row="0">
                         <TextBlock Text="Action Logs" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                        <CheckBox x:Name="EnableLoggingCheck" HorizontalAlignment="Left" Content="Enable Action Logging" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="EnableLoggingCheck_Click"/>
+                        <CheckBox x:Name="EnableLoggingCheck" ToolTip="Enables writing of the log file" HorizontalAlignment="Left" Content="Enable Action Logging" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="EnableLoggingCheck_Click"/>
                         <StackPanel x:Name="LogLinesPanel" Orientation="Horizontal" Margin="0,0,0,15">
                             <TextBlock Text="Max lines to keep:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
                             <TextBox x:Name="MaxLogLinesInput" Text="1000" Width="60" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
@@ -775,8 +775,8 @@
                         <Grid Margin="0,0,0,20">
                             <TextBlock Text="Updates" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <TextBlock Text="Auto Update" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <CheckBox x:Name="AutoUpdateCheck" VerticalAlignment="Center" Click="Setting_Changed"/>
+                                <TextBlock Text="Auto Update" ToolTip="Downloads and updates automatically at app launch if an update is available" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <CheckBox x:Name="AutoUpdateCheck" ToolTip="Downloads and updates automatically at app launch if an update is available" VerticalAlignment="Center" Click="Setting_Changed"/>
                             </StackPanel>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
