@@ -62,7 +62,23 @@
                                             <ColumnDefinition Width="150"/>
                                             <ColumnDefinition Width="80"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="PoolNameInput" Text="Enter Pool Name" Grid.Column="0" Height="25" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
+
+                                        <Grid Grid.Column="0" Margin="0,0,5,0" Background="#202225">
+                                            <TextBlock Text="Enter Pool Name" Foreground="#b9bbbe" Margin="5,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Hidden"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=PoolNameInput}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBox x:Name="PoolNameInput" Text="" Height="25" Background="Transparent" Foreground="White" BorderBrush="Transparent" VerticalContentAlignment="Center" Padding="2,0"/>
+                                        </Grid>
+
                                         <Button x:Name="CreatePoolBtn" Grid.Column="1" Content="Create Pool" Background="#5865F2" Foreground="White" BorderThickness="0" Click="CreatePoolBtn_Click"/>
                                     </Grid>
 
@@ -72,7 +88,23 @@
                                             <ColumnDefinition Width="150"/>
                                             <ColumnDefinition Width="80"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="PoolCodeInput" Text="Enter Pool Code" Grid.Column="0" Height="25" CharacterCasing="Upper" Background="#202225" Foreground="#b9bbbe" BorderBrush="#202225" Margin="0,0,5,0" VerticalContentAlignment="Center"/>
+
+                                        <Grid Grid.Column="0" Margin="0,0,5,0" Background="#202225">
+                                            <TextBlock Text="Enter Pool Code" Foreground="#b9bbbe" Margin="5,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Hidden"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=PoolCodeInput}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBox x:Name="PoolCodeInput" Text="" Height="25" CharacterCasing="Upper" Background="Transparent" Foreground="White" BorderBrush="Transparent" VerticalContentAlignment="Center" Padding="2,0"/>
+                                        </Grid>
+
                                         <Button x:Name="JoinPoolBtn" Grid.Column="1" Content="Join Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Click="JoinPoolBtn_Click"/>
                                     </Grid>
                                 </StackPanel>
