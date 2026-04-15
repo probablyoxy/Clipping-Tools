@@ -810,10 +810,6 @@ start """" ""{targetExe}""
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
-            string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
-            string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
-            if (File.Exists(triggerPath)) File.WriteAllText(triggerPath, "EXIT");
-
             WriteVersionFile();
 
             if (!forceExit)
@@ -824,6 +820,10 @@ start """" ""{targetExe}""
             }
             else
             {
+                string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
+                string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
+                if (File.Exists(triggerPath)) File.WriteAllText(triggerPath, "EXIT");
+
                 if (trayIcon != null)
                 {
                     trayIcon.Visible = false;
