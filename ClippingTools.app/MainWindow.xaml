@@ -271,7 +271,87 @@
                         <TextBlock Text="Sounds" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
 
                         <TextBlock Text="Clip Sound" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <CheckBox x:Name="EnableSoundCheck" HorizontalAlignment="Left" Content="Play sound effect when a clip is taken" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="80"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0" Margin="0,0,0,10">
+                                <CheckBox x:Name="EnableSoundCheck" HorizontalAlignment="Left" Content="Play sound effect when a clip is taken" Foreground="White" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
+                                <Grid x:Name="ClipVolumeContainer" HorizontalAlignment="Right" Background="Transparent" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Slider x:Name="ClipVolumeSlider" Maximum="1" Minimum="0" Value="1" IsDirectionReversed="True" VerticalAlignment="Center" Margin="0,0,5,0" ValueChanged="Setting_Changed" IsMoveToPointEnabled="True" MouseMove="VolumeSlider_MouseMove" PreviewMouseUp="VolumeSlider_PreviewMouseUp">
+                                            <Slider.Style>
+                                                <Style TargetType="Slider">
+                                                    <Setter Property="Width" Value="0"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Slider">
+                                                                <Grid VerticalAlignment="Center">
+                                                                    <Border Height="6" Background="#202225" CornerRadius="3"/>
+                                                                    <Track x:Name="PART_Track">
+                                                                        <Track.DecreaseRepeatButton>
+                                                                            <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
+                                                                                <RepeatButton.Template>
+                                                                                    <ControlTemplate TargetType="RepeatButton">
+                                                                                        <Border Height="6" Background="#e090b0" CornerRadius="3"/>
+                                                                                    </ControlTemplate>
+                                                                                </RepeatButton.Template>
+                                                                            </RepeatButton>
+                                                                        </Track.DecreaseRepeatButton>
+                                                                        <Track.IncreaseRepeatButton>
+                                                                            <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
+                                                                                <RepeatButton.Template>
+                                                                                    <ControlTemplate TargetType="RepeatButton">
+                                                                                        <Border Background="Transparent"/>
+                                                                                    </ControlTemplate>
+                                                                                </RepeatButton.Template>
+                                                                            </RepeatButton>
+                                                                        </Track.IncreaseRepeatButton>
+                                                                        <Track.Thumb>
+                                                                            <Thumb Width="14" Height="14" Focusable="False">
+                                                                                <Thumb.Template>
+                                                                                    <ControlTemplate TargetType="Thumb">
+                                                                                        <Ellipse Fill="#ffffff" Stroke="#e090b0" StrokeThickness="1"/>
+                                                                                    </ControlTemplate>
+                                                                                </Thumb.Template>
+                                                                            </Thumb>
+                                                                        </Track.Thumb>
+                                                                    </Track>
+                                                                </Grid>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=ClipVolumeContainer}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="100" Duration="0:0:0.15"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.15"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Slider.Style>
+                                        </Slider>
+                                        <TextBlock Text="🔊" Foreground="#b9bbbe" FontSize="16" VerticalAlignment="Center" Cursor="Hand" ToolTip="Clip Sound Volume" RenderTransformOrigin="0.5,0.5">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform ScaleX="-1"/>
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Grid>
                         <Grid Margin="20,0,0,20">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -321,7 +401,81 @@
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Connect Sound" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" VerticalAlignment="Center"/>
                             <Button x:Name="BtnConnectVC" Grid.Row="0" Grid.Column="1" Content="VC" ToolTip="Plays this sound when a mutually approved user connects to your VC" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnConnectVC_Click"/>
 
-                            <CheckBox x:Name="EnableConnectSoundCheck" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" Content="Play sound effect when connecting to the server" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed" VerticalAlignment="Center"/>
+                            <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                                <CheckBox x:Name="EnableConnectSoundCheck" HorizontalAlignment="Left" Content="Play sound effect when connecting to the server" Foreground="White" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
+                                <Grid x:Name="ConnectVolumeContainer" HorizontalAlignment="Right" Background="Transparent" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Slider x:Name="ConnectVolumeSlider" Maximum="1" Minimum="0" Value="1" IsDirectionReversed="True" VerticalAlignment="Center" Margin="0,0,5,0" ValueChanged="Setting_Changed" IsMoveToPointEnabled="True" MouseMove="VolumeSlider_MouseMove" PreviewMouseUp="VolumeSlider_PreviewMouseUp">
+                                            <Slider.Style>
+                                                <Style TargetType="Slider">
+                                                    <Setter Property="Width" Value="0"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Slider">
+                                                                <Grid VerticalAlignment="Center">
+                                                                    <Border Height="6" Background="#202225" CornerRadius="3"/>
+                                                                    <Track x:Name="PART_Track">
+                                                                        <Track.DecreaseRepeatButton>
+                                                                            <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
+                                                                                <RepeatButton.Template>
+                                                                                    <ControlTemplate TargetType="RepeatButton">
+                                                                                        <Border Height="6" Background="#e090b0" CornerRadius="3"/>
+                                                                                    </ControlTemplate>
+                                                                                </RepeatButton.Template>
+                                                                            </RepeatButton>
+                                                                        </Track.DecreaseRepeatButton>
+                                                                        <Track.IncreaseRepeatButton>
+                                                                            <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
+                                                                                <RepeatButton.Template>
+                                                                                    <ControlTemplate TargetType="RepeatButton">
+                                                                                        <Border Background="Transparent"/>
+                                                                                    </ControlTemplate>
+                                                                                </RepeatButton.Template>
+                                                                            </RepeatButton>
+                                                                        </Track.IncreaseRepeatButton>
+                                                                        <Track.Thumb>
+                                                                            <Thumb Width="14" Height="14" Focusable="False">
+                                                                                <Thumb.Template>
+                                                                                    <ControlTemplate TargetType="Thumb">
+                                                                                        <Ellipse Fill="#ffffff" Stroke="#e090b0" StrokeThickness="1"/>
+                                                                                    </ControlTemplate>
+                                                                                </Thumb.Template>
+                                                                            </Thumb>
+                                                                        </Track.Thumb>
+                                                                    </Track>
+                                                                </Grid>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=ConnectVolumeContainer}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="100" Duration="0:0:0.15"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.15"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Slider.Style>
+                                        </Slider>
+                                        <TextBlock Text="🔊" Foreground="#b9bbbe" FontSize="16" VerticalAlignment="Center" Cursor="Hand" ToolTip="Connect Sound Volume" RenderTransformOrigin="0.5,0.5">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform ScaleX="-1"/>
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
                             <Button x:Name="BtnConnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a mutually approved user connects to your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnConnectPool_Click"/>
                         </Grid>
                         <Grid Margin="20,0,0,20">
@@ -369,7 +523,81 @@
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Disconnect Sound" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" VerticalAlignment="Center"/>
                             <Button x:Name="BtnDisconnectVC" Grid.Row="0" Grid.Column="1" Content="VC" ToolTip="Plays this sound when a mutually approved user disconnects from your VC" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnDisconnectVC_Click"/>
 
-                            <CheckBox x:Name="EnableDisconnectSoundCheck" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" Content="Play sound effect when disconnecting from the server" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed" VerticalAlignment="Center"/>
+                            <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                                <CheckBox x:Name="EnableDisconnectSoundCheck" HorizontalAlignment="Left" Content="Play sound effect when disconnecting from the server" Foreground="White" IsChecked="True" VerticalAlignment="Center" Click="Setting_Changed"/>
+                                <Grid x:Name="DisconnectVolumeContainer" HorizontalAlignment="Right" Background="Transparent" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Slider x:Name="DisconnectVolumeSlider" Maximum="1" Minimum="0" Value="1" IsDirectionReversed="True" VerticalAlignment="Center" Margin="0,0,5,0" ValueChanged="Setting_Changed" IsMoveToPointEnabled="True" MouseMove="VolumeSlider_MouseMove" PreviewMouseUp="VolumeSlider_PreviewMouseUp">
+                                            <Slider.Style>
+                                                <Style TargetType="Slider">
+                                                    <Setter Property="Width" Value="0"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Slider">
+                                                                <Grid VerticalAlignment="Center">
+                                                                    <Border Height="6" Background="#202225" CornerRadius="3"/>
+                                                                    <Track x:Name="PART_Track">
+                                                                        <Track.DecreaseRepeatButton>
+                                                                            <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
+                                                                                <RepeatButton.Template>
+                                                                                    <ControlTemplate TargetType="RepeatButton">
+                                                                                        <Border Height="6" Background="#e090b0" CornerRadius="3"/>
+                                                                                    </ControlTemplate>
+                                                                                </RepeatButton.Template>
+                                                                            </RepeatButton>
+                                                                        </Track.DecreaseRepeatButton>
+                                                                        <Track.IncreaseRepeatButton>
+                                                                            <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
+                                                                                <RepeatButton.Template>
+                                                                                    <ControlTemplate TargetType="RepeatButton">
+                                                                                        <Border Background="Transparent"/>
+                                                                                    </ControlTemplate>
+                                                                                </RepeatButton.Template>
+                                                                            </RepeatButton>
+                                                                        </Track.IncreaseRepeatButton>
+                                                                        <Track.Thumb>
+                                                                            <Thumb Width="14" Height="14" Focusable="False">
+                                                                                <Thumb.Template>
+                                                                                    <ControlTemplate TargetType="Thumb">
+                                                                                        <Ellipse Fill="#ffffff" Stroke="#e090b0" StrokeThickness="1"/>
+                                                                                    </ControlTemplate>
+                                                                                </Thumb.Template>
+                                                                            </Thumb>
+                                                                        </Track.Thumb>
+                                                                    </Track>
+                                                                </Grid>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=DisconnectVolumeContainer}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="100" Duration="0:0:0.15"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.15"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Slider.Style>
+                                        </Slider>
+                                        <TextBlock Text="🔊" Foreground="#b9bbbe" FontSize="16" VerticalAlignment="Center" Cursor="Hand" ToolTip="Disconnect Sound Volume" RenderTransformOrigin="0.5,0.5">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform ScaleX="-1"/>
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
                             <Button x:Name="BtnDisconnectPool" Grid.Row="1" Grid.Column="1" Content="Pool" ToolTip="Plays this sound when a mutually approved user disconnects from your Pool" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Margin="0,0,0,10" Click="BtnDisconnectPool_Click"/>
                         </Grid>
                         <Grid Margin="20,0,0,20">

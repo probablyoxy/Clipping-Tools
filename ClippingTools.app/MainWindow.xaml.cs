@@ -406,6 +406,7 @@ namespace ClippingTools.app
                     RadioCustomSound.IsChecked = settings.UseCustomSound;
                     RadioSystemSound.IsChecked = !settings.UseCustomSound;
                     CustomSoundPathInput.Text = settings.CustomSoundFilename;
+                    ClipVolumeSlider.Value = settings.ClipVolume;
 
                     foreach (ComboBoxItem item in SystemSoundCombo.Items)
                     {
@@ -420,6 +421,7 @@ namespace ClippingTools.app
                     RadioCustomConnectSound.IsChecked = settings.UseCustomConnectSound;
                     RadioSystemConnectSound.IsChecked = !settings.UseCustomConnectSound;
                     CustomConnectSoundPathInput.Text = settings.CustomConnectSoundFilename;
+                    ConnectVolumeSlider.Value = settings.ConnectVolume;
 
                     foreach (ComboBoxItem item in SystemConnectSoundCombo.Items)
                     {
@@ -434,6 +436,7 @@ namespace ClippingTools.app
                     RadioCustomDisconnectSound.IsChecked = settings.UseCustomDisconnectSound;
                     RadioSystemDisconnectSound.IsChecked = !settings.UseCustomDisconnectSound;
                     CustomDisconnectSoundPathInput.Text = settings.CustomDisconnectSoundFilename;
+                    DisconnectVolumeSlider.Value = settings.DisconnectVolume;
 
                     foreach (ComboBoxItem item in SystemDisconnectSoundCombo.Items)
                     {
@@ -530,16 +533,19 @@ namespace ClippingTools.app
                 UseCustomSound = RadioCustomSound.IsChecked ?? false,
                 SystemSoundType = (SystemSoundCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "SimpleyViridian - Clipped",
                 CustomSoundFilename = CustomSoundPathInput.Text,
+                ClipVolume = ClipVolumeSlider.Value,
 
                 EnableConnectSound = EnableConnectSoundCheck.IsChecked ?? true,
                 UseCustomConnectSound = RadioCustomConnectSound.IsChecked ?? false,
                 SystemConnectSoundType = (SystemConnectSoundCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "ConfusedIndividual - Server Connect",
                 CustomConnectSoundFilename = CustomConnectSoundPathInput.Text,
+                ConnectVolume = ConnectVolumeSlider.Value,
 
                 EnableDisconnectSound = EnableDisconnectSoundCheck.IsChecked ?? true,
                 UseCustomDisconnectSound = RadioCustomDisconnectSound.IsChecked ?? false,
                 SystemDisconnectSoundType = (SystemDisconnectSoundCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "ConfusedIndividual - Server Disconnect",
                 CustomDisconnectSoundFilename = CustomDisconnectSoundPathInput.Text,
+                DisconnectVolume = DisconnectVolumeSlider.Value,
 
                 ConnectPoolActivity = isConnectPoolEnabled,
                 ConnectVCActivity = isConnectVCEnabled,
@@ -769,6 +775,43 @@ start """" ""{targetExe}""
                 File.WriteAllText(versionFile, JsonSerializer.Serialize(stat, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
+        }
+
+        private void VolumeSlider_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Slider slider && slider.IsMouseCaptured)
+            {
+                slider.ReleaseMouseCapture();
+            }
+        }
+
+        private void VolumeSlider_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (sender is Slider slider && e.LeftButton == MouseButtonState.Pressed)
+            {
+                if (e.OriginalSource is System.Windows.Controls.Primitives.Thumb ||
+                    e.OriginalSource is System.Windows.Shapes.Ellipse ||
+                    Mouse.Captured is System.Windows.Controls.Primitives.Thumb)
+                {
+                    return;
+                }
+
+                if (!slider.IsMouseCaptured)
+                {
+                    slider.CaptureMouse();
+                }
+
+                if (slider.ActualWidth > 0)
+                {
+                    Point p = e.GetPosition(slider);
+                    double ratio = p.X / slider.ActualWidth;
+
+                    if (slider.IsDirectionReversed)
+                        ratio = 1.0 - ratio;
+
+                    slider.Value = Math.Max(slider.Minimum, Math.Min(slider.Maximum, slider.Minimum + (ratio * (slider.Maximum - slider.Minimum))));
+                }
+            }
         }
 
         private async void Setting_Changed(object sender, RoutedEventArgs e)
@@ -1168,6 +1211,8 @@ start """" ""{targetExe}""
         {
             if (!forcePlay && EnableSoundCheck.IsChecked != true) return;
 
+            customAudioPlayer.Volume = ClipVolumeSlider.Value;
+
             if (RadioCustomSound.IsChecked == true && !string.IsNullOrEmpty(CustomSoundPathInput.Text))
             {
                 string soundPath = System.IO.Path.Combine(customSoundsFolder, CustomSoundPathInput.Text);
@@ -1267,6 +1312,8 @@ start """" ""{targetExe}""
         private async void PlayConnectSound(bool forcePlay = false, bool isActivity = false)
         {
             if (!forcePlay && !isActivity && EnableConnectSoundCheck.IsChecked != true) return;
+
+            customAudioPlayer.Volume = ConnectVolumeSlider.Value;
 
             if (RadioCustomConnectSound.IsChecked == true && !string.IsNullOrEmpty(CustomConnectSoundPathInput.Text))
             {
@@ -1375,6 +1422,8 @@ start """" ""{targetExe}""
         private async void PlayDisconnectSound(bool forcePlay = false, bool isActivity = false)
         {
             if (!forcePlay && !isActivity && EnableDisconnectSoundCheck.IsChecked != true) return;
+
+            customAudioPlayer.Volume = DisconnectVolumeSlider.Value;
 
             if (RadioCustomDisconnectSound.IsChecked == true && !string.IsNullOrEmpty(CustomDisconnectSoundPathInput.Text))
             {
@@ -3651,6 +3700,10 @@ del ""%~f0""
         public bool UseCustomDisconnectSound { get; set; } = false;
         public string SystemDisconnectSoundType { get; set; } = "ConfusedIndividual - Server Disconnect";
         public string CustomDisconnectSoundFilename { get; set; } = "";
+
+        public double ClipVolume { get; set; } = 1.0;
+        public double ConnectVolume { get; set; } = 1.0;
+        public double DisconnectVolume { get; set; } = 1.0;
 
         public bool ConnectPoolActivity { get; set; } = false;
         public bool ConnectVCActivity { get; set; } = false;
