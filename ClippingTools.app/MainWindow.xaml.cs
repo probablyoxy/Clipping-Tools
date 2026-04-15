@@ -88,8 +88,13 @@ namespace ClippingTools.app
         private Dictionary<string, UserStatCount> userSentStats = new Dictionary<string, UserStatCount>();
         private Dictionary<string, UserStatCount> userReceivedStats = new Dictionary<string, UserStatCount>();
 
+        //
         // CHANGE WHEN UPDATE :)
-        private const string AppVersion = "v0.1.7";
+        //
+        private const string AppVersion = "v0.1.8";
+        //
+        //
+        //
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -370,6 +375,8 @@ namespace ClippingTools.app
                     ObsIntervalInput.Text = settings.ObsCheckInterval > 0 ? settings.ObsCheckInterval.ToString() : "5";
                     ObsIntervalPanel.Visibility = (AutoRestartObsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
 
+                    AutoUpdateCheck.IsChecked = settings.AutoUpdate;
+
                     EnableLoggingCheck.IsChecked = settings.EnableLogging;
                     MaxLogLinesInput.Text = settings.MaxLogLines > 0 ? settings.MaxLogLines.ToString() : "1000";
                     LogLinesPanel.Visibility = (EnableLoggingCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
@@ -510,6 +517,8 @@ namespace ClippingTools.app
                 AutoStartObs = AutoStartObsCheck.IsChecked ?? false,
                 AutoRestartObs = AutoRestartObsCheck.IsChecked ?? false,
                 ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
+
+                AutoUpdate = AutoUpdateCheck.IsChecked ?? false,
 
                 EnableLogging = EnableLoggingCheck.IsChecked ?? true,
                 MaxLogLines = int.TryParse(MaxLogLinesInput.Text, out int parsedMax) && parsedMax > 0 ? parsedMax : 1000,
@@ -2980,9 +2989,16 @@ objShell.Run Chr(34) & ""{detectedObsPath}"" & Chr(34) & "" --startreplaybuffer 
 
                                 if (isSilentStartup)
                                 {
-                                    NavUpdateBtn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ff69b4"));
-                                    NavUpdateBtn.Content = "Update Available!!";
-                                    NavUpdateBtn.Foreground = Brushes.White;
+                                    if (AutoUpdateCheck.IsChecked == true)
+                                    {
+                                        PerformUpdateBtn_Click(null, null);
+                                    }
+                                    else
+                                    {
+                                        NavUpdateBtn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ff69b4"));
+                                        NavUpdateBtn.Content = "Update Available!!";
+                                        NavUpdateBtn.Foreground = Brushes.White;
+                                    }
                                 }
                                 else
                                 {
@@ -3576,6 +3592,7 @@ del ""%~f0""
         public bool AutoStartObs { get; set; } = false;
         public bool AutoRestartObs { get; set; } = false;
         public int ObsCheckInterval { get; set; } = 5;
+        public bool AutoUpdate { get; set; } = false;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
         public string DiscordId { get; set; } = "";
