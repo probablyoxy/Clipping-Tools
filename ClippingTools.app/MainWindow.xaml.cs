@@ -42,6 +42,41 @@ namespace ClippingTools.app
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
 
+        [ComImport]
+        [Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
+        private class MMDeviceEnumerator { }
+
+        [ComImport]
+        [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IMMDeviceEnumerator
+        {
+            int EnumAudioEndpoints(int dataFlow, int stateMask, out IntPtr ppDevices);
+            [PreserveSig] int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice ppEndpoint);
+        }
+
+        [ComImport]
+        [Guid("D666063F-1587-4E43-81F1-B948E807363F")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IMMDevice
+        {
+            [PreserveSig] int Activate(ref Guid iid, int dwClsCtx, IntPtr pActivationParams, [MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
+        }
+
+        [ComImport]
+        [Guid("5CDF2C82-841E-4546-9722-0CF74078229A")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IAudioEndpointVolume
+        {
+            int RegisterControlChangeNotify(IntPtr pNotify);
+            int UnregisterControlChangeNotify(IntPtr pNotify);
+            int GetChannelCount(out int pnChannelCount);
+            [PreserveSig] int SetMasterVolumeLevel(float fLevelDB, Guid pguidEventContext);
+            [PreserveSig] int SetMasterVolumeLevelScalar(float fLevel, Guid pguidEventContext);
+            [PreserveSig] int GetMasterVolumeLevel(out float pfLevelDB);
+            [PreserveSig] int GetMasterVolumeLevelScalar(out float pfLevel);
+        }
+
         private string GetActiveWindowTitle()
         {
             const int nChars = 256;
@@ -197,6 +232,9 @@ namespace ClippingTools.app
             _ = CheckForUpdatesAsync(true);
             _ = EnforceObsStartOnLaunch();
             ToggleRenamerService();
+
+            micWatcherCts = new CancellationTokenSource();
+            _ = WatchMicVolume(micWatcherCts.Token);
         }
 
         private void SetupTrayIcon()
@@ -379,6 +417,7 @@ namespace ClippingTools.app
                     ObsIntervalPanel.Visibility = (AutoRestartObsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
 
                     AutoUpdateCheck.IsChecked = settings.AutoUpdate;
+                    EnsureMicMaxCheck.IsChecked = settings.EnsureMicMax;
 
                     EnableLoggingCheck.IsChecked = settings.EnableLogging;
                     MaxLogLinesInput.Text = settings.MaxLogLines > 0 ? settings.MaxLogLines.ToString() : "1000";
@@ -525,6 +564,7 @@ namespace ClippingTools.app
                 ObsCheckInterval = int.TryParse(ObsIntervalInput.Text, out int parsedInterval) && parsedInterval > 0 ? parsedInterval : 5,
 
                 AutoUpdate = AutoUpdateCheck.IsChecked ?? false,
+                EnsureMicMax = EnsureMicMaxCheck.IsChecked ?? false,
 
                 EnableLogging = EnableLoggingCheck.IsChecked ?? true,
                 MaxLogLines = int.TryParse(MaxLogLinesInput.Text, out int parsedMax) && parsedMax > 0 ? parsedMax : 1000,
@@ -856,6 +896,49 @@ start """" ""{targetExe}""
             catch (TaskCanceledException) { }
         }
 
+        private CancellationTokenSource micWatcherCts;
+
+        private async Task WatchMicVolume(CancellationToken token)
+        {
+            IMMDeviceEnumerator enumerator = null;
+            try { enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator(); } catch { return; }
+            Guid IID_IAudioEndpointVolume = new Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    bool shouldEnforce = false;
+                    Dispatcher.Invoke(() => shouldEnforce = EnsureMicMaxCheck.IsChecked == true);
+
+                    if (shouldEnforce)
+                    {
+                        if (enumerator.GetDefaultAudioEndpoint(1, 1, out IMMDevice mic) == 0 && mic != null)
+                        {
+                            object endpointVolumeObj;
+                            if (mic.Activate(ref IID_IAudioEndpointVolume, 23, IntPtr.Zero, out endpointVolumeObj) == 0)
+                            {
+                                IAudioEndpointVolume endpointVolume = (IAudioEndpointVolume)endpointVolumeObj;
+                                if (endpointVolume.GetMasterVolumeLevelScalar(out float volume) == 0)
+                                {
+                                    if (volume < 1.0f)
+                                    {
+                                        endpointVolume.SetMasterVolumeLevelScalar(1.0f, Guid.Empty);
+                                    }
+                                }
+                                Marshal.ReleaseComObject(endpointVolume);
+                            }
+                            Marshal.ReleaseComObject(mic);
+                        }
+                    }
+                }
+                catch { }
+
+                await Task.Delay(2000, token);
+            }
+            if (enumerator != null) Marshal.ReleaseComObject(enumerator);
+        }
+
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             WriteVersionFile();
@@ -868,6 +951,7 @@ start """" ""{targetExe}""
             }
             else
             {
+                micWatcherCts?.Cancel();
                 string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
                 string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
                 if (File.Exists(triggerPath)) File.WriteAllText(triggerPath, "EXIT");
@@ -3777,6 +3861,7 @@ del ""%~f0""
         public bool AutoRestartObs { get; set; } = false;
         public int ObsCheckInterval { get; set; } = 5;
         public bool AutoUpdate { get; set; } = false;
+        public bool EnsureMicMax { get; set; } = false;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
         public string DiscordId { get; set; } = "";
