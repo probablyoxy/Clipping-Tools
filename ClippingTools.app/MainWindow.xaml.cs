@@ -186,6 +186,8 @@ namespace ClippingTools.app
                 }
             };
 
+            VerifyStartWithWindowsTask();
+
             if (AutoSyncCheck.IsChecked == true)
             {
                 StartListening();
@@ -668,16 +670,6 @@ start """" ""{targetExe}""
                 }
                 else
                 {
-                    if (StartWithWindowsCheck.IsChecked == true)
-                    {
-                        Dispatcher.InvokeAsync(async () =>
-                        {
-                            await Task.Delay(10000);
-                            StartWithWindowsCheck_Click(null, null);
-                            WriteLog("Migration v0.1.7: Migrated Start with Windows task.");
-                        });
-                    }
-
                     UpdateShortcuts(exePath);
 
                     currentStat.Version = "v0.1.7";
@@ -874,6 +866,44 @@ start """" ""{targetExe}""
             {
                 StartWithWindowsCheck.IsChecked = !StartWithWindowsCheck.IsChecked;
                 SaveSettings();
+            }
+        }
+
+        private void VerifyStartWithWindowsTask()
+        {
+            if (StartWithWindowsCheck.IsChecked != true) return;
+
+            string exePath = Environment.ProcessPath;
+            bool needsUpdate = true;
+
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "schtasks.exe",
+                    Arguments = "/query /tn \"ClippingTools\" /v /fo list",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (Process process = Process.Start(psi))
+                {
+                    string output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && output.Contains(exePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        needsUpdate = false;
+                    }
+                }
+            }
+            catch { }
+
+            if (needsUpdate)
+            {
+                StartWithWindowsCheck_Click(null, null);
+                WriteLog("Start with Windows task path was incorrect or missing. Automatically updated to current executable path.");
             }
         }
 
