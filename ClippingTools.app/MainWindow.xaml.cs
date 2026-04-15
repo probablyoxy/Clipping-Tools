@@ -66,6 +66,7 @@ namespace ClippingTools.app
         private System.Windows.Forms.NotifyIcon trayIcon;
         private bool forceExit = false;
         private CancellationTokenSource windowSaveCts;
+        private bool needsRenamerUpdate = false;
 
         public ObservableCollection<DiscordItem> ApprovedUsers { get; set; } = new ObservableCollection<DiscordItem>();
         public ObservableCollection<DiscordItem> ApprovedChannels { get; set; } = new ObservableCollection<DiscordItem>();
@@ -671,6 +672,9 @@ start """" ""{targetExe}""
                 else
                 {
                     UpdateShortcuts(exePath);
+
+                    needsRenamerUpdate = true;
+                    WriteLog("Migration v0.1.7: Flagged ClipRenamer for re-extraction.");
 
                     currentStat.Version = "v0.1.7";
                     storedVersion = v017;
@@ -2609,18 +2613,10 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             string renamerExe = System.IO.Path.Combine(renamerFolder, "ClipRenamer.exe");
 
             bool needsExtraction = false;
-            if (!File.Exists(renamerExe))
+            if (!File.Exists(renamerExe) || needsRenamerUpdate)
             {
                 needsExtraction = true;
-            }
-            else
-            {
-                string mainAppPath = Environment.ProcessPath;
-                if (!string.IsNullOrEmpty(mainAppPath) && File.GetLastWriteTime(mainAppPath) > File.GetLastWriteTime(renamerExe))
-                {
-                    needsExtraction = true;
-                    WriteLog("Newer version of Clipping Tools detected. Updating ClipRenamer.exe...");
-                }
+                needsRenamerUpdate = false;
             }
 
             if (needsExtraction)
