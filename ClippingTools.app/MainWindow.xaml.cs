@@ -42,6 +42,28 @@ namespace ClippingTools.app
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
 
+        [DllImport("xinput1_4.dll")]
+        private static extern int XInputGetState(int dwUserIndex, out XINPUT_STATE pState);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XINPUT_STATE
+        {
+            public uint dwPacketNumber;
+            public XINPUT_GAMEPAD Gamepad;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XINPUT_GAMEPAD
+        {
+            public ushort wButtons;
+            public byte bLeftTrigger;
+            public byte bRightTrigger;
+            public short sThumbLX;
+            public short sThumbLY;
+            public short sThumbRX;
+            public short sThumbRY;
+        }
+
         [ComImport]
         [Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
         private class MMDeviceEnumerator { }
@@ -92,6 +114,18 @@ namespace ClippingTools.app
 
         private EventWaitHandle singleInstanceWatcher;
         private bool isSingleInstance;
+
+        private CancellationTokenSource controllerCts;
+        private bool isCapturingControllerGlobal = false;
+        private bool isCapturingControllerLocal = false;
+        private string lastControllerStateStr = "";
+        private bool wasControllerTriggerPressed = false;
+        private bool wasControllerLocalTriggerPressed = false;
+        private string preCaptureGlobalText = "";
+        private string preCaptureLocalText = "";
+
+        private string currentCapturedCombo = "";
+        private int currentCapturedComboCount = 0;
 
         private string appUuid = "";
         private InputSimulator simulator = new InputSimulator();
@@ -235,6 +269,9 @@ namespace ClippingTools.app
 
             micWatcherCts = new CancellationTokenSource();
             _ = WatchMicVolume(micWatcherCts.Token);
+
+            controllerCts = new CancellationTokenSource();
+            _ = ControllerPollingLoop(controllerCts.Token);
         }
 
         private void SetupTrayIcon()
@@ -382,6 +419,9 @@ namespace ClippingTools.app
                     RadioSpecificVC.IsChecked = !settings.AnyVCRule;
                     TriggerKeyInput.Text = settings.TriggerKey;
                     LocalTriggerKeyInput.Text = settings.LocalTriggerKey ?? "";
+
+                    ControllerTriggerKeyInput.Text = settings.ControllerTriggerKey ?? "";
+                    ControllerLocalTriggerKeyInput.Text = settings.ControllerLocalTriggerKey ?? "";
 
                     if (settings.WindowWidth > 0 && settings.WindowHeight > 0)
                     {
@@ -539,6 +579,8 @@ namespace ClippingTools.app
                 AnyVCRule = RadioAnyVC.IsChecked ?? true,
                 TriggerKey = TriggerKeyInput.Text,
                 LocalTriggerKey = LocalTriggerKeyInput.Text,
+                ControllerTriggerKey = ControllerTriggerKeyInput?.Text ?? "",
+                ControllerLocalTriggerKey = ControllerLocalTriggerKeyInput?.Text ?? "",
                 ClipKeys = ClipKeysList,
 
                 WindowLeft = this.Left,
@@ -942,6 +984,7 @@ start """" ""{targetExe}""
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             WriteVersionFile();
+            controllerCts?.Cancel();
 
             if (!forceExit)
             {
@@ -1633,6 +1676,214 @@ start """" ""{targetExe}""
         // ==============================================================================
         // CORE CLIPPING LOGIC & INJECTION
         // ==============================================================================
+
+        private async Task ControllerPollingLoop(CancellationToken token)
+        {
+            bool wasConnected = false;
+
+            while (!token.IsCancellationRequested)
+            {
+                int result = -1;
+                XINPUT_STATE state = new XINPUT_STATE();
+
+                try { result = XInputGetState(0, out state); }
+                catch (DllNotFoundException) { await Task.Delay(5000, token); continue; }
+                catch { }
+
+                bool isConnected = (result == 0);
+
+                if (isConnected != wasConnected)
+                {
+                    Dispatcher.Invoke(() => {
+                        ControllerTriggersPanel.Visibility = isConnected ? Visibility.Visible : Visibility.Collapsed;
+                    });
+                    wasConnected = isConnected;
+                }
+
+                if (isConnected)
+                {
+                    string currentButtons = GetControllerButtonsString(state.Gamepad);
+                    int currentButtonCount = string.IsNullOrEmpty(currentButtons) ? 0 : currentButtons.Split('+').Length;
+
+                    if (isCapturingControllerGlobal || isCapturingControllerLocal)
+                    {
+                        if (currentButtonCount > currentCapturedComboCount)
+                        {
+                            currentCapturedCombo = currentButtons;
+                            currentCapturedComboCount = currentButtonCount;
+
+                            Dispatcher.Invoke(() => {
+                                if (isCapturingControllerGlobal) ControllerTriggerKeyInput.Text = currentCapturedCombo;
+                                else if (isCapturingControllerLocal) ControllerLocalTriggerKeyInput.Text = currentCapturedCombo;
+                            });
+                        }
+
+                        if (currentCapturedComboCount > 0 && currentButtonCount == 0)
+                        {
+                            Dispatcher.Invoke(() => {
+                                if (isCapturingControllerGlobal)
+                                {
+                                    ControllerTriggerKeyInput.Text = currentCapturedCombo;
+                                    isCapturingControllerGlobal = false;
+                                }
+                                else if (isCapturingControllerLocal)
+                                {
+                                    ControllerLocalTriggerKeyInput.Text = currentCapturedCombo;
+                                    isCapturingControllerLocal = false;
+                                }
+                                currentCapturedCombo = "";
+                                currentCapturedComboCount = 0;
+                                Keyboard.ClearFocus();
+                                SaveSettings();
+                            });
+                        }
+                    }
+                    else
+                    {
+                        string globalBind = "";
+                        string localBind = "";
+                        Dispatcher.Invoke(() => {
+                            globalBind = ControllerTriggerKeyInput.Text;
+                            localBind = ControllerLocalTriggerKeyInput.Text;
+                        });
+
+                        bool isGlobalPressed = !string.IsNullOrEmpty(globalBind) && currentButtons == globalBind;
+                        bool isLocalPressed = !string.IsNullOrEmpty(localBind) && currentButtons == localBind;
+
+                        if (isGlobalPressed && !wasControllerTriggerPressed)
+                        {
+                            Dispatcher.Invoke(() => OnClipTriggered(null, null));
+                        }
+                        if (isLocalPressed && !wasControllerLocalTriggerPressed)
+                        {
+                            Dispatcher.Invoke(() => OnLocalClipTriggered(null, null));
+                        }
+
+                        wasControllerTriggerPressed = isGlobalPressed;
+                        wasControllerLocalTriggerPressed = isLocalPressed;
+                    }
+
+                    lastControllerStateStr = currentButtons;
+                    await Task.Delay(20, token);
+                }
+                else
+                {
+                    await Task.Delay(2000, token);
+                }
+            }
+        }
+
+        private string GetControllerButtonsString(XINPUT_GAMEPAD gamepad)
+        {
+            List<string> buttons = new List<string>();
+
+            if ((gamepad.wButtons & 0x1000) != 0) buttons.Add("A");
+            if ((gamepad.wButtons & 0x2000) != 0) buttons.Add("B");
+            if ((gamepad.wButtons & 0x4000) != 0) buttons.Add("X");
+            if ((gamepad.wButtons & 0x8000) != 0) buttons.Add("Y");
+            if ((gamepad.wButtons & 0x0100) != 0) buttons.Add("LB");
+            if ((gamepad.wButtons & 0x0200) != 0) buttons.Add("RB");
+            if ((gamepad.wButtons & 0x0010) != 0) buttons.Add("Start");
+            if ((gamepad.wButtons & 0x0020) != 0) buttons.Add("Back");
+            if ((gamepad.wButtons & 0x0040) != 0) buttons.Add("LS");
+            if ((gamepad.wButtons & 0x0080) != 0) buttons.Add("RS");
+            if ((gamepad.wButtons & 0x0001) != 0) buttons.Add("Up");
+            if ((gamepad.wButtons & 0x0002) != 0) buttons.Add("Down");
+            if ((gamepad.wButtons & 0x0004) != 0) buttons.Add("Left");
+            if ((gamepad.wButtons & 0x0008) != 0) buttons.Add("Right");
+
+            if (gamepad.bLeftTrigger > 128) buttons.Add("LT");
+            if (gamepad.bRightTrigger > 128) buttons.Add("RT");
+
+            return string.Join("+", buttons);
+        }
+
+        private void ControllerInput_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            TextBox tb = sender as TextBox;
+
+            if ((tb == ControllerTriggerKeyInput && isCapturingControllerGlobal) ||
+                (tb == ControllerLocalTriggerKeyInput && isCapturingControllerLocal))
+            {
+                return;
+            }
+
+            if (isCapturingControllerGlobal)
+            {
+                ControllerTriggerKeyInput.Text = preCaptureGlobalText;
+                isCapturingControllerGlobal = false;
+            }
+            if (isCapturingControllerLocal)
+            {
+                ControllerLocalTriggerKeyInput.Text = preCaptureLocalText;
+                isCapturingControllerLocal = false;
+            }
+
+            currentCapturedCombo = "";
+            currentCapturedComboCount = 0;
+
+            if (tb == ControllerTriggerKeyInput)
+            {
+                preCaptureGlobalText = tb.Text;
+                tb.Text = "Waiting for input...";
+                isCapturingControllerGlobal = true;
+            }
+            else if (tb == ControllerLocalTriggerKeyInput)
+            {
+                preCaptureLocalText = tb.Text;
+                tb.Text = "Waiting for input...";
+                isCapturingControllerLocal = true;
+            }
+
+            tb.Focus();
+            e.Handled = true;
+        }
+
+        private void ControllerInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            TextBox tb = sender as TextBox;
+
+            if (tb == ControllerTriggerKeyInput && isCapturingControllerGlobal)
+            {
+                isCapturingControllerGlobal = false;
+                tb.Text = preCaptureGlobalText;
+            }
+            else if (tb == ControllerLocalTriggerKeyInput && isCapturingControllerLocal)
+            {
+                isCapturingControllerLocal = false;
+                tb.Text = preCaptureLocalText;
+            }
+        }
+
+        private void ControllerInput_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            TextBox tb = sender as TextBox;
+
+            if (e.Key == Key.Escape)
+            {
+                tb.Text = (tb == ControllerTriggerKeyInput) ? preCaptureGlobalText : preCaptureLocalText;
+                CancelControllerCapture();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Back || e.Key == Key.Delete)
+            {
+                tb.Text = "";
+                if (tb == ControllerTriggerKeyInput) preCaptureGlobalText = "";
+                if (tb == ControllerLocalTriggerKeyInput) preCaptureLocalText = "";
+                CancelControllerCapture();
+                e.Handled = true;
+            }
+        }
+
+        private void CancelControllerCapture()
+        {
+            isCapturingControllerGlobal = false;
+            isCapturingControllerLocal = false;
+            currentCapturedCombo = "";
+            currentCapturedComboCount = 0;
+            Keyboard.ClearFocus();
+            SaveSettings();
+        }
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
@@ -3868,6 +4119,8 @@ del ""%~f0""
         public bool AnyVCRule { get; set; } = true;
         public string TriggerKey { get; set; } = "Ctrl+Alt+F10";
         public string LocalTriggerKey { get; set; } = "Ctrl+Alt+F9";
+        public string ControllerTriggerKey { get; set; } = "";
+        public string ControllerLocalTriggerKey { get; set; } = "";
         public List<string> ClipKeys { get; set; } = new List<string>();
 
         public double WindowLeft { get; set; } = -1;
