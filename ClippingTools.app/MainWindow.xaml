@@ -261,7 +261,10 @@
                     </Grid>
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
-                    <Button x:Name="ResetUuidBtn" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
+                    <Grid>
+                        <Button x:Name="ResetUuidBtn" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Left" Click="ResetUuidBtn_Click"/>
+                        <Button x:Name="UninstallAppBtn" Content="Uninstall" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" HorizontalAlignment="Right" Click="UninstallAppBtn_Click"/>
+                    </Grid>
                 </StackPanel>
             </TabItem>
 
@@ -987,6 +990,25 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="GenericMessageCancelBtn" Content="No" Width="80" Height="30" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="GenericMessageCancelBtn_Click"/>
                         <Button x:Name="GenericMessageOkBtn" Content="OK" Width="80" Height="30" Background="#5865F2" Foreground="White" BorderThickness="0" Click="GenericMessageOkBtn_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="UninstallOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#99000000" Panel.ZIndex="130">
+            <Border Background="#36393f" Width="400" MinHeight="150" CornerRadius="8" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel>
+                    <TextBlock x:Name="UninstallTitle" Text="Uninstall" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="UninstallMessage" Text="Are you sure you want to uninstall Clipping Tools?" Foreground="#b9bbbe" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,20"/>
+
+                    <StackPanel x:Name="UninstallStage2Panel" Visibility="Collapsed" Margin="0,0,0,20">
+                        <CheckBox x:Name="UninstallCheck1" Content="Uninstall Clipping Tools" Foreground="White" Margin="0,0,0,10" Click="UninstallCheck1_Click"/>
+                        <CheckBox x:Name="UninstallCheckUserData" Content="Delete User Data" Foreground="White" Visibility="Collapsed" Margin="20,0,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="UninstallCancelBtn" Content="Cancel" Width="80" Height="30" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="UninstallCancelBtn_Click"/>
+                        <Button x:Name="UninstallConfirmBtn" Content="Confirm" Width="80" Height="30" Background="#f04747" Foreground="White" BorderThickness="0" Click="UninstallConfirmBtn_Click"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

@@ -3635,6 +3635,115 @@ del ""%~f0""
             GenericMessageOverlay.Visibility = Visibility.Collapsed;
             _currentDialogTcs?.TrySetResult(false);
         }
+
+        private int uninstallStage = 1;
+
+        private void UninstallAppBtn_Click(object sender, RoutedEventArgs e)
+        {
+            uninstallStage = 1;
+            UninstallTitle.Text = "Uninstall";
+            UninstallMessage.Text = "Are you sure you want to uninstall Clipping Tools?";
+            UninstallStage2Panel.Visibility = Visibility.Collapsed;
+            UninstallCheck1.IsChecked = false;
+            UninstallCheckUserData.IsChecked = false;
+            UninstallCheckUserData.Visibility = Visibility.Collapsed;
+            UninstallConfirmBtn.Content = "Confirm";
+            UninstallConfirmBtn.IsEnabled = true;
+            UninstallOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void UninstallCancelBtn_Click(object sender, RoutedEventArgs e)
+        {
+            UninstallOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void UninstallCheck1_Click(object sender, RoutedEventArgs e)
+        {
+            if (UninstallCheck1.IsChecked == true)
+            {
+                UninstallCheckUserData.Visibility = Visibility.Visible;
+                UninstallConfirmBtn.IsEnabled = true;
+            }
+            else
+            {
+                UninstallCheckUserData.Visibility = Visibility.Collapsed;
+                UninstallCheckUserData.IsChecked = false;
+                UninstallConfirmBtn.IsEnabled = false;
+            }
+        }
+
+        private void UninstallConfirmBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (uninstallStage == 1)
+            {
+                uninstallStage = 2;
+                UninstallMessage.Text = "Are you really sure you want to uninstall Clipping Tools?";
+                UninstallStage2Panel.Visibility = Visibility.Visible;
+                UninstallConfirmBtn.Content = "Uninstall";
+                UninstallConfirmBtn.IsEnabled = false;
+            }
+            else if (uninstallStage == 2)
+            {
+                PerformUninstall();
+            }
+        }
+
+        private void PerformUninstall()
+        {
+            bool deleteUserData = UninstallCheckUserData.IsChecked == true;
+            string exePath = Process.GetCurrentProcess().MainModule.FileName;
+            string batPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClippingToolsUninstall.cmd");
+
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "schtasks.exe",
+                    Arguments = "/delete /tn \"ClippingTools\" /f",
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    UseShellExecute = true,
+                    Verb = "runas"
+                };
+                Process.Start(psi)?.WaitForExit();
+            }
+            catch { }
+
+            try
+            {
+                string startMenuShortcut = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Clipping Tools.lnk");
+                string desktopShortcut = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Clipping Tools.lnk");
+                if (File.Exists(startMenuShortcut)) File.Delete(startMenuShortcut);
+                if (File.Exists(desktopShortcut)) File.Delete(desktopShortcut);
+            }
+            catch { }
+
+            StringBuilder batContent = new StringBuilder();
+            batContent.AppendLine("@echo off");
+            batContent.AppendLine("timeout /t 5 /nobreak >nul");
+            batContent.AppendLine($"taskkill /f /im \"{System.IO.Path.GetFileName(exePath)}\" >nul 2>&1");
+            batContent.AppendLine("taskkill /f /im \"ClipRenamer.exe\" >nul 2>&1");
+
+            if (deleteUserData)
+            {
+                batContent.AppendLine($"rmdir /s /q \"{configFolder}\"");
+            }
+
+            batContent.AppendLine($"del /f /q \"{exePath}\"");
+            batContent.AppendLine("(goto) 2>nul & del \"%~f0\"");
+
+            File.WriteAllText(batPath, batContent.ToString());
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = batPath,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            });
+
+            forceExit = true;
+            Application.Current.Shutdown();
+        }
     }
 
     public class TotalClipsStat
