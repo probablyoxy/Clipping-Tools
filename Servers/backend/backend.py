@@ -509,6 +509,37 @@ async def handle_client(websocket):
                 
                 broadcast_vc_updates()
 
+            elif action == "bulk_vc_update":
+                if websocket not in active_bots: continue
+                updates = data.get("updates", [])
+                changed = False
+                
+                for u in updates:
+                    target_user = u.get("user_id")
+                    channel_id = u.get("channel_id")
+                    channel_name = u.get("channel_name")
+                    user_name = u.get("user_name", "Unknown User")
+                    server_name = u.get("server_name", "")
+                    event_ts = u.get("timestamp", 0)
+                    
+                    last_ts = user_vc_timestamps.get(target_user, 0)
+                    if event_ts < last_ts:
+                        continue
+                        
+                    user_vc_timestamps[target_user] = event_ts
+                    
+                    if channel_id:
+                        current = vc_map.get(target_user)
+                        if current and current.get("id") == channel_id:
+                            continue
+                            
+                        vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name, "server_name": server_name}
+                        changed = True
+                
+                if changed:
+                    print(f"[Bot Update] Processed initial bulk VC sync for {len(updates)} users.")
+                    broadcast_vc_updates()
+
     except websockets.exceptions.ConnectionClosed:
         pass
     except Exception as e:

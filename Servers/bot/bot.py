@@ -158,6 +158,30 @@ async def connect_to_router():
                         global assigned_guilds
                         assigned_guilds = set(data.get("guild_ids", []))
                         print(f"[Bot] Assigned to monitor {len(assigned_guilds)} servers exclusively.")
+                        
+                        updates = []
+                        for guild_id_str in assigned_guilds:
+                            guild = bot.get_guild(int(guild_id_str))
+                            if not guild: continue
+                            for vc in guild.voice_channels:
+                                for member in vc.members:
+                                    updates.append({
+                                        "user_id": str(member.id),
+                                        "user_name": member.display_name,
+                                        "channel_id": str(vc.id),
+                                        "channel_name": vc.name,
+                                        "server_name": guild.name,
+                                        "timestamp": time.time()
+                                    })
+                        if updates:
+                            try:
+                                await ws.send(json.dumps({
+                                    "action": "bulk_vc_update",
+                                    "updates": updates
+                                }))
+                                print(f"[Bot] Sent initial VC sync for {len(updates)} users.")
+                            except Exception as e:
+                                print(f"[Bot] Failed to send initial VC sync: {e}")
 
         except Exception as e:
             ws_connection = None
