@@ -40,9 +40,9 @@
                     <StackPanel>
                         <TextBlock Text="Home" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
                         <CheckBox x:Name="SendClipsCheck" HorizontalAlignment="Left" Content="Send clipping actions to others" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
-                        <CheckBox x:Name="ReceiveClipsCheck" HorizontalAlignment="Left" Content="Receive clipping actions from others" Foreground="White" IsChecked="True" Margin="0,0,0,30" Click="Setting_Changed"/>
+                        <CheckBox x:Name="ReceiveClipsCheck" HorizontalAlignment="Left" Content="Receive clipping actions from others" Foreground="White" IsChecked="True" Margin="0,0,0,10" Click="Setting_Changed"/>
                         <Button x:Name="ConnectButton" Content="Activate Syncing" Height="40" Width="200" HorizontalAlignment="Left" Background="#5865F2" Foreground="White" FontWeight="Bold" Click="ConnectButton_Click"/>
-                        <CheckBox x:Name="AutoSyncCheck" HorizontalAlignment="Left" Content="Sync Automatically on startup" Foreground="White" Margin="0,15,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="AutoSyncCheck" HorizontalAlignment="Left" Content="Sync Automatically on startup" Foreground="White" Margin="0,10,0,10" Click="Setting_Changed"/>
                         <CheckBox x:Name="StartWithWindowsCheck" HorizontalAlignment="Left" Content="Start with Windows" Foreground="White" Margin="0,0,0,10" Click="StartWithWindowsCheck_Click"/>
 
                         <Rectangle Height="1" Fill="#202225" Margin="0,15,0,15"/>
