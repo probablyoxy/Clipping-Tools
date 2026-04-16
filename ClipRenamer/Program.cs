@@ -22,7 +22,8 @@ namespace ClipRenamer
 
             void SendStatus(string msg)
             {
-                for (int i = 0; i < 5; i++)
+                DateTime timeout = DateTime.Now.AddSeconds(30);
+                while (DateTime.Now < timeout)
                 {
                     try
                     {
@@ -33,7 +34,7 @@ namespace ClipRenamer
                         }
                         break;
                     }
-                    catch { Thread.Sleep(100); }
+                    catch { Thread.Sleep(500); }
                 }
             }
 
@@ -98,8 +99,6 @@ namespace ClipRenamer
 
                             string prefix = $"{clipperName} - {vcName} - ";
 
-                            Thread.Sleep(5000);
-
                             string foundFile = null;
                             DateTime timeout = DateTime.Now.AddMinutes(1);
 
@@ -140,7 +139,7 @@ namespace ClipRenamer
                                 SendStatus("FOUND");
 
                                 bool renamed = false;
-                                DateTime renameTimeout = DateTime.Now.AddMinutes(5);
+                                DateTime renameTimeout = DateTime.Now.AddMinutes(2);
 
                                 while (!renamed && DateTime.Now < renameTimeout)
                                 {
@@ -156,7 +155,7 @@ namespace ClipRenamer
                                     }
                                     catch
                                     {
-                                        Thread.Sleep(2000);
+                                        Thread.Sleep(500);
                                     }
                                 }
                             }

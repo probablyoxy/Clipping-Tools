@@ -3207,14 +3207,15 @@ start """" ""{targetExe}""
                 finalPrefix2 = parts[0];
             }
 
-            for (int i = 0; i < 5; i++)
+            DateTime timeout = DateTime.Now.AddSeconds(20);
+            while (DateTime.Now < timeout)
             {
                 try
                 {
                     File.AppendAllText(queuePath, $"{finalPrefix1}|{finalPrefix2}{Environment.NewLine}");
                     break;
                 }
-                catch { await Task.Delay(100); }
+                catch { await Task.Delay(500); }
             }
         }
 
@@ -3493,7 +3494,16 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
 
             if (File.Exists(triggerPath))
             {
-                File.WriteAllText(triggerPath, "EXIT");
+                DateTime timeout = DateTime.Now.AddSeconds(10);
+                while (DateTime.Now < timeout)
+                {
+                    try
+                    {
+                        File.WriteAllText(triggerPath, "EXIT");
+                        break;
+                    }
+                    catch { System.Threading.Thread.Sleep(500); }
+                }
                 System.Threading.Thread.Sleep(1000);
             }
 
