@@ -983,9 +983,6 @@ start """" ""{targetExe}""
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
-            WriteVersionFile();
-            controllerCts?.Cancel();
-
             if (!forceExit)
             {
                 e.Cancel = true;
@@ -994,6 +991,8 @@ start """" ""{targetExe}""
             }
             else
             {
+                WriteVersionFile();
+                controllerCts?.Cancel();
                 micWatcherCts?.Cancel();
                 string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
                 string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
