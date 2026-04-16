@@ -20,7 +20,10 @@ intents = discord.Intents.default()
 intents.voice_states = True
 intents.members = True
 
+from discord import app_commands
+
 bot = discord.Client(intents=intents)
+tree = app_commands.CommandTree(bot)
 ws_connection = None
 assigned_guilds = set()
 
@@ -45,7 +48,7 @@ class LinkAppView(discord.ui.View):
             
             button.disabled = True
             button.label = "App Linked!"
-            await interaction.response.edit_message(content="✅ **Your Clipping Tools app has been successfully linked!**", view=self)
+            await interaction.response.edit_message(content="**Your Clipping Tools app has been successfully linked!**", view=self)
         else:
             await interaction.response.send_message("Bot is currently disconnected from the server. Try again later.", ephemeral=True)
 
@@ -134,6 +137,16 @@ async def connect_to_router():
                             "success": success
                         }))
 
+                    elif data.get("action") == "bot_dm_reply":
+                        user_id = data.get("user_id")
+                        msg = data.get("message")
+                        try:
+                            user = bot.get_user(int(user_id)) or await bot.fetch_user(int(user_id))
+                            if user:
+                                await user.send(msg)
+                        except Exception as e:
+                            print(f"[Bot] Could not send reply to {user_id}: {e}")
+
                     elif data.get("action") == "get_all_users":
                         client_id = data.get("client_id")
                         all_users = {}
@@ -195,9 +208,35 @@ async def on_ready():
     global router_task_started
     print(f"Bot logged in as {bot.user}")
     
+    await tree.sync()
+    
     if not router_task_started:
         router_task_started = True
         bot.loop.create_task(connect_to_router())
+
+@tree.command(name="lock", description="Lock app linking (prevent new apps from connecting)")
+async def cmd_lock(interaction: discord.Interaction):
+    if not ws_connection:
+        await interaction.response.send_message("The bot is currently disconnected from the server. Please try again later.", ephemeral=True)
+        return
+    await ws_connection.send(json.dumps({"action": "bot_toggle_lock", "user_id": str(interaction.user.id), "state": True}))
+    await interaction.response.send_message("Request sent to server.", ephemeral=True)
+
+@tree.command(name="unlock", description="Unlock app linking (allow new apps to request access)")
+async def cmd_unlock(interaction: discord.Interaction):
+    if not ws_connection:
+        await interaction.response.send_message("The bot is currently disconnected from the server. Please try again later.", ephemeral=True)
+        return
+    await ws_connection.send(json.dumps({"action": "bot_toggle_lock", "user_id": str(interaction.user.id), "state": False}))
+    await interaction.response.send_message("Request sent to server.", ephemeral=True)
+
+@tree.command(name="reset", description="Wipe your linked app UUID so no app can connect automatically")
+async def cmd_reset(interaction: discord.Interaction):
+    if not ws_connection:
+        await interaction.response.send_message("The bot is currently disconnected from the server. Please try again later.", ephemeral=True)
+        return
+    await ws_connection.send(json.dumps({"action": "bot_reset_uuid", "user_id": str(interaction.user.id)}))
+    await interaction.response.send_message("Request sent to server.", ephemeral=True)
 
 @bot.event
 async def on_guild_join(guild):

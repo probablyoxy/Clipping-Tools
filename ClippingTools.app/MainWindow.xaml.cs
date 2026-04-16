@@ -2147,6 +2147,14 @@ start """" ""{targetExe}""
                                     FilterUserList();
                                 });
                             }
+                            else if (action == "linking_locked")
+                            {
+                                Dispatcher.InvokeAsync(async () => {
+                                    await ShowCustomDialog("Linking Locked", "App linking is currently locked for your Discord account.\n\nPlease DM the bot with the command '/unlock' to allow new apps to connect, then try again.");
+                                    WriteLog("Connection blocked: App linking is locked by user.");
+                                    StopListening();
+                                });
+                            }
                             else if (action == "dm_verification_failed")
                             {
                                 Dispatcher.InvokeAsync(async () => {

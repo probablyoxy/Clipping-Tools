@@ -20,6 +20,17 @@ def save_verified_uuids():
     with open(VERIFIED_UUIDS_FILE, "w") as f:
         json.dump(verified_uuids, f)
 
+LINKING_LOCKS_FILE = "link_locks.json"
+if os.path.exists(LINKING_LOCKS_FILE):
+    with open(LINKING_LOCKS_FILE, "r") as f:
+        linking_locks = json.load(f)
+else:
+    linking_locks = {}
+
+def save_linking_locks():
+    with open(LINKING_LOCKS_FILE, "w") as f:
+        json.dump(linking_locks, f)
+
 CONFIG_FILE = "config.json"
 if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as f:
@@ -220,6 +231,12 @@ async def handle_client(websocket):
                     print(f"[Desktop] User {user_id} connected ({app_version}). Friends list size: {len(approved_users)}")
                     broadcast_vc_updates()
                 else:
+                    if linking_locks.get(user_id, False):
+                        print(f"[Security] Blocked unverified connection for {user_id} (App Linking Locked).")
+                        try: asyncio.create_task(websocket.send(json.dumps({"action": "linking_locked"})))
+                        except: pass
+                        continue
+
                     unverified_connections[user_id] = {"ws": websocket, "approved_users": approved_users, "version": app_version}
                     print(f"[Desktop] User {user_id} connected with unverified UUID ({app_version}). Requesting bot link.")
                     
@@ -413,7 +430,9 @@ async def handle_client(websocket):
                 if target_user and app_uuid:
                     verified_uuids[target_user] = app_uuid
                     save_verified_uuids()
-                    print(f"[Bot] Verified UUID for user {target_user}")
+                    linking_locks[target_user] = True
+                    save_linking_locks()
+                    print(f"[Bot] Verified UUID for user {target_user} and locked linking.")
                     
                     if target_user in unverified_connections:
                         conn_data = unverified_connections.pop(target_user)
@@ -439,6 +458,48 @@ async def handle_client(websocket):
                 bot_guild_stats[websocket] = {"bot_id": bot_id, "guilds": guilds}
                 print(f"[Router] Synced {len(guilds)} guilds for bot {bot_id}")
                 await assign_guilds_to_bots()
+
+            elif action == "bot_toggle_lock":
+                if websocket not in active_bots: continue
+                target_user = data.get("user_id")
+                new_state = data.get("state")
+                linking_locks[target_user] = new_state
+                save_linking_locks()
+                status = "locked" if new_state else "unlocked"
+                print(f"[Bot] User {target_user} {status} app linking.")
+                try:
+                    await websocket.send(json.dumps({
+                        "action": "bot_dm_reply",
+                        "user_id": target_user,
+                        "message": f"App linking is now **{status}**." if new_state else f"App linking is now **{status}**. New apps can request to link."
+                    }))
+                except: pass
+
+            elif action == "bot_reset_uuid":
+                if websocket not in active_bots: continue
+                target_user = data.get("user_id")
+                if target_user in verified_uuids:
+                    del verified_uuids[target_user]
+                    save_verified_uuids()
+                    print(f"[Bot] User {target_user} reset their UUID.")
+                    msg = "Your UUID has been reset. No apps can connect using your account until you link a new one."
+                    
+                    if target_user in active_connections:
+                        try: asyncio.create_task(active_connections[target_user].close())
+                        except: pass
+                    if target_user in unverified_connections:
+                        try: asyncio.create_task(unverified_connections[target_user]["ws"].close())
+                        except: pass
+                else:
+                    msg = "You do not have a linked UUID to reset."
+                    
+                try:
+                    await websocket.send(json.dumps({
+                        "action": "bot_dm_reply",
+                        "user_id": target_user,
+                        "message": msg
+                    }))
+                except: pass
 
             elif action == "dm_result":
                 if websocket not in active_bots: continue
