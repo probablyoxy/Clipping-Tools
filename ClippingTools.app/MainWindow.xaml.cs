@@ -988,6 +988,18 @@ start """" ""{targetExe}""
             if (ClipNotifSettingsPanel != null) ClipNotifSettingsPanel.Visibility = EnableClipNotifCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             if (ConnectNotifSettingsPanel != null) ConnectNotifSettingsPanel.Visibility = EnableConnectNotifCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
+            if (isLoaded)
+            {
+                if (sender == EnableClipNotifCheck && EnableClipNotifCheck.IsChecked == true)
+                {
+                    ShowNotification("Notification Enabled", "Example Notification", "ExampleClip");
+                }
+                else if (sender == EnableConnectNotifCheck && EnableConnectNotifCheck.IsChecked == true)
+                {
+                    ShowNotification("Notification Enabled", "Example Notification", "ExampleConnect");
+                }
+            }
+
             SaveSettings();
             if (sender == AutoRenameClipsCheck) ToggleRenamerService();
         }
@@ -2074,12 +2086,25 @@ start """" ""{targetExe}""
         }
 
         private List<ActiveNotification> _activeNotifs = new List<ActiveNotification>();
+        private ImageSource _cachedAppIcon = null;
 
         private void ShowNotification(string topText, string bottomText, string type)
         {
             Dispatcher.Invoke(() => {
-                bool isClip = type == "Clip";
-                bool isConnect = type == "Connect";
+                if (_cachedAppIcon == null)
+                {
+                    var icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath);
+                    if (icon != null)
+                    {
+                        _cachedAppIcon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                            icon.Handle,
+                            Int32Rect.Empty,
+                            BitmapSizeOptions.FromEmptyOptions());
+                    }
+                }
+
+                bool isClip = type == "Clip" || type == "ExampleClip";
+                bool isConnect = type == "Connect" || type == "ExampleConnect";
 
                 bool enabled = false;
                 string location = "Bottom Right";
@@ -2102,7 +2127,14 @@ start """" ""{targetExe}""
                     enabled = EnableConnectNotifCheck.IsChecked == true;
                     location = (ConnectNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right";
                     monitorIndex = ConnectNotifMonitorCombo.SelectedIndex >= 0 ? ConnectNotifMonitorCombo.SelectedIndex : 0;
-                    colorStr = isConnect ? "#43b581" : "#f04747";
+                    if (type == "ExampleConnect")
+                    {
+                        if (ClipNotifColorBox.Background is SolidColorBrush scb) colorStr = scb.Color.ToString();
+                    }
+                    else
+                    {
+                        colorStr = isConnect ? "#43b581" : "#f04747";
+                    }
                     flipAccent = ConnectNotifFlipAccentCheck.IsChecked == true;
                     double.TryParse(ConnectNotifTimeLimitInput.Text, out timeLimit);
                 }
@@ -2136,8 +2168,18 @@ start """" ""{targetExe}""
                 };
 
                 Grid grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = putAccentOnLeft ? new GridLength(4) : new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = putAccentOnLeft ? new GridLength(1, GridUnitType.Star) : new GridLength(4) });
+                if (putAccentOnLeft)
+                {
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                }
+                else
+                {
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+                }
 
                 Rectangle accentLine = new Rectangle
                 {
@@ -2149,7 +2191,7 @@ start """" ""{targetExe}""
                 StackPanel textPanel = new StackPanel
                 {
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(15, 0, 15, 0)
+                    Margin = new Thickness(15, 0, 5, 0)
                 };
 
                 TextBlock topTb = new TextBlock { Text = topText, Foreground = Brushes.White, FontSize = 14, FontWeight = FontWeights.Bold };
@@ -2158,11 +2200,23 @@ start """" ""{targetExe}""
                 textPanel.Children.Add(topTb);
                 textPanel.Children.Add(bottomTb);
 
-                Grid.SetColumn(accentLine, putAccentOnLeft ? 0 : 1);
+                Image iconImage = new Image
+                {
+                    Source = _cachedAppIcon,
+                    Width = 32,
+                    Height = 32,
+                    Margin = new Thickness(10),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+
+                Grid.SetColumn(accentLine, putAccentOnLeft ? 0 : 2);
                 Grid.SetColumn(textPanel, putAccentOnLeft ? 1 : 0);
+                Grid.SetColumn(iconImage, putAccentOnLeft ? 2 : 1);
 
                 grid.Children.Add(accentLine);
                 grid.Children.Add(textPanel);
+                grid.Children.Add(iconImage);
                 mainBorder.Child = grid;
                 notif.Content = mainBorder;
 

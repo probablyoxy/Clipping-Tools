@@ -699,9 +699,9 @@
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                                <TextBlock Text="Time Limit:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="ClipNotifTimeLimitInput" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
-                                <CheckBox x:Name="ClipNotifFlipAccentCheck" Content="Flip Accent" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
+                                <TextBlock Text="Time Limit:" ToolTip="Time in seconds that Toast Notifications last on your screen" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="ClipNotifTimeLimitInput" ToolTip="Time in seconds that Toast Notifications last on your screen" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
+                                <CheckBox x:Name="ClipNotifFlipAccentCheck" Content="Flip Accent" ToolTip="Makes the accent line show towards the inside of the screen, rather than the outside" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
                                 <TextBlock Text="Notification Accent Color:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="15,0,10,0"/>
                                 <Border x:Name="ClipNotifColorBox" Width="20" Height="20" Background="#5865F2" BorderBrush="#b9bbbe" BorderThickness="1" Cursor="Hand" MouseLeftButtonDown="ClipNotifColorBox_MouseLeftButtonDown"/>
                             </StackPanel>
@@ -723,9 +723,9 @@
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="Time Limit:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="ConnectNotifTimeLimitInput" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
-                                <CheckBox x:Name="ConnectNotifFlipAccentCheck" Content="Flip Accent" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
+                                <TextBlock Text="Time Limit:" ToolTip="Time in seconds that Toast Notifications last on your screen" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="ConnectNotifTimeLimitInput" ToolTip="Time in seconds that Toast Notifications last on your screen" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
+                                <CheckBox x:Name="ConnectNotifFlipAccentCheck" Content="Flip Accent" ToolTip="Makes the accent line show towards the inside of the screen, rather than the outside" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
