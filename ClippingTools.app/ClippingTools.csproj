@@ -15,16 +15,18 @@
   <ItemGroup>
     <None Remove="clip_renamer\ClipRenamer.exe" />
     <None Remove="sosmall.ico" />
-    <None Remove="sounds\clipped.wav" />
     <None Remove="sounds\clippedteto.wav" />
     <None Remove="sounds\confusedindividual-clipped!.wav" />
     <None Remove="sounds\confusedindividual-clipped.mp3" />
     <None Remove="sounds\simpleyviridian-clipped.wav" />
+    <None Remove="sounds\simpleyviridian-clipped2.wav" />
     <None Remove="sounds\simpleyviridian-clippedteto.wav" />
     <None Remove="sounds\system\confusedindividual-server connect.wav" />
     <None Remove="sounds\system\confusedindividual-server disconnect.wav" />
     <None Remove="sounds\system\simpleyviridian-connected.wav" />
+    <None Remove="sounds\system\simpleyviridian-connected2.wav" />
     <None Remove="sounds\system\simpleyviridian-disconnected.wav" />
+    <None Remove="sounds\system\simpleyviridian-disconnected2.wav" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,11 +48,14 @@
     <EmbeddedResource Include="sounds\confusedindividual-clipped!.wav" />
     <EmbeddedResource Include="sounds\confusedindividual-clipped.mp3" />
     <EmbeddedResource Include="sounds\simpleyviridian-clipped.wav" />
+    <EmbeddedResource Include="sounds\simpleyviridian-clipped2.wav" />
     <EmbeddedResource Include="sounds\simpleyviridian-clippedteto.wav" />
     <EmbeddedResource Include="sounds\system\confusedindividual-server connect.wav" />
     <EmbeddedResource Include="sounds\system\confusedindividual-server disconnect.wav" />
     <EmbeddedResource Include="sounds\system\simpleyviridian-connected.wav" />
+    <EmbeddedResource Include="sounds\system\simpleyviridian-connected2.wav" />
     <EmbeddedResource Include="sounds\system\simpleyviridian-disconnected.wav" />
+    <EmbeddedResource Include="sounds\system\simpleyviridian-disconnected2.wav" />
   </ItemGroup>
 
 </Project>

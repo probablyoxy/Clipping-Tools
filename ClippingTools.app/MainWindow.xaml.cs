@@ -345,8 +345,8 @@ namespace ClippingTools.app
             if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
             if (!Directory.Exists(systemsSoundsFolder)) Directory.CreateDirectory(systemsSoundsFolder);
 
-            string[] builtInSounds = { "simpleyviridian-clipped.wav", "simpleyviridian-clippedteto.wav", "confusedindividual-clipped.mp3", "confusedindividual-clipped!.wav" };
-            string[] builtInSystemSounds = { "confusedindividual-server connect.wav", "confusedindividual-server disconnect.wav", "simpleyviridian-connected.wav", "simpleyviridian-disconnected.wav" };
+            string[] builtInSounds = { "simpleyviridian-clipped.wav", "simpleyviridian-clipped2.wav", "simpleyviridian-clippedteto.wav", "confusedindividual-clipped.mp3", "confusedindividual-clipped!.wav" };
+            string[] builtInSystemSounds = { "confusedindividual-server connect.wav", "confusedindividual-server disconnect.wav", "simpleyviridian-connected.wav", "simpleyviridian-disconnected.wav", "simpleyviridian-connected2.wav", "simpleyviridian-disconnected2.wav" };
 
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var resourceNames = assembly.GetManifestResourceNames();
@@ -1361,6 +1361,9 @@ start """" ""{targetExe}""
                     case "SimpleyViridian - Clipped":
                         PlayIncludedSound("simpleyviridian-clipped.wav");
                         break;
+                    case "SimpleyViridian - Clipped 2.0":
+                        PlayIncludedSound("simpleyviridian-clipped2.wav");
+                        break;
                     case "SimpleyViridian - Clipped Teto":
                         PlayIncludedSound("simpleyviridian-clippedteto.wav");
                         break;
@@ -1466,6 +1469,9 @@ start """" ""{targetExe}""
                         break;
                     case "SimpleyViridian - Connected":
                         PlaySystemSound("simpleyviridian-connected.wav");
+                        break;
+                    case "SimpleyViridian - Connected 2.0":
+                        PlaySystemSound("simpleyviridian-connected2.wav");
                         break;
                 }
             }
@@ -1576,6 +1582,9 @@ start """" ""{targetExe}""
                         break;
                     case "SimpleyViridian - Disconnected":
                         PlaySystemSound("simpleyviridian-disconnected.wav");
+                        break;
+                    case "SimpleyViridian - Disconnected 2.0":
+                        PlaySystemSound("simpleyviridian-disconnected2.wav");
                         break;
                 }
             }

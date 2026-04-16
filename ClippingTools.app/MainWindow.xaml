@@ -409,6 +409,7 @@
                                 <RadioButton x:Name="RadioSystemSound" HorizontalAlignment="Left" Grid.Column="0" Content="Use System Sound:" Foreground="#b9bbbe" IsChecked="True" GroupName="SoundType" Checked="Setting_Changed" Unchecked="Setting_Changed" VerticalAlignment="Center"/>
                                 <ComboBox x:Name="SystemSoundCombo" Grid.Column="1" Margin="0,0,10,0" SelectionChanged="SystemSoundCombo_SelectionChanged">
                                     <ComboBoxItem Content="SimpleyViridian - Clipped" IsSelected="True"/>
+                                    <ComboBoxItem Content="SimpleyViridian - Clipped 2.0"/>
                                     <ComboBoxItem Content="SimpleyViridian - Clipped Teto"/>
                                     <ComboBoxItem Content="ConfusedIndividual - Clipped"/>
                                     <ComboBoxItem Content="ConfusedIndividual - Clipped!"/>
@@ -536,6 +537,7 @@
                                 <ComboBox x:Name="SystemConnectSoundCombo" Grid.Column="1" Margin="0,0,10,0" SelectionChanged="SystemConnectSoundCombo_SelectionChanged">
                                     <ComboBoxItem Content="ConfusedIndividual - Server Connect" IsSelected="True"/>
                                     <ComboBoxItem Content="SimpleyViridian - Connected"/>
+                                    <ComboBoxItem Content="SimpleyViridian - Connected 2.0"/>
                                 </ComboBox>
                                 <Button Grid.Column="2" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestConnectSoundBtn_Click"/>
                             </Grid>
@@ -658,6 +660,7 @@
                                 <ComboBox x:Name="SystemDisconnectSoundCombo" Grid.Column="1" Margin="0,0,10,0" SelectionChanged="SystemDisconnectSoundCombo_SelectionChanged">
                                     <ComboBoxItem Content="ConfusedIndividual - Server Disconnect" IsSelected="True"/>
                                     <ComboBoxItem Content="SimpleyViridian - Disconnected"/>
+                                    <ComboBoxItem Content="SimpleyViridian - Disconnected 2.0"/>
                                 </ComboBox>
                                 <Button Grid.Column="2" Content="Test Sound" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="TestDisconnectSoundBtn_Click"/>
                             </Grid>
