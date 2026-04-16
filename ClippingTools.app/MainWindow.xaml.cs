@@ -586,6 +586,10 @@ namespace ClippingTools.app
                     if (ClipNotifSettingsPanel != null) ClipNotifSettingsPanel.Visibility = settings.EnableClipNotif ? Visibility.Visible : Visibility.Collapsed;
                     if (ConnectNotifSettingsPanel != null) ConnectNotifSettingsPanel.Visibility = settings.EnableConnectNotif ? Visibility.Visible : Visibility.Collapsed;
 
+                    CustomServerCheck.IsChecked = settings.UseCustomServer;
+                    CustomServerInput.Text = settings.CustomServerUrl;
+                    if (CustomServerPanel != null) CustomServerPanel.Visibility = settings.UseCustomServer ? Visibility.Visible : Visibility.Collapsed;
+
                     ApprovedChannels.Clear();
                     foreach (var c in settings.Channels) ApprovedChannels.Add(new DiscordItem { Id = c, DisplayName = c });
 
@@ -700,6 +704,9 @@ namespace ClippingTools.app
                 ConnectNotifTimeLimit = double.TryParse(ConnectNotifTimeLimitInput.Text, out double cnlt) ? cnlt : 3,
                 ClipNotifMonitorIndex = ClipNotifMonitorCombo.SelectedIndex >= 0 ? ClipNotifMonitorCombo.SelectedIndex : 0,
                 ConnectNotifMonitorIndex = ConnectNotifMonitorCombo.SelectedIndex >= 0 ? ConnectNotifMonitorCombo.SelectedIndex : 0,
+
+                UseCustomServer = CustomServerCheck.IsChecked ?? false,
+                CustomServerUrl = CustomServerInput.Text,
 
                 ConnectPoolActivity = isConnectPoolEnabled,
                 ConnectVCActivity = isConnectVCEnabled,
@@ -970,6 +977,13 @@ start """" ""{targetExe}""
 
         private async void Setting_Changed(object sender, RoutedEventArgs e)
         {
+            if (sender == CustomServerCheck && isSyncActive)
+            {
+                CustomServerCheck.IsChecked = !(CustomServerCheck.IsChecked ?? false);
+                await ShowCustomDialog("Sync Active", "You cannot change the server destination while actively syncing. Please disconnect first.");
+                return;
+            }
+
             if (sender == AutoRenameClipsCheck && AutoRenameClipsCheck.IsChecked == true)
             {
                 if (string.IsNullOrWhiteSpace(ClipLocationInput.Text) || ClipLocationInput.Text == "Waiting for selection...")
@@ -987,6 +1001,8 @@ start """" ""{targetExe}""
 
             if (ClipNotifSettingsPanel != null) ClipNotifSettingsPanel.Visibility = EnableClipNotifCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             if (ConnectNotifSettingsPanel != null) ConnectNotifSettingsPanel.Visibility = EnableConnectNotifCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+            if (CustomServerPanel != null) CustomServerPanel.Visibility = CustomServerCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
             if (isLoaded)
             {
@@ -2012,6 +2028,20 @@ start """" ""{targetExe}""
                 return;
             }
 
+            if (CustomServerCheck.IsChecked == true)
+            {
+                if (string.IsNullOrWhiteSpace(CustomServerInput.Text))
+                {
+                    await ShowCustomDialog("Missing Server URL", "Please enter a valid custom server URL, or uncheck 'Connect to custom server'.");
+                    return;
+                }
+                if (!Uri.TryCreate(CustomServerInput.Text.Trim(), UriKind.Absolute, out _))
+                {
+                    await ShowCustomDialog("Invalid Server URL", "Please enter a valid URL starting with ws:// or wss://");
+                    return;
+                }
+            }
+
             try
             {
                 HotkeyManager.Current.Remove("SyncClip");
@@ -2032,6 +2062,10 @@ start """" ""{targetExe}""
 
                 ConnectButton.Content = "Listening...";
                 ConnectButton.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(67, 181, 129));
+
+                CustomServerInput.IsReadOnly = true;
+                CustomServerInput.Opacity = 0.5;
+                CustomServerCheck.IsEnabled = false;
 
                 isSyncActive = true;
                 await ConnectToServer();
@@ -2058,6 +2092,10 @@ start """" ""{targetExe}""
             HotkeyManager.Current.Remove("LocalSyncClip");
             ConnectButton.Content = "Activate Syncing";
             ConnectButton.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#5865F2"));
+
+            CustomServerInput.IsReadOnly = false;
+            CustomServerInput.Opacity = 1.0;
+            CustomServerCheck.IsEnabled = true;
 
             await DisconnectFromServer();
         }
@@ -2361,6 +2399,18 @@ start """" ""{targetExe}""
 
         // --- WEBSOCKET ENGINE ---
 
+        private string GetServerUrl()
+        {
+            string url = "wss://clip.oxy.pizza";
+            Dispatcher.Invoke(() => {
+                if (CustomServerCheck.IsChecked == true && !string.IsNullOrWhiteSpace(CustomServerInput.Text))
+                {
+                    url = CustomServerInput.Text.Trim();
+                }
+            });
+            return url;
+        }
+
         private async Task ConnectToServer()
         {
             if (webSocket != null && webSocket.State == WebSocketState.Open) return;
@@ -2372,14 +2422,27 @@ start """" ""{targetExe}""
                 ServerStatusDot.Fill = System.Windows.Media.Brushes.Orange;
                 ServerStatusText.Text = "Connecting...";
 
-                await webSocket.ConnectAsync(new Uri("wss://clip.oxy.pizza"), wsCts.Token);
+                await webSocket.ConnectAsync(new Uri(GetServerUrl()), wsCts.Token);
 
                 ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                 ServerStatusText.Text = "Connected";
                 isReconnecting = false;
                 PlayConnectSound();
-                ShowNotification("Central Server", "Connected", "Connect");
-                WriteLog($"Connected to the central server. ({AppVersion})");
+
+                string targetUrl = GetServerUrl();
+                bool isCustom = false;
+                Dispatcher.Invoke(() => isCustom = CustomServerCheck.IsChecked == true);
+
+                if (isCustom)
+                {
+                    ShowNotification("Custom Server", $"Connected to {targetUrl}", "Connect");
+                    WriteLog($"Connected to custom server: {targetUrl} ({AppVersion})");
+                }
+                else
+                {
+                    ShowNotification("Central Server", "Connected", "Connect");
+                    WriteLog($"Connected to the central server. ({AppVersion})");
+                }
 
                 await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                 AskServerToResolveNames();
@@ -2420,8 +2483,20 @@ start """" ""{targetExe}""
             currentPerspectiveName = "";
             ResetPoolUI();
             PlayDisconnectSound();
-            ShowNotification("Central Server", "Disconnected", "Disconnect");
-            WriteLog("Disconnected from the central server.");
+
+            bool isCustom = false;
+            Dispatcher.Invoke(() => isCustom = CustomServerCheck.IsChecked == true);
+
+            if (isCustom)
+            {
+                ShowNotification("Custom Server", "Disconnected", "Disconnect");
+                WriteLog("Disconnected from custom server.");
+            }
+            else
+            {
+                ShowNotification("Central Server", "Disconnected", "Disconnect");
+                WriteLog("Disconnected from the central server.");
+            }
         }
 
         private void ResetPoolUI()
@@ -2864,17 +2939,29 @@ start """" ""{targetExe}""
 
                     webSocket = new ClientWebSocket();
                     wsCts = new CancellationTokenSource();
-                    await webSocket.ConnectAsync(new Uri("wss://clip.oxy.pizza"), wsCts.Token);
+                    await webSocket.ConnectAsync(new Uri(GetServerUrl()), wsCts.Token);
 
                     isReconnecting = false;
+
+                    string targetUrl = GetServerUrl();
+                    bool isCustom = false;
+                    Dispatcher.Invoke(() => isCustom = CustomServerCheck.IsChecked == true);
+
                     Dispatcher.Invoke(() => {
                         ServerStatusText.Text = "Connected";
                         ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                         PlayConnectSound();
-                        ShowNotification("Central Server", "Connected", "Connect");
+                        ShowNotification(isCustom ? "Custom Server" : "Central Server", "Connected", "Connect");
                     });
 
-                    WriteLog("Successfully reconnected to the central server.");
+                    if (isCustom)
+                    {
+                        WriteLog($"Successfully reconnected to custom server: {targetUrl} ({AppVersion})");
+                    }
+                    else
+                    {
+                        WriteLog($"Successfully reconnected to the central server. ({AppVersion})");
+                    }
 
                     await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                     AskServerToResolveNames();
@@ -4533,6 +4620,8 @@ del ""%~f0""
         public bool EnableLogging { get; set; } = true;
         public int MaxLogLines { get; set; } = 1000;
         public string AppUuid { get; set; } = "";
+        public bool UseCustomServer { get; set; } = false;
+        public string CustomServerUrl { get; set; } = "";
         public string ObsPath { get; set; } = "";
         public string ClipPath { get; set; } = "";
         public bool AutoRenameClips { get; set; } = false;

@@ -45,6 +45,12 @@
                         <CheckBox x:Name="AutoSyncCheck" HorizontalAlignment="Left" Content="Sync Automatically on startup" Foreground="White" Margin="0,10,0,10" Click="Setting_Changed"/>
                         <CheckBox x:Name="StartWithWindowsCheck" HorizontalAlignment="Left" Content="Start with Windows" Foreground="White" Margin="0,0,0,10" Click="StartWithWindowsCheck_Click"/>
 
+                        <CheckBox x:Name="CustomServerCheck" HorizontalAlignment="Left" Content="Connect to custom server" Foreground="White" Margin="0,10,0,5" Click="Setting_Changed"/>
+                        <StackPanel x:Name="CustomServerPanel" Visibility="Collapsed" Margin="20,0,0,10">
+                            <TextBlock Text="Server URL (ws:// or wss://):" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                            <TextBox x:Name="CustomServerInput" Height="25" Width="300" HorizontalAlignment="Left" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" TextChanged="Setting_TextChanged"/>
+                        </StackPanel>
+
                         <Rectangle Height="1" Fill="#202225" Margin="0,15,0,15"/>
 
                         <Grid>
