@@ -240,9 +240,12 @@ namespace ClippingTools.app
             CheckAndUpdateVersion();
             isLoaded = false;
 
+            PopulateMonitorCombos();
+
             LoadSettings();
             LoadStats();
             isLoaded = true;
+            WriteLog("Clipping Tools Started");
 
             CurrentVersionText.Text = AppVersion;
 
@@ -272,6 +275,34 @@ namespace ClippingTools.app
 
             controllerCts = new CancellationTokenSource();
             _ = ControllerPollingLoop(controllerCts.Token);
+        }
+
+        private void PopulateMonitorCombos()
+        {
+            ClipNotifMonitorCombo.Items.Clear();
+            ConnectNotifMonitorCombo.Items.Clear();
+            var screens = System.Windows.Forms.Screen.AllScreens;
+            for (int i = 0; i < screens.Length; i++)
+            {
+                string name = $"Monitor {i + 1}" + (screens[i].Primary ? " (Primary)" : "");
+                ClipNotifMonitorCombo.Items.Add(new ComboBoxItem { Content = name });
+                ConnectNotifMonitorCombo.Items.Add(new ComboBoxItem { Content = name });
+            }
+
+            if (screens.Length <= 1)
+            {
+                if (ClipNotifMonitorLabel != null) ClipNotifMonitorLabel.Visibility = Visibility.Collapsed;
+                if (ClipNotifMonitorCombo != null) ClipNotifMonitorCombo.Visibility = Visibility.Collapsed;
+                if (ConnectNotifMonitorLabel != null) ConnectNotifMonitorLabel.Visibility = Visibility.Collapsed;
+                if (ConnectNotifMonitorCombo != null) ConnectNotifMonitorCombo.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                if (ClipNotifMonitorLabel != null) ClipNotifMonitorLabel.Visibility = Visibility.Visible;
+                if (ClipNotifMonitorCombo != null) ClipNotifMonitorCombo.Visibility = Visibility.Visible;
+                if (ConnectNotifMonitorLabel != null) ConnectNotifMonitorLabel.Visibility = Visibility.Visible;
+                if (ConnectNotifMonitorCombo != null) ConnectNotifMonitorCombo.Visibility = Visibility.Visible;
+            }
         }
 
         private void SetupTrayIcon()
@@ -526,6 +557,35 @@ namespace ClippingTools.app
                         }
                     }
 
+                    EnableClipNotifCheck.IsChecked = settings.EnableClipNotif;
+                    EnableConnectNotifCheck.IsChecked = settings.EnableConnectNotif;
+
+                    if (settings.ClipNotifMonitorIndex >= 0 && settings.ClipNotifMonitorIndex < ClipNotifMonitorCombo.Items.Count)
+                        ClipNotifMonitorCombo.SelectedIndex = settings.ClipNotifMonitorIndex;
+                    else if (ClipNotifMonitorCombo.Items.Count > 0)
+                        ClipNotifMonitorCombo.SelectedIndex = 0;
+
+                    if (settings.ConnectNotifMonitorIndex >= 0 && settings.ConnectNotifMonitorIndex < ConnectNotifMonitorCombo.Items.Count)
+                        ConnectNotifMonitorCombo.SelectedIndex = settings.ConnectNotifMonitorIndex;
+                    else if (ConnectNotifMonitorCombo.Items.Count > 0)
+                        ConnectNotifMonitorCombo.SelectedIndex = 0;
+
+                    foreach (ComboBoxItem item in ClipNotifLocationCombo.Items)
+                        if (item.Content.ToString() == settings.ClipNotifLocation) { ClipNotifLocationCombo.SelectedItem = item; break; }
+
+                    foreach (ComboBoxItem item in ConnectNotifLocationCombo.Items)
+                        if (item.Content.ToString() == settings.ConnectNotifLocation) { ConnectNotifLocationCombo.SelectedItem = item; break; }
+
+                    try { ClipNotifColorBox.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(settings.ClipNotifColor)); } catch { }
+
+                    ClipNotifFlipAccentCheck.IsChecked = settings.ClipNotifFlipAccent;
+                    ConnectNotifFlipAccentCheck.IsChecked = settings.ConnectNotifFlipAccent;
+                    ClipNotifTimeLimitInput.Text = settings.ClipNotifTimeLimit.ToString();
+                    ConnectNotifTimeLimitInput.Text = settings.ConnectNotifTimeLimit.ToString();
+
+                    if (ClipNotifSettingsPanel != null) ClipNotifSettingsPanel.Visibility = settings.EnableClipNotif ? Visibility.Visible : Visibility.Collapsed;
+                    if (ConnectNotifSettingsPanel != null) ConnectNotifSettingsPanel.Visibility = settings.EnableConnectNotif ? Visibility.Visible : Visibility.Collapsed;
+
                     ApprovedChannels.Clear();
                     foreach (var c in settings.Channels) ApprovedChannels.Add(new DiscordItem { Id = c, DisplayName = c });
 
@@ -628,6 +688,18 @@ namespace ClippingTools.app
                 SystemDisconnectSoundType = (SystemDisconnectSoundCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "ConfusedIndividual - Server Disconnect",
                 CustomDisconnectSoundFilename = CustomDisconnectSoundPathInput.Text,
                 DisconnectVolume = DisconnectVolumeSlider.Value,
+
+                EnableClipNotif = EnableClipNotifCheck.IsChecked ?? false,
+                EnableConnectNotif = EnableConnectNotifCheck.IsChecked ?? false,
+                ClipNotifLocation = (ClipNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right",
+                ConnectNotifLocation = (ConnectNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right",
+                ClipNotifColor = ClipNotifColorBox.Background is SolidColorBrush scb ? scb.Color.ToString() : "#5865F2",
+                ClipNotifFlipAccent = ClipNotifFlipAccentCheck.IsChecked ?? false,
+                ConnectNotifFlipAccent = ConnectNotifFlipAccentCheck.IsChecked ?? false,
+                ClipNotifTimeLimit = double.TryParse(ClipNotifTimeLimitInput.Text, out double ctl) ? ctl : 3,
+                ConnectNotifTimeLimit = double.TryParse(ConnectNotifTimeLimitInput.Text, out double cnlt) ? cnlt : 3,
+                ClipNotifMonitorIndex = ClipNotifMonitorCombo.SelectedIndex >= 0 ? ClipNotifMonitorCombo.SelectedIndex : 0,
+                ConnectNotifMonitorIndex = ConnectNotifMonitorCombo.SelectedIndex >= 0 ? ConnectNotifMonitorCombo.SelectedIndex : 0,
 
                 ConnectPoolActivity = isConnectPoolEnabled,
                 ConnectVCActivity = isConnectVCEnabled,
@@ -913,8 +985,27 @@ start """" ""{targetExe}""
                 RenamerOptionsPanel.Visibility = (AutoRenameClipsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
             }
 
+            if (ClipNotifSettingsPanel != null) ClipNotifSettingsPanel.Visibility = EnableClipNotifCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (ConnectNotifSettingsPanel != null) ConnectNotifSettingsPanel.Visibility = EnableConnectNotifCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
             SaveSettings();
             if (sender == AutoRenameClipsCheck) ToggleRenamerService();
+        }
+
+        private void ClipNotifColorBox_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var colorDialog = new System.Windows.Forms.ColorDialog();
+            if (ClipNotifColorBox.Background is SolidColorBrush scb)
+            {
+                colorDialog.Color = System.Drawing.Color.FromArgb(scb.Color.A, scb.Color.R, scb.Color.G, scb.Color.B);
+            }
+
+            if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                var newColor = Color.FromArgb(colorDialog.Color.A, colorDialog.Color.R, colorDialog.Color.G, colorDialog.Color.B);
+                ClipNotifColorBox.Background = new SolidColorBrush(newColor);
+                SaveSettings();
+            }
         }
         private void Setting_TextChanged(object sender, TextChangedEventArgs e) { SaveSettings(); }
 
@@ -1959,6 +2050,261 @@ start """" ""{targetExe}""
             await DisconnectFromServer();
         }
 
+        private string ExtractNameFromFriendString(string friendStr)
+        {
+            int spaceIdx = friendStr.IndexOf(' ');
+            if (spaceIdx > 0 && friendStr.Length > spaceIdx + 3)
+            {
+                return friendStr.Substring(spaceIdx + 2, friendStr.Length - spaceIdx - 3);
+            }
+            return friendStr;
+        }
+
+        public class ActiveNotification
+        {
+            public Window Window { get; set; }
+            public Border MainBorder { get; set; }
+            public DateTime SpawnTime { get; set; }
+            public double LifespanSeconds { get; set; }
+            public string Location { get; set; }
+            public int MonitorIndex { get; set; }
+            public bool IsAnimatingOut { get; set; }
+            public bool IsVisible { get; set; }
+            public double CurrentTargetTop { get; set; }
+        }
+
+        private List<ActiveNotification> _activeNotifs = new List<ActiveNotification>();
+
+        private void ShowNotification(string topText, string bottomText, string type)
+        {
+            Dispatcher.Invoke(() => {
+                bool isClip = type == "Clip";
+                bool isConnect = type == "Connect";
+
+                bool enabled = false;
+                string location = "Bottom Right";
+                int monitorIndex = 0;
+                string colorStr = "#5865F2";
+                bool flipAccent = false;
+                double timeLimit = 3.5;
+
+                if (isClip)
+                {
+                    enabled = EnableClipNotifCheck.IsChecked == true;
+                    location = (ClipNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right";
+                    monitorIndex = ClipNotifMonitorCombo.SelectedIndex >= 0 ? ClipNotifMonitorCombo.SelectedIndex : 0;
+                    if (ClipNotifColorBox.Background is SolidColorBrush scb) colorStr = scb.Color.ToString();
+                    flipAccent = ClipNotifFlipAccentCheck.IsChecked == true;
+                    double.TryParse(ClipNotifTimeLimitInput.Text, out timeLimit);
+                }
+                else
+                {
+                    enabled = EnableConnectNotifCheck.IsChecked == true;
+                    location = (ConnectNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right";
+                    monitorIndex = ConnectNotifMonitorCombo.SelectedIndex >= 0 ? ConnectNotifMonitorCombo.SelectedIndex : 0;
+                    colorStr = isConnect ? "#43b581" : "#f04747";
+                    flipAccent = ConnectNotifFlipAccentCheck.IsChecked == true;
+                    double.TryParse(ConnectNotifTimeLimitInput.Text, out timeLimit);
+                }
+
+                if (!enabled) return;
+
+                Window notif = new Window
+                {
+                    WindowStyle = WindowStyle.None,
+                    AllowsTransparency = true,
+                    Background = Brushes.Transparent,
+                    Topmost = true,
+                    ShowInTaskbar = false,
+                    ShowActivated = false,
+                    Width = 280,
+                    Height = 70,
+                    IsHitTestVisible = false
+                };
+
+                bool isRight = location.Contains("Right");
+                bool putAccentOnLeft = !isRight;
+                if (flipAccent) putAccentOnLeft = !putAccentOnLeft;
+
+                Border mainBorder = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#202225")),
+                    CornerRadius = new CornerRadius(4),
+                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2f3136")),
+                    BorderThickness = new Thickness(1),
+                    Opacity = 0
+                };
+
+                Grid grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = putAccentOnLeft ? new GridLength(4) : new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = putAccentOnLeft ? new GridLength(1, GridUnitType.Star) : new GridLength(4) });
+
+                Rectangle accentLine = new Rectangle
+                {
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorStr)),
+                    Width = 4,
+                    VerticalAlignment = VerticalAlignment.Stretch
+                };
+
+                StackPanel textPanel = new StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(15, 0, 15, 0)
+                };
+
+                TextBlock topTb = new TextBlock { Text = topText, Foreground = Brushes.White, FontSize = 14, FontWeight = FontWeights.Bold };
+                TextBlock bottomTb = new TextBlock { Text = bottomText, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#b9bbbe")), FontSize = 12, Margin = new Thickness(0, 5, 0, 0) };
+
+                textPanel.Children.Add(topTb);
+                textPanel.Children.Add(bottomTb);
+
+                Grid.SetColumn(accentLine, putAccentOnLeft ? 0 : 1);
+                Grid.SetColumn(textPanel, putAccentOnLeft ? 1 : 0);
+
+                grid.Children.Add(accentLine);
+                grid.Children.Add(textPanel);
+                mainBorder.Child = grid;
+                notif.Content = mainBorder;
+
+                var newNotif = new ActiveNotification
+                {
+                    Window = notif,
+                    MainBorder = mainBorder,
+                    SpawnTime = DateTime.Now,
+                    LifespanSeconds = timeLimit > 0 ? timeLimit : 3,
+                    Location = location,
+                    MonitorIndex = monitorIndex,
+                    IsAnimatingOut = false,
+                    IsVisible = false
+                };
+
+                _activeNotifs.Add(newNotif);
+                ProcessNotifications(location, monitorIndex);
+            });
+        }
+
+        private void ProcessNotifications(string location, int monitorIndex)
+        {
+            Dispatcher.Invoke(() => {
+                var now = DateTime.Now;
+                var locNotifs = _activeNotifs.Where(n => n.Location == location && n.MonitorIndex == monitorIndex).ToList();
+                bool isRight = location.Contains("Right");
+                bool isBottom = location.Contains("Bottom");
+
+                var screens = System.Windows.Forms.Screen.AllScreens;
+                var screen = (monitorIndex >= 0 && monitorIndex < screens.Length) ? screens[monitorIndex] : System.Windows.Forms.Screen.PrimaryScreen;
+                var bounds = screen.WorkingArea;
+
+                PresentationSource source = PresentationSource.FromVisual(Application.Current.MainWindow);
+                double scaleX = source != null ? source.CompositionTarget.TransformToDevice.M11 : 1.0;
+                double scaleY = source != null ? source.CompositionTarget.TransformToDevice.M22 : 1.0;
+
+                Rect workArea = new Rect(bounds.Left / scaleX, bounds.Top / scaleY, bounds.Width / scaleX, bounds.Height / scaleY);
+
+                foreach (var notif in locNotifs)
+                {
+                    if (!notif.IsAnimatingOut && (now - notif.SpawnTime).TotalSeconds >= notif.LifespanSeconds)
+                    {
+                        notif.IsAnimatingOut = true;
+                        if (notif.IsVisible)
+                        {
+                            var outStoryboard = new System.Windows.Media.Animation.Storyboard();
+                            var fadeOut = new System.Windows.Media.Animation.DoubleAnimation { From = 1, To = 0, Duration = TimeSpan.FromMilliseconds(300) };
+                            System.Windows.Media.Animation.Storyboard.SetTarget(fadeOut, notif.MainBorder);
+                            System.Windows.Media.Animation.Storyboard.SetTargetProperty(fadeOut, new PropertyPath(Border.OpacityProperty));
+
+                            double startTop = isBottom ? notif.CurrentTargetTop + 30 : notif.CurrentTargetTop - 30;
+
+                            var slideOut = new System.Windows.Media.Animation.DoubleAnimation { From = notif.CurrentTargetTop, To = startTop, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn } };
+                            System.Windows.Media.Animation.Storyboard.SetTarget(slideOut, notif.Window);
+                            System.Windows.Media.Animation.Storyboard.SetTargetProperty(slideOut, new PropertyPath(Window.TopProperty));
+
+                            outStoryboard.Children.Add(fadeOut);
+                            outStoryboard.Children.Add(slideOut);
+                            outStoryboard.Completed += (s, e) => {
+                                notif.Window.Close();
+                                _activeNotifs.Remove(notif);
+                                ProcessNotifications(location, monitorIndex);
+                            };
+                            outStoryboard.Begin();
+                        }
+                        else
+                        {
+                            _activeNotifs.Remove(notif);
+                        }
+                    }
+                }
+
+                var activeQueue = _activeNotifs.Where(n => n.Location == location && n.MonitorIndex == monitorIndex && !n.IsAnimatingOut).OrderBy(n => n.SpawnTime).ToList();
+
+                int visibleCount = 0;
+                for (int i = 0; i < activeQueue.Count; i++)
+                {
+                    var notif = activeQueue[i];
+                    if (visibleCount >= 3) break;
+
+                    double targetTop = isBottom ? workArea.Bottom - (notif.Window.Height * (visibleCount + 1)) - (15 * (visibleCount + 1))
+                                                : workArea.Top + (notif.Window.Height * visibleCount) + (15 * (visibleCount + 1));
+
+                    if (!notif.IsVisible)
+                    {
+                        double remaining = notif.LifespanSeconds - (DateTime.Now - notif.SpawnTime).TotalSeconds;
+                        if (remaining > 0)
+                        {
+                            notif.IsVisible = true;
+                            notif.CurrentTargetTop = targetTop;
+
+                            notif.Window.Left = isRight ? workArea.Right - notif.Window.Width - 15 : workArea.Left + 15;
+                            double startTop = isBottom ? targetTop + 30 : targetTop - 30;
+                            notif.Window.Top = startTop;
+
+                            notif.Window.Show();
+
+                            var storyboard = new System.Windows.Media.Animation.Storyboard();
+                            var fadeAnimation = new System.Windows.Media.Animation.DoubleAnimation { From = 0, To = 1, Duration = TimeSpan.FromMilliseconds(300) };
+                            System.Windows.Media.Animation.Storyboard.SetTarget(fadeAnimation, notif.MainBorder);
+                            System.Windows.Media.Animation.Storyboard.SetTargetProperty(fadeAnimation, new PropertyPath(Border.OpacityProperty));
+
+                            var slideAnimation = new System.Windows.Media.Animation.DoubleAnimation { From = startTop, To = targetTop, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut } };
+                            System.Windows.Media.Animation.Storyboard.SetTarget(slideAnimation, notif.Window);
+                            System.Windows.Media.Animation.Storyboard.SetTargetProperty(slideAnimation, new PropertyPath(Window.TopProperty));
+
+                            storyboard.Children.Add(fadeAnimation);
+                            storyboard.Children.Add(slideAnimation);
+                            storyboard.Begin();
+
+                            Task.Run(async () => {
+                                await Task.Delay(TimeSpan.FromSeconds(remaining));
+                                ProcessNotifications(location, monitorIndex);
+                            });
+                        }
+                    }
+                    else if (Math.Abs(notif.CurrentTargetTop - targetTop) > 1)
+                    {
+                        var slideAnimation = new System.Windows.Media.Animation.DoubleAnimation { From = notif.CurrentTargetTop, To = targetTop, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut } };
+                        System.Windows.Media.Animation.Storyboard.SetTarget(slideAnimation, notif.Window);
+                        System.Windows.Media.Animation.Storyboard.SetTargetProperty(slideAnimation, new PropertyPath(Window.TopProperty));
+
+                        var storyboard = new System.Windows.Media.Animation.Storyboard();
+                        storyboard.Children.Add(slideAnimation);
+                        storyboard.Begin();
+
+                        notif.CurrentTargetTop = targetTop;
+                    }
+
+                    visibleCount++;
+                }
+
+                var visibleNotifs = activeQueue.Where(n => n.IsVisible).OrderByDescending(n => n.SpawnTime).ToList();
+                foreach (var notif in visibleNotifs)
+                {
+                    notif.Window.Topmost = false;
+                    notif.Window.Topmost = true;
+                }
+            });
+        }
+
+
         // --- WEBSOCKET ENGINE ---
 
         private async Task ConnectToServer()
@@ -1978,6 +2324,7 @@ start """" ""{targetExe}""
                 ServerStatusText.Text = "Connected";
                 isReconnecting = false;
                 PlayConnectSound();
+                ShowNotification("Central Server", "Connected", "Connect");
                 WriteLog($"Connected to the central server. ({AppVersion})");
 
                 await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
@@ -2019,6 +2366,7 @@ start """" ""{targetExe}""
             currentPerspectiveName = "";
             ResetPoolUI();
             PlayDisconnectSound();
+            ShowNotification("Central Server", "Disconnected", "Disconnect");
             WriteLog("Disconnected from the central server.");
         }
 
@@ -2273,6 +2621,8 @@ start """" ""{targetExe}""
                                     {
                                         if (isConnectPoolEnabled && addedPool.Count > 0) PlayConnectSound(isActivity: true);
                                         if (isDisconnectPoolEnabled && removedPool.Count > 0) PlayDisconnectSound(isActivity: true);
+                                        foreach (var f in addedPool) ShowNotification(ExtractNameFromFriendString(f), "Connected", "Connect");
+                                        foreach (var f in removedPool) ShowNotification(ExtractNameFromFriendString(f), "Disconnected", "Disconnect");
                                     }
                                     previousPoolCode = activePoolCode;
 
@@ -2367,6 +2717,8 @@ start """" ""{targetExe}""
                                     {
                                         if (isConnectVCEnabled && addedVc.Count > 0) PlayConnectSound(isActivity: true);
                                         if (isDisconnectVCEnabled && removedVc.Count > 0) PlayDisconnectSound(isActivity: true);
+                                        foreach (var f in addedVc) ShowNotification(ExtractNameFromFriendString(f), "Connected", "Connect");
+                                        foreach (var f in removedVc) ShowNotification(ExtractNameFromFriendString(f), "Disconnected", "Disconnect");
                                     }
                                     previousVcId = myChannelId;
 
@@ -2465,6 +2817,7 @@ start """" ""{targetExe}""
                         ServerStatusText.Text = "Connected";
                         ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                         PlayConnectSound();
+                        ShowNotification("Central Server", "Connected", "Connect");
                     });
 
                     WriteLog("Successfully reconnected to the central server.");
@@ -2615,6 +2968,7 @@ start """" ""{targetExe}""
 
             await PerformSafeHardwareClip();
             string myName = !string.IsNullOrEmpty(myGlobalDiscordName) ? myGlobalDiscordName : Environment.UserName;
+            ShowNotification(myName, "Global Clipped", "Clip");
             SendRenamerTrigger(myName);
         }
 
@@ -2635,6 +2989,7 @@ start """" ""{targetExe}""
 
             await PerformSafeHardwareClip();
             string myName = !string.IsNullOrEmpty(myGlobalDiscordName) ? myGlobalDiscordName : Environment.UserName;
+            ShowNotification(myName, "Local Clipped", "Clip");
             SendRenamerTrigger(myName);
         }
 
@@ -2652,6 +3007,7 @@ start """" ""{targetExe}""
             }
 
             await PerformSafeHardwareClip();
+            ShowNotification(clipperName, "Clipped", "Clip");
             SendRenamerTrigger(clipperName);
             return true;
         }
@@ -2723,8 +3079,8 @@ start """" ""{targetExe}""
 
         private async Task PerformSafeHardwareClip()
         {
-            PlayAlertSound();
             await WaitForAbsoluteZeroInput();
+            PlayAlertSound();
             await InjectHardwareKeyAsync();
         }
 
@@ -2781,6 +3137,7 @@ start """" ""{targetExe}""
             NavDiscordBtn.Background = darkBg;
             NavSettingsBtn.Background = darkBg;
             NavSoundsBtn.Background = darkBg;
+            NavNotificationsBtn.Background = darkBg;
             NavExtrasBtn.Background = darkBg;
             NavLogsBtn.Background = darkBg;
             NavStatsBtn.Background = darkBg;
@@ -2816,16 +3173,23 @@ start """" ""{targetExe}""
             NavSoundsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
 
-        private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
+        private void NavNotificationsBtn_Click(object sender, RoutedEventArgs e)
         {
             MainContent.SelectedIndex = 4;
+            ResetNavBackgrounds();
+            NavNotificationsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+        }
+
+        private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.SelectedIndex = 5;
             ResetNavBackgrounds();
             NavExtrasBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
 
         private void NavLogsBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 5;
+            MainContent.SelectedIndex = 6;
             ResetNavBackgrounds();
             NavLogsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
 
@@ -2837,7 +3201,7 @@ start """" ""{targetExe}""
 
         private void NavStatsBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 6;
+            MainContent.SelectedIndex = 7;
             ResetNavBackgrounds();
             NavStatsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
             UpdateStatsUI();
@@ -2845,7 +3209,7 @@ start """" ""{targetExe}""
 
         private async void NavUpdateBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 7;
+            MainContent.SelectedIndex = 8;
             ResetNavBackgrounds();
             NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
             NavUpdateBtn.Content = "Update";
@@ -2855,7 +3219,7 @@ start """" ""{targetExe}""
 
         private void NavHelpBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.SelectedIndex = 8;
+            MainContent.SelectedIndex = 9;
             ResetNavBackgrounds();
             NavHelpBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
         }
@@ -3201,7 +3565,7 @@ objShell.Run Chr(34) & ""{renamerExe}"" & Chr(34) & "" "" & Chr(34) & ""{renamer
             string obsPath = GetObsPath();
             if (string.IsNullOrEmpty(obsPath) || !File.Exists(obsPath))
             {
-                WriteLog("Auto Start OBS: Could not locate OBS executable.");
+                WriteLog("Could not locate OBS executable.");
                 return;
             }
 
@@ -3210,12 +3574,12 @@ objShell.Run Chr(34) & ""{renamerExe}"" & Chr(34) & "" "" & Chr(34) & ""{renamer
 
             if (obsProcesses.Length > 0)
             {
-                WriteLog("Auto Start OBS: OBS is already running. Skipping launch.");
+                WriteLog("OBS is already running. Skipping launch.");
                 return;
             }
             else
             {
-                WriteLog("Auto Start OBS: Launching OBS with replay enabled...");
+                WriteLog("Launching OBS with replay enabled.");
                 string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string sentinelFile = System.IO.Path.Combine(appData, @"obs-studio\.sentinel");
                 string safeModeFile = System.IO.Path.Combine(appData, @"obs-studio\safe_mode");
@@ -4167,6 +4531,18 @@ del ""%~f0""
         public double ClipVolume { get; set; } = 1.0;
         public double ConnectVolume { get; set; } = 1.0;
         public double DisconnectVolume { get; set; } = 1.0;
+
+        public bool EnableClipNotif { get; set; } = false;
+        public bool EnableConnectNotif { get; set; } = false;
+        public string ClipNotifLocation { get; set; } = "Bottom Right";
+        public string ConnectNotifLocation { get; set; } = "Bottom Right";
+        public string ClipNotifColor { get; set; } = "#5865F2";
+        public bool ClipNotifFlipAccent { get; set; } = false;
+        public bool ConnectNotifFlipAccent { get; set; } = false;
+        public double ClipNotifTimeLimit { get; set; } = 3;
+        public double ConnectNotifTimeLimit { get; set; } = 3;
+        public int ClipNotifMonitorIndex { get; set; } = 0;
+        public int ConnectNotifMonitorIndex { get; set; } = 0;
 
         public bool ConnectPoolActivity { get; set; } = false;
         public bool ConnectVCActivity { get; set; } = false;

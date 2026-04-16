@@ -5,11 +5,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ClippingTools.app"
         mc:Ignorable="d"
-        Title="Clipping Tools" Height="640" Width="800" Background="#1e1e1e"
+        Title="Clipping Tools" Height="640" Width="780" Background="#1e1e1e"
         Closing="Window_Closing" MouseDown="Window_MouseDown" LocationChanged="Window_LayoutChanged" SizeChanged="Window_LayoutChanged">
     <Grid Background="#36393f">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="174"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -20,6 +20,7 @@
             <Button x:Name="NavDiscordBtn" Content="Discord" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavDiscordBtn_Click"/>
             <Button x:Name="NavSettingsBtn" Content="Settings" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSettingsBtn_Click"/>
             <Button x:Name="NavSoundsBtn" Content="Sounds" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavSoundsBtn_Click"/>
+            <Button x:Name="NavNotificationsBtn" Content="Toasts" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavNotificationsBtn_Click"/>
             <Button x:Name="NavExtrasBtn" Content="Extras" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavExtrasBtn_Click"/>
             <Button x:Name="NavLogsBtn" Content="Logs" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavLogsBtn_Click"/>
             <Button x:Name="NavStatsBtn" Content="Statistics" Height="40" Margin="10,0,10,10" Background="#2f3136" Foreground="White" BorderThickness="0" Click="NavStatsBtn_Click"/>
@@ -675,6 +676,58 @@
                                 <Button Grid.Column="2" Content="Browse" Background="#4f545c" Foreground="White" BorderThickness="0" Height="25" Click="BrowseDisconnectSoundBtn_Click"/>
                             </Grid>
                         </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock Text="Toast Notifications" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                        <CheckBox x:Name="EnableClipNotifCheck" Content="Clip Notification" Foreground="White" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <StackPanel x:Name="ClipNotifSettingsPanel" Visibility="Collapsed" Margin="20,0,0,20">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock x:Name="ClipNotifMonitorLabel" Text="Monitor:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox x:Name="ClipNotifMonitorCombo" Width="150" SelectionChanged="Setting_Changed" Margin="0,0,15,0"/>
+                                <TextBlock Text="Location:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox x:Name="ClipNotifLocationCombo" Width="120" SelectionChanged="Setting_Changed">
+                                    <ComboBoxItem Content="Top Left"/>
+                                    <ComboBoxItem Content="Top Right"/>
+                                    <ComboBoxItem Content="Bottom Left"/>
+                                    <ComboBoxItem Content="Bottom Right" IsSelected="True"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                <TextBlock Text="Time Limit:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="ClipNotifTimeLimitInput" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
+                                <CheckBox x:Name="ClipNotifFlipAccentCheck" Content="Flip Accent" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
+                                <TextBlock Text="Notification Accent Color:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="15,0,10,0"/>
+                                <Border x:Name="ClipNotifColorBox" Width="20" Height="20" Background="#5865F2" BorderBrush="#b9bbbe" BorderThickness="1" Cursor="Hand" MouseLeftButtonDown="ClipNotifColorBox_MouseLeftButtonDown"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
+
+                        <CheckBox x:Name="EnableConnectNotifCheck" Content="Connection Notification" Foreground="White" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <StackPanel x:Name="ConnectNotifSettingsPanel" Visibility="Collapsed" Margin="20,0,0,20">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock x:Name="ConnectNotifMonitorLabel" Text="Monitor:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox x:Name="ConnectNotifMonitorCombo" Width="150" SelectionChanged="Setting_Changed" Margin="0,0,15,0"/>
+                                <TextBlock Text="Location:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox x:Name="ConnectNotifLocationCombo" Width="120" SelectionChanged="Setting_Changed">
+                                    <ComboBoxItem Content="Top Left"/>
+                                    <ComboBoxItem Content="Top Right"/>
+                                    <ComboBoxItem Content="Bottom Left"/>
+                                    <ComboBoxItem Content="Bottom Right" IsSelected="True"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="Time Limit:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="ConnectNotifTimeLimitInput" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
+                                <CheckBox x:Name="ConnectNotifFlipAccentCheck" Content="Flip Accent" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
