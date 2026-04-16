@@ -12,6 +12,7 @@ if os.path.exists(CONFIG_FILE):
         config = json.load(f)
         BOT_SECRET_ID = config.get("BOT_SECRET_ID", "")
         DISCORD_TOKEN = config.get("DISCORD_BOT_TOKEN", "")
+        WEBSOCKET_SERVER = config.get("WEBSOCKET_SERVER", "")
 else:
     print("[Error] config.json not found! Please create it with your token and secret ID.")
     sys.exit()
@@ -73,7 +74,7 @@ async def connect_to_router():
     global ws_connection
     while True:
         try:
-            async with websockets.connect("wss://clip.oxy.pizza", max_size=None) as ws:
+            async with websockets.connect(WEBSOCKET_SERVER, max_size=None) as ws:
                 ws_connection = ws
                 print("[Bot] Successfully connected to Central Router!")
 
