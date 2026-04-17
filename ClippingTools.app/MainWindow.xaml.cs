@@ -786,13 +786,14 @@ namespace ClippingTools.app
             Version storedVersion = GetVersion(currentStat.Version);
             Version appVersion = GetVersion(AppVersion);
 
+
+
             // ==========================================
-            // MIGRATION PIPELINE
+            // APP MIGRATION :)
             // ==========================================
 
 
-
-            // --- Migration: v0.1.7 (Rename Executable) ---
+            // --- Migration: v0.1.7  ---
             Version v017 = new Version(0, 1, 7);
             if (storedVersion < v017)
             {
@@ -2638,6 +2639,15 @@ start """" ""{targetExe}""
                                     await ShowCustomDialog("Verification Failed", "We could not send you a DM to verify your app!\n\nPlease ensure your DMs are open, or authorize the bot directly by going to:\nhttps://oxy.pizza/clippingtools/authorize\n\nAfter authorizing, click 'Activate Syncing' to try connecting again.");
                                     WriteLog("Discord DM Verification Error");
                                     StopListening();
+                                });
+                            }
+                            else if (action == "custom_message")
+                            {
+                                Dispatcher.InvokeAsync(async () => {
+                                    string title = doc.RootElement.TryGetProperty("title", out JsonElement titleElem) ? titleElem.GetString() : "Message";
+                                    string msg = doc.RootElement.TryGetProperty("message", out JsonElement msgElem) ? msgElem.GetString() : "";
+                                    await ShowCustomDialog(title, msg);
+                                    WriteLog($"Received custom server message: {title}");
                                 });
                             }
                             else if (action == "pool_error")

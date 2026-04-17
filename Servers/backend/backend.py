@@ -203,6 +203,16 @@ def remove_user_from_pool(user_id):
             
         broadcast_pool_updates(pool_code)
 
+async def send_custom_message(user_id, title, message):
+    if user_id in active_connections:
+        try:
+            await active_connections[user_id].send(json.dumps({
+                "action": "custom_message",
+                "title": title,
+                "message": message
+            }))
+        except: pass
+
 async def handle_client(websocket):
     user_id = None
     is_bot = False
