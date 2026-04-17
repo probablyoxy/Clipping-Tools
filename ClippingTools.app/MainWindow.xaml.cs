@@ -647,10 +647,10 @@ namespace ClippingTools.app
                 ControllerLocalTriggerKey = ControllerLocalTriggerKeyInput?.Text ?? "",
                 ClipKeys = ClipKeysList,
 
-                WindowLeft = this.Left,
-                WindowTop = this.Top,
-                WindowWidth = this.Width,
-                WindowHeight = this.Height,
+                WindowLeft = double.IsNaN(this.Left) ? -1 : this.Left,
+                WindowTop = double.IsNaN(this.Top) ? -1 : this.Top,
+                WindowWidth = double.IsNaN(this.Width) ? 800 : this.Width,
+                WindowHeight = double.IsNaN(this.Height) ? 600 : this.Height,
 
                 AutoSync = AutoSyncCheck.IsChecked ?? false,
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
