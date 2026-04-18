@@ -3849,11 +3849,18 @@ start """" ""{targetExe}""
             NavHelpBtn.Background = darkBg;
         }
 
+        private void SetTabConstraints(double minWidth)
+        {
+            this.MinWidth = minWidth;
+            if (this.Width < minWidth) this.Width = minWidth;
+        }
+
         private void NavHomeBtn_Click(object sender, RoutedEventArgs e)
         {
             MainContent.SelectedIndex = 0;
             ResetNavBackgrounds();
             NavHomeBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(570);
         }
 
         private void NavDiscordBtn_Click(object sender, RoutedEventArgs e)
@@ -3861,6 +3868,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 1;
             ResetNavBackgrounds();
             NavDiscordBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(570);
         }
 
         private void NavSettingsBtn_Click(object sender, RoutedEventArgs e)
@@ -3868,6 +3876,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 2;
             ResetNavBackgrounds();
             NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(770);
         }
 
         private void NavSoundsBtn_Click(object sender, RoutedEventArgs e)
@@ -3875,6 +3884,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 3;
             ResetNavBackgrounds();
             NavSoundsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(770);
         }
 
         private void NavNotificationsBtn_Click(object sender, RoutedEventArgs e)
@@ -3882,6 +3892,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 4;
             ResetNavBackgrounds();
             NavNotificationsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(670);
         }
 
         private void NavExtrasBtn_Click(object sender, RoutedEventArgs e)
@@ -3889,6 +3900,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 5;
             ResetNavBackgrounds();
             NavExtrasBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(700);
         }
 
         private void NavLogsBtn_Click(object sender, RoutedEventArgs e)
@@ -3896,6 +3908,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 6;
             ResetNavBackgrounds();
             NavLogsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(570);
 
             LogOutputText.Dispatcher.BeginInvoke(new Action(() => {
                 LogOutputText.CaretIndex = LogOutputText.Text.Length;
@@ -3908,6 +3921,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 7;
             ResetNavBackgrounds();
             NavStatsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(670);
             UpdateStatsUI();
         }
 
@@ -3917,6 +3931,7 @@ start """" ""{targetExe}""
             ResetNavBackgrounds();
             NavUpdateBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
             NavUpdateBtn.Content = "Update";
+            SetTabConstraints(570);
 
             await CheckForUpdatesAsync(false);
         }
@@ -3926,6 +3941,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 9;
             ResetNavBackgrounds();
             NavHelpBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
+            SetTabConstraints(720);
         }
 
         private string logFilePath => System.IO.Path.Combine(configFolder, "app.log");
