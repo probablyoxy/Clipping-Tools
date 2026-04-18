@@ -6,39 +6,70 @@ import os
 import random
 import string
 import time
+import urllib.parse
+import aiohttp
+import sys
+from aiohttp import web
 
 logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
-VERIFIED_UUIDS_FILE = "verified_uuids.json"
-if os.path.exists(VERIFIED_UUIDS_FILE):
-    with open(VERIFIED_UUIDS_FILE, "r") as f:
-        verified_uuids = json.load(f)
-else:
-    verified_uuids = {}
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def save_verified_uuids():
-    with open(VERIFIED_UUIDS_FILE, "w") as f:
-        json.dump(verified_uuids, f)
+USERS_DIR = os.path.join(BASE_DIR, "users")
+if not os.path.exists(USERS_DIR):
+    os.makedirs(USERS_DIR)
 
-LINKING_LOCKS_FILE = "link_locks.json"
-if os.path.exists(LINKING_LOCKS_FILE):
-    with open(LINKING_LOCKS_FILE, "r") as f:
-        linking_locks = json.load(f)
-else:
-    linking_locks = {}
+verified_uuids = {}
+linking_locks = {}
 
-def save_linking_locks():
-    with open(LINKING_LOCKS_FILE, "w") as f:
-        json.dump(linking_locks, f)
+def load_all_users():
+    for user_id in os.listdir(USERS_DIR):
+        user_dir = os.path.join(USERS_DIR, user_id)
+        if os.path.isdir(user_dir):
+            user_json_path = os.path.join(user_dir, "user.json")
+            if os.path.exists(user_json_path):
+                with open(user_json_path, "r") as f:
+                    data = json.load(f)
+                    linking_locks[user_id] = data.get("linking_locked", False)
+            
+            apps_json_path = os.path.join(user_dir, ".tokens", "apps.json")
+            if os.path.exists(apps_json_path):
+                with open(apps_json_path, "r") as f:
+                    verified_uuids[user_id] = json.load(f)
 
-CONFIG_FILE = "config.json"
+load_all_users()
+
+async def save_user_data(user_id):
+    def _write():
+        uid_str = str(user_id)
+        user_dir = os.path.join(USERS_DIR, uid_str)
+        tokens_dir = os.path.join(user_dir, ".tokens")
+        if not os.path.exists(tokens_dir):
+            os.makedirs(tokens_dir)
+            
+        with open(os.path.join(user_dir, "user.json"), "w") as f:
+            json.dump({
+                "discord_id": uid_str,
+                "linking_locked": linking_locks.get(uid_str, False)
+            }, f)
+            
+        with open(os.path.join(tokens_dir, "apps.json"), "w") as f:
+            json.dump(verified_uuids.get(uid_str, []), f)
+    await asyncio.to_thread(_write)
+
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+config = {}
 if os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE, "r") as f:
-        config = json.load(f)
-        ALLOWED_BOT_IDS = config.get("ALLOWED_BOT_IDS", [])
-        PREFERRED_BOT_ID = config.get("PREFERRED_BOT_ID", "")
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            ALLOWED_BOT_IDS = config.get("ALLOWED_BOT_IDS", [])
+            PREFERRED_BOT_ID = config.get("PREFERRED_BOT_ID", "")
+            print(f"[Startup] Successfully loaded config from: {CONFIG_FILE}")
+    except Exception as e:
+        print(f"[CRITICAL ERROR] Failed to read config.json: {e}")
 else:
-    print("[Warning] config.json not found! Bots will not be able to authenticate.")
+    print(f"[CRITICAL ERROR] config.json NOT FOUND AT: {CONFIG_FILE}")
     ALLOWED_BOT_IDS = []
     PREFERRED_BOT_ID = ""
 
@@ -49,12 +80,15 @@ if os.path.exists(STATS_FILE):
 else:
     server_stats = {"clips_synced": 0, "clips_taken": 0}
 
-def save_stats():
-    with open(STATS_FILE, "w") as f:
-        json.dump(server_stats, f)
+async def save_stats():
+    def _write():
+        with open(STATS_FILE, "w") as f:
+            json.dump(server_stats, f)
+    await asyncio.to_thread(_write)
 
 active_connections = {}
 unverified_connections = {}
+connection_attempts = {}
 pending_dm_requests = {}
 pending_all_users_requests = {}
 
@@ -71,6 +105,32 @@ user_pools = {}
 
 active_bots = {}
 bot_guild_stats = {}
+
+auth_listeners = {}
+user_server_tokens = {}
+
+def load_server_tokens():
+    for user_id in os.listdir(USERS_DIR):
+        token_path = os.path.join(USERS_DIR, user_id, ".tokens", ".token.json")
+        if os.path.exists(token_path):
+            with open(token_path, "r") as f:
+                user_server_tokens[user_id] = json.load(f)
+
+load_server_tokens()
+
+async def save_server_token(user_id, token):
+    def _write():
+        uid_str = str(user_id)
+        user_server_tokens[uid_str] = token
+        
+        tokens_dir = os.path.join(USERS_DIR, uid_str, ".tokens")
+        if not os.path.exists(tokens_dir):
+            os.makedirs(tokens_dir)
+            
+        token_path = os.path.join(tokens_dir, ".token.json")
+        with open(token_path, "w") as f:
+            json.dump(token, f)
+    await asyncio.to_thread(_write)
 
 async def assign_guilds_to_bots():
     guild_candidates = {}
@@ -127,7 +187,7 @@ async def try_next_dm_bot(user_id):
         await try_next_dm_bot(user_id)
 
 def broadcast_vc_updates():
-    for client_id, ws in list(active_connections.items()):
+    for client_id, apps in list(active_connections.items()):
         client_vc_data = vc_map.get(client_id)
         if not client_vc_data:
             payload_map = {}
@@ -153,12 +213,13 @@ def broadcast_vc_updates():
                         "relationship": rel
                     }
         
-        try:
-            asyncio.create_task(ws.send(json.dumps({
-                "action": "client_vc_update",
-                "vc_map": payload_map
-            })))
-        except: pass
+        for app_uuid, ws in list(apps.items()):
+            try:
+                asyncio.create_task(ws.send(json.dumps({
+                    "action": "client_vc_update",
+                    "vc_map": payload_map
+                })))
+            except: pass
 
 def broadcast_pool_updates(pool_code):
     if pool_code not in pools: return
@@ -181,9 +242,10 @@ def broadcast_pool_updates(pool_code):
     
     for uid in pool_data["members"]:
         if uid in active_connections:
-            try:
-                asyncio.create_task(active_connections[uid].send(json.dumps(payload)))
-            except: pass
+            for app_uuid, ws in list(active_connections[uid].items()):
+                try:
+                    asyncio.create_task(ws.send(json.dumps(payload)))
+                except: pass
 
 def remove_user_from_pool(user_id):
     if user_id not in user_pools: return
@@ -205,38 +267,130 @@ def remove_user_from_pool(user_id):
 
 async def send_custom_message(user_id, title, message):
     if user_id in active_connections:
-        try:
-            await active_connections[user_id].send(json.dumps({
-                "action": "custom_message",
-                "title": title,
-                "message": message
-            }))
-        except: pass
+        for app_uuid, ws in list(active_connections[user_id].items()):
+            try:
+                await ws.send(json.dumps({
+                    "action": "custom_message",
+                    "title": title,
+                    "message": message
+                }))
+            except: pass
 
 async def handle_client(websocket):
+    client_ip = websocket.remote_address[0] if websocket.remote_address else "Unknown"
+    current_time = time.time()
+    
+    if client_ip not in connection_attempts:
+        connection_attempts[client_ip] = []
+        
+    connection_attempts[client_ip] = [ts for ts in connection_attempts[client_ip] if current_time - ts < 60]
+    
+    if len(connection_attempts[client_ip]) >= 10:
+        print(f"[Rate Limit] Dropped connection from {client_ip} (Too many attempts).")
+        try:
+            await websocket.send(json.dumps({
+                "action": "rate_limited"
+            }))
+            await asyncio.sleep(0.5)
+            await websocket.close(1008, "Rate limited")
+        except: pass
+        return
+        
+    connection_attempts[client_ip].append(current_time)
+
     user_id = None
     is_bot = False
 
     try:
         async for message in websocket:
-            data = json.loads(message)
+            try:
+                data = json.loads(message)
+            except json.JSONDecodeError:
+                continue
+            
             action = data.get("action")
 
             # ==========================================
             # DESKTOP APP MESSAGES
             # ==========================================
-            if action == "identify":
-                user_id = data.get("user_id")
+            if action == "auth_listen":
+                state_code = data.get("state")
+                if state_code:
+                    old_states = [s for s, ws in auth_listeners.items() if ws == websocket]
+                    for s in old_states: del auth_listeners[s]
+                    
+                    auth_listeners[state_code] = websocket
+                print(f"[Auth] App is listening for login completion with state: {state_code}")
+                
+                redirect_uri = config.get('DISCORD_REDIRECT_URI')
+                
+                if not redirect_uri:
+                    print("[Error] DISCORD_REDIRECT_URI is missing from config.json!")
+                    sys.exit(1)
+                    
+                login_url = redirect_uri.replace("/auth/callback", f"/auth/login?state={state_code}")
+                
+                try:
+                    await websocket.send(json.dumps({
+                        "action": "auth_url",
+                        "url": login_url
+                    }))
+                except:
+                    pass
+
+            elif action == "identify":
+                user_id = data.get("discord_id") or data.get("user_id")
+                token_id = data.get("token_id")
                 app_uuid = data.get("app_uuid")
+                app_version = data.get("version", "Unknown")
                 approved_users = data.get("approved_users", [])
-                app_version = data.get("version", "≤v0.1.5")
+
+                is_outdated = True
+                if app_version != "Unknown":
+                    try:
+                        v_str = app_version.lower().replace("v", "").split("-")[0]
+                        parts = [int(x) for x in v_str.split(".")][:3]
+                        while len(parts) < 3: parts.append(0)
+                        if parts >= [0, 1, 9]:
+                            is_outdated = False
+                    except:
+                        pass
+                
+                if is_outdated:
+                    print(f"[Security] Blocked outdated client {user_id} ({app_version})")
+                    try:
+                        await websocket.send(json.dumps({
+                            "action": "dm_verification_failed"
+                        }))
+                    except: pass
+                    continue
+                
+                stored_token = user_server_tokens.get(str(user_id))
+                if not token_id or stored_token != token_id:
+                    print(f"[Security] Blocked unauthorized login attempt for {user_id}")
+                    try:
+                        await websocket.send(json.dumps({
+                            "action": "auth_failed",
+                            "reason": "Your login token is invalid or expired. Please sign back in via Discord."
+                        }))
+                    except: pass
+                    continue
                 
                 if not user_id or not app_uuid:
                     continue
 
-                if verified_uuids.get(user_id) == app_uuid:
-                    active_connections[user_id] = websocket
+                if app_uuid in verified_uuids.get(user_id, []):
+                    if user_id not in active_connections:
+                        active_connections[user_id] = {}
+                    active_connections[user_id][app_uuid] = websocket
                     user_approved_lists[user_id] = approved_users
+                    
+                    app_count = len(active_connections[user_id])
+                    for a_uuid, a_ws in list(active_connections[user_id].items()):
+                        try:
+                            asyncio.create_task(a_ws.send(json.dumps({"action": "concurrent_apps", "count": app_count})))
+                        except: pass
+                        
                     user_versions[user_id] = app_version
                     print(f"[Desktop] User {user_id} connected ({app_version}). Friends list size: {len(approved_users)}")
                     broadcast_vc_updates()
@@ -247,8 +401,10 @@ async def handle_client(websocket):
                         except: pass
                         continue
 
-                    unverified_connections[user_id] = {"ws": websocket, "approved_users": approved_users, "version": app_version}
-                    print(f"[Desktop] User {user_id} connected with unverified UUID ({app_version}). Requesting bot link.")
+                    if user_id not in unverified_connections:
+                        unverified_connections[user_id] = {}
+                    unverified_connections[user_id][app_uuid] = {"ws": websocket, "approved_users": approved_users, "version": app_version}
+                    print(f"[Desktop] User {user_id} connected with unverified UUID {app_uuid} ({app_version}). Requesting bot link.")
                     
                     pref_ws = None
                     other_ws = []
@@ -280,8 +436,9 @@ async def handle_client(websocket):
                 if client_id:
                     if not active_bots:
                         if client_id in active_connections:
-                            try: await active_connections[client_id].send(json.dumps({"action": "all_users_list", "client_id": client_id, "users": {}}))
-                            except: pass
+                            for app_uuid, ws in list(active_connections[client_id].items()):
+                                try: await ws.send(json.dumps({"action": "all_users_list", "client_id": client_id, "users": {}}))
+                                except: pass
                     else:
                         pending_all_users_requests[client_id] = {"bots_left": len(active_bots), "users": {}}
                         for bot_ws in list(active_bots.keys()):
@@ -292,7 +449,7 @@ async def handle_client(websocket):
                 if not user_id: continue
                 app_uuid = data.get("app_uuid")
 
-                if verified_uuids.get(user_id) != app_uuid:
+                if app_uuid not in verified_uuids.get(user_id, []):
                     print(f"[Security] Blocked unverified trigger from {user_id}")
                     continue
 
@@ -332,16 +489,18 @@ async def handle_client(websocket):
 
                 for target_user in target_users:
                     if target_user in active_connections:
-                        target_ws = active_connections[target_user]
-                        payload = {
-                            "action": "sync_clip",
-                            "sender_id": user_id
-                        }
-                        await target_ws.send(json.dumps(payload))
+                        for app_uuid, target_ws in list(active_connections[target_user].items()):
+                            payload = {
+                                "action": "sync_clip",
+                                "sender_id": user_id
+                            }
+                            try:
+                                await target_ws.send(json.dumps(payload))
+                            except: pass
                         print(f"[Router] Sent clip signal from {user_id} -> {target_user}")
                         server_stats["clips_taken"] += 1
                 
-                save_stats()
+                await save_stats()
 
 
             elif action == "create_pool":
@@ -393,8 +552,9 @@ async def handle_client(websocket):
                     members_to_remove = list(pools[pool_code]["members"])
                     for member in members_to_remove:
                         if member in active_connections:
-                            try: await active_connections[member].send(json.dumps({"action": "pool_closed"}))
-                            except: pass
+                            for app_uuid, ws in list(active_connections[member].items()):
+                                try: await ws.send(json.dumps({"action": "pool_closed"}))
+                                except: pass
                         if member in user_pools: del user_pools[member]
                     del pools[pool_code]
                     print(f"[Pools] Pool {pool_code} closed by owner.")
@@ -419,14 +579,16 @@ async def handle_client(websocket):
                             broadcast_pool_updates(pool_code)
                         elif manage_action == "kick":
                             if target_uid in active_connections:
-                                try: await active_connections[target_uid].send(json.dumps({"action": "pool_kicked"}))
-                                except: pass
+                                for app_uuid, ws in list(active_connections[target_uid].items()):
+                                    try: await ws.send(json.dumps({"action": "pool_kicked"}))
+                                    except: pass
                             remove_user_from_pool(target_uid)
                         elif manage_action == "ban":
                             pools[pool_code]["banned"].append(target_uid)
                             if target_uid in active_connections:
-                                try: await active_connections[target_uid].send(json.dumps({"action": "pool_banned"}))
-                                except: pass
+                                for app_uuid, ws in list(active_connections[target_uid].items()):
+                                    try: await ws.send(json.dumps({"action": "pool_banned"}))
+                                    except: pass
                             remove_user_from_pool(target_uid)
 
             # ==========================================
@@ -438,19 +600,35 @@ async def handle_client(websocket):
                 app_uuid = data.get("app_uuid")
                 
                 if target_user and app_uuid:
-                    verified_uuids[target_user] = app_uuid
-                    save_verified_uuids()
+                    if target_user not in verified_uuids: verified_uuids[target_user] = []
+                    if app_uuid not in verified_uuids[target_user]: verified_uuids[target_user].append(app_uuid)
                     linking_locks[target_user] = True
-                    save_linking_locks()
+                    await save_user_data(target_user)
                     print(f"[Bot] Verified UUID for user {target_user} and locked linking.")
                     
-                    if target_user in unverified_connections:
-                        conn_data = unverified_connections.pop(target_user)
-                        active_connections[target_user] = conn_data["ws"]
+                    if target_user in unverified_connections and app_uuid in unverified_connections[target_user]:
+                        conn_data = unverified_connections[target_user].pop(app_uuid)
+                        if not unverified_connections[target_user]:
+                            del unverified_connections[target_user]
+                            
+                        if target_user not in active_connections:
+                            active_connections[target_user] = {}
+                        active_connections[target_user][app_uuid] = conn_data["ws"]
                         user_approved_lists[target_user] = conn_data["approved_users"]
-                        user_versions[target_user] = conn_data.get("version", "≤v0.1.5")
+                        user_versions[target_user] = conn_data.get("version", "Unknown")
                         print(f"[Desktop] Moved {target_user} to active connections.")
+                        
+                        app_count = len(active_connections[target_user])
+                        for a_uuid, a_ws in list(active_connections[target_user].items()):
+                            try:
+                                asyncio.create_task(a_ws.send(json.dumps({"action": "concurrent_apps", "count": app_count})))
+                            except: pass
+                            
                         broadcast_vc_updates()
+                        
+                        if "cached_resolved_ids" in conn_data:
+                            try: await conn_data["ws"].send(conn_data["cached_resolved_ids"])
+                            except: pass
 
             elif action == "bot_identify":
                 bot_id = data.get("bot_id")
@@ -474,7 +652,7 @@ async def handle_client(websocket):
                 target_user = data.get("user_id")
                 new_state = data.get("state")
                 linking_locks[target_user] = new_state
-                save_linking_locks()
+                await save_user_data(target_user)
                 status = "locked" if new_state else "unlocked"
                 print(f"[Bot] User {target_user} {status} app linking.")
                 try:
@@ -489,17 +667,19 @@ async def handle_client(websocket):
                 if websocket not in active_bots: continue
                 target_user = data.get("user_id")
                 if target_user in verified_uuids:
-                    del verified_uuids[target_user]
-                    save_verified_uuids()
+                    verified_uuids[target_user] = []
+                    await save_user_data(target_user)
                     print(f"[Bot] User {target_user} reset their UUID.")
                     msg = "Your UUID has been reset. No apps can connect using your account until you link a new one."
                     
                     if target_user in active_connections:
-                        try: asyncio.create_task(active_connections[target_user].close())
-                        except: pass
+                        for app_uuid, ws in list(active_connections[target_user].items()):
+                            try: asyncio.create_task(ws.close())
+                            except: pass
                     if target_user in unverified_connections:
-                        try: asyncio.create_task(unverified_connections[target_user]["ws"].close())
-                        except: pass
+                        for u_app_uuid, u_data in list(unverified_connections[target_user].items()):
+                            try: asyncio.create_task(u_data["ws"].close())
+                            except: pass
                 else:
                     msg = "You do not have a linked UUID to reset."
                     
@@ -525,8 +705,12 @@ async def handle_client(websocket):
                 if websocket not in active_bots: continue
                 target_client = data.get("client_id")
                 if target_client in active_connections:
-                    try: await active_connections[target_client].send(message)
-                    except: pass
+                    for app_uuid, ws in list(active_connections[target_client].items()):
+                        try: await ws.send(message)
+                        except: pass
+                elif target_client in unverified_connections:
+                    for app_uuid, conn_data in unverified_connections[target_client].items():
+                        conn_data["cached_resolved_ids"] = message
 					
             elif action == "all_users_list":
                 if websocket not in active_bots: continue
@@ -539,13 +723,14 @@ async def handle_client(websocket):
                     if pending_all_users_requests[target_client]["bots_left"] <= 0:
                         combined_users = pending_all_users_requests[target_client]["users"]
                         if target_client in active_connections:
-                            try: 
-                                await active_connections[target_client].send(json.dumps({
-                                    "action": "all_users_list", 
-                                    "client_id": target_client, 
-                                    "users": combined_users
-                                }))
-                            except: pass
+                            for app_uuid, ws in list(active_connections[target_client].items()):
+                                try: 
+                                    await ws.send(json.dumps({
+                                        "action": "all_users_list", 
+                                        "client_id": target_client, 
+                                        "users": combined_users
+                                    }))
+                                except: pass
                         del pending_all_users_requests[target_client]
 
             elif action == "vc_update":
@@ -616,30 +801,152 @@ async def handle_client(websocket):
     except Exception as e:
         print(f"[Error] {e}")
     finally:
-            if user_id:
+        keys_to_remove = [state for state, ws in auth_listeners.items() if ws == websocket]
+        for key in keys_to_remove: del auth_listeners[key]
+
+        if user_id:
+            disconnected_app = None
+            if user_id in active_connections:
+                for uid, ws in list(active_connections[user_id].items()):
+                    if ws == websocket:
+                        disconnected_app = uid
+                        break
+                        
+            if disconnected_app:
+                del active_connections[user_id][disconnected_app]
+                if active_connections[user_id]:
+                    app_count = len(active_connections[user_id])
+                    for a_uuid, a_ws in list(active_connections[user_id].items()):
+                        try:
+                            asyncio.create_task(a_ws.send(json.dumps({"action": "concurrent_apps", "count": app_count})))
+                        except: pass
+                
+            if user_id in active_connections and not active_connections[user_id]:
                 remove_user_from_pool(user_id)
-                if user_id in active_connections and active_connections[user_id] == websocket:
-                    del active_connections[user_id]
-                    del user_approved_lists[user_id]
-                    if user_id in user_versions:
-                        del user_versions[user_id]
-                    print(f"[Desktop] User {user_id} disconnected.")
-                    broadcast_vc_updates()
-                            
-                if user_id in unverified_connections and unverified_connections[user_id]["ws"] == websocket:
-                    del unverified_connections[user_id]
-                    print(f"[Desktop] Unverified User {user_id} disconnected.")
-            elif is_bot:
-                if websocket in active_bots:
-                    del active_bots[websocket]
-                if websocket in bot_guild_stats:
-                    del bot_guild_stats[websocket]
-                    asyncio.create_task(assign_guilds_to_bots())
-                print("[Bot] A Discord Bot disconnected.")
+                del active_connections[user_id]
+                if user_id in user_approved_lists: del user_approved_lists[user_id]
+                if user_id in user_versions: del user_versions[user_id]
+                if user_id in user_last_clip_time: del user_last_clip_time[user_id]
+                if user_id in pending_dm_requests: del pending_dm_requests[user_id]
+                if user_id in pending_all_users_requests: del pending_all_users_requests[user_id]
+                print(f"[Desktop] User {user_id} disconnected.")
+                broadcast_vc_updates()
+                        
+            if user_id in unverified_connections:
+                disconnected_unverified = None
+                for u_app_uuid, u_data in list(unverified_connections[user_id].items()):
+                    if u_data["ws"] == websocket:
+                        disconnected_unverified = u_app_uuid
+                        break
+                if disconnected_unverified:
+                    del unverified_connections[user_id][disconnected_unverified]
+                    if not unverified_connections[user_id]:
+                        del unverified_connections[user_id]
+                    print(f"[Desktop] Unverified User {user_id} app {disconnected_unverified} disconnected.")
+        elif is_bot:
+            if websocket in active_bots:
+                del active_bots[websocket]
+            if websocket in bot_guild_stats:
+                del bot_guild_stats[websocket]
+                asyncio.create_task(assign_guilds_to_bots())
+            print("[Bot] A Discord Bot disconnected.")
+
+async def auth_login(request):
+    state = request.query.get('state')
+    if not state:
+        return web.Response(text="Missing state parameter", status=400)
+    
+    client_id = config.get('DISCORD_CLIENT_ID', '1480703669555957791')
+    redirect_uri = config.get('DISCORD_REDIRECT_URI', '')
+    
+    discord_auth_url = (
+        f"https://discord.com/api/oauth2/authorize"
+        f"?client_id={client_id}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri)}"
+        f"&response_type=code"
+        f"&scope=identify"
+        f"&state={state}"
+    )
+    raise web.HTTPFound(discord_auth_url)
+
+async def auth_callback(request):
+    code = request.query.get('code')
+    state = request.query.get('state')
+
+    if not code or not state:
+        return web.Response(text="Missing code or state", status=400)
+
+    client_id = config.get('DISCORD_CLIENT_ID', '1480703669555957791')
+    client_secret = config.get('DISCORD_CLIENT_SECRET', '')
+    redirect_uri = config.get('DISCORD_REDIRECT_URI', '')
+
+    async with aiohttp.ClientSession() as session:
+        data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': redirect_uri
+        }
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        async with session.post("https://discord.com/api/oauth2/token", data=data, headers=headers) as resp:
+            if resp.status != 200:
+                return web.Response(text="Failed to get token from Discord", status=400)
+            token_data = await resp.json()
+            access_token = token_data['access_token']
+
+        headers = {'Authorization': f"Bearer {access_token}"}
+        async with session.get("https://discord.com/api/users/@me", headers=headers) as resp:
+            if resp.status != 200:
+                return web.Response(text="Failed to get user info", status=400)
+            user_data = await resp.json()
+            discord_id = str(user_data['id'])
+
+    existing_token = user_server_tokens.get(discord_id)
+    if existing_token:
+        server_token = existing_token
+    else:
+        server_token = ''.join(random.choices(string.ascii_letters + string.digits, k=64))
+        await save_server_token(discord_id, server_token)
+
+    if state in auth_listeners:
+        ws = auth_listeners[state]
+        success_msg = json.dumps({
+            "action": "auth_success",
+            "discord_id": discord_id,
+            "token_id": server_token
+        })
+        try:
+            await ws.send(success_msg)
+        except Exception:
+            pass
+        del auth_listeners[state]
+
+    html = """
+    <html><body style='background:#36393f; color:white; font-family:sans-serif; text-align:center; padding-top:50px;'>
+    <h2 style='color:#43b581'>Success!</h2><p>You can close this window and return to the app.</p>
+    <script>window.close();</script>
+    </body></html>
+    """
+    return web.Response(text=html, content_type='text/html')
 
 async def main():
-    print("Starting Clipping Tools Central Router on port 8765...")
-    async with websockets.serve(handle_client, "0.0.0.0", 8765, max_size=None):
+    print("Starting Clipping Tools Central Router...")
+    
+    app = web.Application()
+    app.router.add_get('/auth/login', auth_login)
+    app.router.add_get('/auth/callback', auth_callback)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    http_port = config.get("HTTP_PORT", 4244)
+    ws_port = config.get("WS_PORT", 4242)
+    
+    site = web.TCPSite(runner, '0.0.0.0', http_port)
+    await site.start()
+    print(f"HTTP Auth Server listening on port {http_port}")
+
+    async with websockets.serve(handle_client, "0.0.0.0", ws_port, max_size=None):
         await asyncio.Future()
 
 if __name__ == "__main__":

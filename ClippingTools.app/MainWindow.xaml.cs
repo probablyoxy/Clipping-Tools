@@ -128,6 +128,7 @@ namespace ClippingTools.app
         private int currentCapturedComboCount = 0;
 
         private string appUuid = "";
+        private string activeAppUuid = "";
         private InputSimulator simulator = new InputSimulator();
         private CancellationTokenSource obsWatchdogCts;
         private CancellationTokenSource renamerStatusCts;
@@ -147,6 +148,9 @@ namespace ClippingTools.app
 
         private readonly string configFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
         private string configFilePath => System.IO.Path.Combine(configFolder, "settings.json");
+        private string tokensFolder => System.IO.Path.Combine(configFolder, ".tokens");
+        private string appTokensFolder => System.IO.Path.Combine(configFolder, ".tokens", "app");
+        private string customTokensFolder => System.IO.Path.Combine(configFolder, ".tokens", "custom");
         private string soundsFolder => System.IO.Path.Combine(configFolder, "sounds");
         private string systemsSoundsFolder => System.IO.Path.Combine(soundsFolder, "system");
         private string customSoundsFolder => System.IO.Path.Combine(soundsFolder, "custom");
@@ -158,13 +162,13 @@ namespace ClippingTools.app
         private Dictionary<string, UserStatCount> userSentStats = new Dictionary<string, UserStatCount>();
         private Dictionary<string, UserStatCount> userReceivedStats = new Dictionary<string, UserStatCount>();
 
-        //
         // CHANGE WHEN UPDATE :)
         //
-        private const string AppVersion = "v0.1.8";
+        //
+        private const string AppVersion = "v0.1.9";
         //
         //
-        //
+        // CHANGE WHEN UPDATE :)
         private string downloadUrlForUpdate = "";
 
         private ClientWebSocket webSocket;
@@ -371,8 +375,40 @@ namespace ClippingTools.app
             return false;
         }
 
+        private void EnsureDotFilesHidden(string directoryPath)
+        {
+            if (!Directory.Exists(directoryPath)) return;
+            try
+            {
+                foreach (var dir in Directory.GetDirectories(directoryPath, ".*", SearchOption.AllDirectories))
+                {
+                    var di = new DirectoryInfo(dir);
+                    if ((di.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
+                        di.Attributes |= FileAttributes.Hidden;
+                }
+                foreach (var file in Directory.GetFiles(directoryPath, ".*", SearchOption.AllDirectories))
+                {
+                    var fi = new FileInfo(file);
+                    if ((fi.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
+                        fi.Attributes |= FileAttributes.Hidden;
+                }
+            }
+            catch { }
+        }
+
         private void LoadSettings()
         {
+            if (!Directory.Exists(tokensFolder)) Directory.CreateDirectory(tokensFolder);
+            if (!Directory.Exists(appTokensFolder)) Directory.CreateDirectory(appTokensFolder);
+
+            string appUuidPath = System.IO.Path.Combine(appTokensFolder, "app_id.json");
+            string discordIdPath = System.IO.Path.Combine(appTokensFolder, "discord_id.json");
+
+            if (File.Exists(appUuidPath)) appUuid = File.ReadAllText(appUuidPath).Trim('"', ' ', '\n', '\r');
+            else { appUuid = Guid.NewGuid().ToString(); File.WriteAllText(appUuidPath, $"\"{appUuid}\""); }
+
+            if (File.Exists(discordIdPath)) DiscordIdInput.Text = File.ReadAllText(discordIdPath).Trim('"', ' ', '\n', '\r');
+
             if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
             if (!Directory.Exists(systemsSoundsFolder)) Directory.CreateDirectory(systemsSoundsFolder);
 
@@ -426,11 +462,9 @@ namespace ClippingTools.app
 
             if (!File.Exists(configFilePath))
             {
-                appUuid = Guid.NewGuid().ToString();
                 ClipKeysList.Add("LeftAlt");
                 ClipKeysList.Add("F10");
                 RebuildClipKeyUI();
-                return;
             }
 
             try
@@ -440,12 +474,8 @@ namespace ClippingTools.app
 
                 if (settings != null)
                 {
-                    if (string.IsNullOrEmpty(settings.AppUuid)) { settings.AppUuid = Guid.NewGuid().ToString(); }
-                    appUuid = settings.AppUuid;
-
                     SendClipsCheck.IsChecked = settings.SendClips;
                     ReceiveClipsCheck.IsChecked = settings.ReceiveClips;
-                    DiscordIdInput.Text = settings.DiscordId;
                     RadioAnyVC.IsChecked = settings.AnyVCRule;
                     RadioSpecificVC.IsChecked = !settings.AnyVCRule;
                     TriggerKeyInput.Text = settings.TriggerKey;
@@ -617,6 +647,8 @@ namespace ClippingTools.app
             {
                 Task.Run(() => GetObsPath());
             }
+
+            EnsureDotFilesHidden(configFolder);
         }
 
         private void SaveSettings()
@@ -633,13 +665,14 @@ namespace ClippingTools.app
             }
 
             if (!Directory.Exists(configFolder)) Directory.CreateDirectory(configFolder);
+            if (!Directory.Exists(appTokensFolder)) Directory.CreateDirectory(appTokensFolder);
+
+            File.WriteAllText(System.IO.Path.Combine(appTokensFolder, "discord_id.json"), $"\"{DiscordIdInput.Text}\"");
 
             var settings = new AppSettings
             {
-                AppUuid = appUuid,
                 SendClips = SendClipsCheck.IsChecked ?? true,
                 ReceiveClips = ReceiveClipsCheck.IsChecked ?? true,
-                DiscordId = DiscordIdInput.Text,
                 AnyVCRule = RadioAnyVC.IsChecked ?? true,
                 TriggerKey = TriggerKeyInput.Text,
                 LocalTriggerKey = LocalTriggerKeyInput.Text,
@@ -858,11 +891,8 @@ start """" ""{targetExe}""
 
 
 
-            if (storedVersion < appVersion)
-            {
-                currentStat.Version = AppVersion;
-                WriteVersionFile(currentStat);
-            }
+            currentStat.Version = AppVersion;
+            WriteVersionFile(currentStat);
         }
 
         private void UpdateShortcuts(string newExePath)
@@ -1222,7 +1252,7 @@ start """" ""{targetExe}""
                     string json = File.ReadAllText(openFileDialog.FileName);
                     var testSettings = JsonSerializer.Deserialize<AppSettings>(json);
 
-                    if (testSettings == null || testSettings.AppUuid == null)
+                    if (testSettings == null)
                     {
                         await ShowCustomDialog("Import Failed", "Invalid settings file format.");
                         return;
@@ -1243,8 +1273,8 @@ start """" ""{targetExe}""
         private async void ExportSettingsBtn_Click(object sender, RoutedEventArgs e)
         {
             bool result = await ShowCustomDialog(
-                "Security Warning",
-                "WARNING: This settings file contains your App UUID and Discord ID. Anyone with this file can connect as you and trigger clips on your behalf. Keep it safe!\n\nDo you want to proceed with exporting?",
+                "Confirm Export",
+                "Do you want to proceed with exporting your current settings?",
                 true);
 
             if (result)
@@ -1278,17 +1308,135 @@ start """" ""{targetExe}""
                 return;
             }
 
+            List<Tuple<string, string>> availableServers = new List<Tuple<string, string>>();
+            if (Directory.Exists(appTokensFolder) && File.Exists(System.IO.Path.Combine(appTokensFolder, "app_id.json")))
+            {
+                availableServers.Add(new Tuple<string, string>("Central Server", appTokensFolder));
+            }
+
+            if (Directory.Exists(customTokensFolder))
+            {
+                foreach (var dir in Directory.GetDirectories(customTokensFolder))
+                {
+                    if (File.Exists(System.IO.Path.Combine(dir, "app_id.json")))
+                    {
+                        availableServers.Add(new Tuple<string, string>($"{new DirectoryInfo(dir).Name}", dir));
+                    }
+                }
+            }
+
+            if (availableServers.Count > 1)
+            {
+                if (!(this.Content is Grid rootGrid)) return;
+
+                Grid overlay = new Grid
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(200, 0, 0, 0))
+                };
+                Panel.SetZIndex(overlay, 9999);
+                Grid.SetColumnSpan(overlay, 99);
+                Grid.SetRowSpan(overlay, 99);
+
+                Border roundedBorder = new Border
+                {
+                    CornerRadius = new CornerRadius(8),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#36393f")),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Width = 350,
+                    Padding = new Thickness(15)
+                };
+
+                StackPanel sp = new StackPanel();
+
+                TextBlock title = new TextBlock
+                {
+                    Text = "Select which server's UUID you want to reset:",
+                    Foreground = Brushes.White,
+                    FontSize = 14,
+                    Margin = new Thickness(0, 0, 0, 15),
+                    TextWrapping = TextWrapping.Wrap,
+                    TextAlignment = TextAlignment.Center
+                };
+                sp.Children.Add(title);
+
+                ScrollViewer sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 250 };
+                StackPanel btnPanel = new StackPanel();
+
+                foreach (var srv in availableServers)
+                {
+                    var currentSrv = srv;
+                    Button btn = new Button
+                    {
+                        Content = currentSrv.Item1,
+                        Margin = new Thickness(0, 0, 0, 10),
+                        Padding = new Thickness(10),
+                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c")),
+                        Foreground = Brushes.White,
+                        Cursor = Cursors.Hand,
+                        BorderThickness = new Thickness(0)
+                    };
+                    btn.Click += async (s, args) =>
+                    {
+                        rootGrid.Children.Remove(overlay);
+                        await PerformUuidReset(currentSrv.Item2, currentSrv.Item1);
+                    };
+                    btnPanel.Children.Add(btn);
+                }
+
+                sv.Content = btnPanel;
+                sp.Children.Add(sv);
+
+                Button cancelBtn = new Button
+                {
+                    Content = "Cancel",
+                    Margin = new Thickness(0, 10, 0, 0),
+                    Padding = new Thickness(10),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#f04747")),
+                    Foreground = Brushes.White,
+                    Cursor = Cursors.Hand,
+                    BorderThickness = new Thickness(0)
+                };
+                cancelBtn.Click += (s, args) =>
+                {
+                    rootGrid.Children.Remove(overlay);
+                };
+                sp.Children.Add(cancelBtn);
+
+                roundedBorder.Child = sp;
+                overlay.Children.Add(roundedBorder);
+                rootGrid.Children.Add(overlay);
+            }
+            else
+            {
+                bool isCustom = CustomServerCheck.IsChecked == true && !string.IsNullOrWhiteSpace(CustomServerInput.Text);
+                string host = "unknown_host";
+                if (isCustom && Uri.TryCreate(CustomServerInput.Text.Trim(), UriKind.Absolute, out Uri uri)) host = uri.Host;
+                string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
+                await PerformUuidReset(targetFolder, "the network");
+            }
+        }
+
+        private async Task PerformUuidReset(string targetFolder, string serverName)
+        {
             bool result = await ShowCustomDialog(
                 "Confirm Reset",
-                "Are you sure you want to reset your App UUID? This will unlink your app from the network. You will need to reverify it via Discord DM on your next connection.",
+                $"Are you sure you want to reset your App UUID for {serverName}? This will unlink your app from the network. You will need to reverify it via Discord DM on your next connection.",
                 true);
 
             if (result)
             {
-                appUuid = Guid.NewGuid().ToString();
-                SaveSettings();
-                WriteLog("App UUID reset.");
-                await ShowCustomDialog("UUID Reset", "UUID has been reset. Please re-authenticate the next time you connect.");
+                string appIdPath = System.IO.Path.Combine(targetFolder, "app_id.json");
+
+                if (File.Exists(appIdPath)) File.Delete(appIdPath);
+
+                if (targetFolder == appTokensFolder)
+                {
+                    appUuid = "";
+                }
+
+                WriteLog($"App UUID reset for {serverName}.");
+                await ShowCustomDialog("UUID Reset", $"UUID has been reset for {serverName}. Please re-authenticate the next time you connect.");
             }
         }
 
@@ -1298,109 +1446,128 @@ start """" ""{targetExe}""
 
         private async void DiscordSignInBtn_Click(object sender, RoutedEventArgs e)
         {
-            string clientId = "1480703669555957791";
-            string redirectUri = "http://127.0.0.1:5050/";
-
+            bool autoConnect = sender == null;
             DiscordSignInBtn.Content = "Awaiting Browser...";
             DiscordSignInBtn.IsEnabled = false;
 
-            string authUrl = $"https://discord.com/api/oauth2/authorize?client_id={clientId}&redirect_uri={Uri.EscapeDataString(redirectUri)}&response_type=token&scope=identify";
-
-            Process.Start(new ProcessStartInfo { FileName = authUrl, UseShellExecute = true });
-
-            await ListenForDiscordToken();
-        }
-
-        private async Task ListenForDiscordToken()
-        {
-            using (HttpListener listener = new HttpListener())
+            _ = Task.Run(async () =>
             {
-                listener.Prefixes.Add("http://127.0.0.1:5050/");
-                try { listener.Start(); }
-                catch
+                await Task.Delay(10000);
+                Dispatcher.Invoke(() =>
                 {
-                    await ShowCustomDialog("Error", "Could not start local server. Port 5050 might be in use.");
-                    ResetDiscordButton();
-                    return;
-                }
-
-                while (true)
-                {
-                    var context = await listener.GetContextAsync();
-                    var request = context.Request;
-                    var response = context.Response;
-
-                    if (request.Url.AbsolutePath == "/")
+                    if (DiscordSignInBtn.Content.ToString() == "Awaiting Browser...")
                     {
-                        string html = @"
-                            <html><body style='background:#36393f; color:white; font-family:sans-serif; text-align:center; padding-top:50px;'>
-                            <h2>Completing Discord Sign-In...</h2>
-                            <script>
-                                if (window.location.hash) { window.location.href = '/token?' + window.location.hash.substring(1); } 
-                                else { document.body.innerHTML = '<h2>Error: No token provided.</h2>'; }
-                            </script>
-                            </body></html>";
-
-                        byte[] buffer = Encoding.UTF8.GetBytes(html);
-                        response.ContentLength64 = buffer.Length;
-                        response.OutputStream.Write(buffer, 0, buffer.Length);
-                        response.Close();
+                        ResetDiscordButton();
                     }
-                    else if (request.Url.AbsolutePath == "/token")
-                    {
-                        string token = request.QueryString["access_token"];
+                });
+            });
 
-                        string html = @"
-                            <html><body style='background:#36393f; color:white; font-family:sans-serif; text-align:center; padding-top:50px;'>
-                            <h2 style='color:#43b581'>Success!</h2><p>You can close this window and return to the app.</p>
-                            <script>window.close();</script>
-                            </body></html>";
+            string state = Guid.NewGuid().ToString("N");
+            string serverUrl = GetServerUrl();
 
-                        byte[] buffer = Encoding.UTF8.GetBytes(html);
-                        response.ContentLength64 = buffer.Length;
-                        response.OutputStream.Write(buffer, 0, buffer.Length);
-                        response.Close();
-
-                        listener.Stop();
-                        await FetchDiscordProfile(token);
-                        break;
-                    }
-                    else { response.Close(); }
-                }
+            if (CustomServerCheck.IsChecked == true && !Uri.TryCreate(serverUrl, UriKind.Absolute, out _))
+            {
+                await ShowCustomDialog("Invalid Server URL", "Please enter a valid custom server URL starting with ws:// or wss://");
+                ResetDiscordButton();
+                return;
             }
+
+            await ListenForAuthWebSocket(state, serverUrl, autoConnect);
         }
 
-        private async Task FetchDiscordProfile(string token)
+        private async Task ListenForAuthWebSocket(string state, string serverUrl, bool autoConnect)
         {
-            try
+            using (ClientWebSocket authSocket = new ClientWebSocket())
+            using (CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
             {
-                using (HttpClient client = new HttpClient())
+                try
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                    var response = await client.GetAsync("https://discord.com/api/users/@me");
+                    await authSocket.ConnectAsync(new Uri(serverUrl), cts.Token);
+                    string initMsg = JsonSerializer.Serialize(new { action = "auth_listen", state = state });
+                    await authSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(initMsg)), WebSocketMessageType.Text, true, cts.Token);
 
-                    if (response.IsSuccessStatusCode)
+                    var buffer = new byte[8192];
+                    while (authSocket.State == WebSocketState.Open && !cts.Token.IsCancellationRequested)
                     {
-                        var json = await response.Content.ReadAsStringAsync();
-                        using (JsonDocument doc = JsonDocument.Parse(json))
+                        using (var ms = new MemoryStream())
                         {
-                            string discordId = doc.RootElement.GetProperty("id").GetString();
-                            Dispatcher.Invoke(() => {
-                                DiscordIdInput.Text = discordId;
-                                SaveSettings();
-                                ResetDiscordButton();
-                                WriteLog($"Successfully authenticated with Discord. ID: {discordId}");
-                            });
+                            WebSocketReceiveResult result;
+                            do
+                            {
+                                result = await authSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                                if (result.MessageType == WebSocketMessageType.Close) break;
+                                ms.Write(buffer, 0, result.Count);
+                            } while (!result.EndOfMessage);
+
+                            if (result.MessageType == WebSocketMessageType.Close) break;
+
+                            string message = Encoding.UTF8.GetString(ms.ToArray());
+                            using (JsonDocument doc = JsonDocument.Parse(message))
+                            {
+                                string action = doc.RootElement.GetProperty("action").GetString();
+
+                                if (action == "auth_url")
+                                {
+                                    string url = doc.RootElement.GetProperty("url").GetString();
+                                    Dispatcher.Invoke(() => {
+                                        Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+                                    });
+                                }
+                                else if (action == "auth_success")
+                                {
+                                    string discordId = doc.RootElement.GetProperty("discord_id").GetString();
+                                    string tokenId = doc.RootElement.GetProperty("token_id").GetString();
+
+                                    Dispatcher.Invoke(() => {
+                                        DiscordIdInput.Text = discordId;
+
+                                        bool isCustom = CustomServerCheck.IsChecked == true && !string.IsNullOrWhiteSpace(CustomServerInput.Text);
+                                        string host = "unknown_host";
+                                        if (isCustom && Uri.TryCreate(CustomServerInput.Text.Trim(), UriKind.Absolute, out Uri uri)) host = uri.Host;
+                                        string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
+
+                                        if (!Directory.Exists(tokensFolder)) Directory.CreateDirectory(tokensFolder);
+                                        if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
+
+                                        string discordIdPath = System.IO.Path.Combine(targetFolder, "discord_id.json");
+                                        string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
+
+                                        if (File.Exists(discordIdPath)) { new FileInfo(discordIdPath).Attributes &= ~FileAttributes.Hidden; }
+                                        File.WriteAllText(discordIdPath, $"\"{discordId}\"");
+
+                                        if (File.Exists(tokenPath)) { new FileInfo(tokenPath).Attributes &= ~FileAttributes.Hidden; }
+                                        File.WriteAllText(tokenPath, $"\"{tokenId}\"");
+
+                                        string appIdPath = System.IO.Path.Combine(targetFolder, "app_id.json");
+                                        if (!File.Exists(appIdPath)) File.WriteAllText(appIdPath, $"\"{Guid.NewGuid().ToString()}\"");
+                                        if (!isCustom) appUuid = File.ReadAllText(appIdPath).Trim('"', ' ', '\n', '\r');
+
+                                        EnsureDotFilesHidden(configFolder);
+                                        SaveSettings();
+                                        ResetDiscordButton();
+                                        WriteLog($"Successfully authenticated via server. ID: {discordId}");
+
+                                        if (autoConnect && ConnectButton.Content.ToString() != "Listening...")
+                                        {
+                                            StartListening();
+                                        }
+                                    });
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
-            }
-            catch
-            {
-                Dispatcher.InvokeAsync(async () => {
-                    await ShowCustomDialog("Network Error", "Failed to connect to Discord's servers.");
-                    ResetDiscordButton();
-                });
+                catch (Exception ex)
+                {
+                    Dispatcher.InvokeAsync(async () => {
+                        await ShowCustomDialog("Auth Error", "Failed to connect to the authentication server: " + ex.Message);
+                    });
+                }
+                finally
+                {
+                    Dispatcher.Invoke(() => ResetDiscordButton());
+                }
             }
         }
 
@@ -2015,6 +2182,18 @@ start """" ""{targetExe}""
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
+            bool isCustom = CustomServerCheck.IsChecked == true && !string.IsNullOrWhiteSpace(CustomServerInput.Text);
+            string host = "unknown_host";
+            if (isCustom && Uri.TryCreate(CustomServerInput.Text.Trim(), UriKind.Absolute, out Uri uri)) host = uri.Host;
+            string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
+            string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
+
+            if (string.IsNullOrWhiteSpace(DiscordIdInput.Text) || !File.Exists(tokenPath))
+            {
+                DiscordSignInBtn_Click(null, null);
+                return;
+            }
+
             if (ConnectButton.Content.ToString() == "Listening...")
                 StopListening();
             else
@@ -2023,13 +2202,30 @@ start """" ""{targetExe}""
 
         private async void StartListening()
         {
-            if (string.IsNullOrEmpty(DiscordIdInput.Text))
+            bool isCustom = false;
+            string targetUrl = "";
+            Dispatcher.Invoke(() => {
+                isCustom = CustomServerCheck.IsChecked == true;
+                targetUrl = GetServerUrl();
+            });
+
+            string host = "unknown_host";
+            if (isCustom && Uri.TryCreate(targetUrl, UriKind.Absolute, out Uri uri)) host = uri.Host;
+            string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
+            string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
+
+            string currentDiscordId = "";
+            Dispatcher.Invoke(() => currentDiscordId = DiscordIdInput.Text);
+
+            if (string.IsNullOrWhiteSpace(currentDiscordId) || !File.Exists(tokenPath))
             {
-                await ShowCustomDialog("Missing ID", "Please sign in to Discord first so the server knows your ID.");
+                Dispatcher.Invoke(() => {
+                    DiscordSignInBtn_Click(null, null);
+                });
                 return;
             }
 
-            if (CustomServerCheck.IsChecked == true)
+            if (isCustom)
             {
                 if (string.IsNullOrWhiteSpace(CustomServerInput.Text))
                 {
@@ -2427,6 +2623,7 @@ start """" ""{targetExe}""
 
                 ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                 ServerStatusText.Text = "Connected";
+                ServerStatusText.ToolTip = null;
                 isReconnecting = false;
                 PlayConnectSound();
 
@@ -2445,7 +2642,25 @@ start """" ""{targetExe}""
                     WriteLog($"Connected to the central server. ({AppVersion})");
                 }
 
-                await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
+                string tokenId = "";
+                string host = "unknown_host";
+                if (isCustom && Uri.TryCreate(targetUrl, UriKind.Absolute, out Uri uri)) host = uri.Host;
+                string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
+                string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
+                string appIdPath = System.IO.Path.Combine(targetFolder, "app_id.json");
+
+                activeAppUuid = appUuid;
+                if (File.Exists(tokenPath)) tokenId = File.ReadAllText(tokenPath).Trim('"', ' ', '\n', '\r');
+                if (File.Exists(appIdPath)) activeAppUuid = File.ReadAllText(appIdPath).Trim('"', ' ', '\n', '\r');
+
+                string currentDiscordId = DiscordIdInput.Text;
+                if (string.IsNullOrWhiteSpace(currentDiscordId) || string.IsNullOrWhiteSpace(tokenId))
+                {
+                    Dispatcher.Invoke(() => StopListening());
+                    return;
+                }
+
+                await SendWsMessage(new { action = "identify", discord_id = currentDiscordId, token_id = tokenId, app_uuid = activeAppUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                 AskServerToResolveNames();
 
                 _ = ReceiveMessages();
@@ -2471,9 +2686,12 @@ start """" ""{targetExe}""
             }
             webSocket?.Dispose();
             wsCts?.Dispose();
+            webSocket = null;
+            wsCts = null;
 
             ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#f04747"));
             ServerStatusText.Text = "Disconnected";
+            ServerStatusText.ToolTip = null;
             CurrentVcText.Visibility = Visibility.Collapsed;
             VcUsersPanel.Visibility = Visibility.Collapsed;
             currentActiveVcFriends.Clear();
@@ -2625,35 +2843,60 @@ start """" ""{targetExe}""
                                     FilterUserList();
                                 });
                             }
+                            else if (action == "concurrent_apps")
+                            {
+                                int count = doc.RootElement.GetProperty("count").GetInt32();
+                                Dispatcher.Invoke(() => {
+                                    if (count > 1)
+                                    {
+                                        ServerStatusText.Text = $"Connected in {count} locations at once";
+                                        ServerStatusText.ToolTip = "Manage linked apps via Discord Bot";
+                                    }
+                                    else
+                                    {
+                                        ServerStatusText.Text = "Connected";
+                                        ServerStatusText.ToolTip = null;
+                                    }
+                                });
+                            }
                             else if (action == "linking_locked")
                             {
                                 Dispatcher.InvokeAsync(async () => {
+                                    StopListening();
                                     await ShowCustomDialog("Linking Locked", "App linking is currently locked for your Discord account.\n\nPlease DM the bot with the command '/unlock' to allow new apps to connect, then try again.");
                                     WriteLog("Connection blocked: App linking is locked by user.");
+                                });
+                            }
+                            else if (action == "rate_limited")
+                            {
+                                Dispatcher.InvokeAsync(async () => {
                                     StopListening();
+                                    await ShowCustomDialog("Rate Limited", "You are reconnecting too fast. Please wait a minute before trying again.");
+                                    WriteLog("Connection blocked: Rate limited by server.");
                                 });
                             }
                             else if (action == "dm_verification_failed")
                             {
                                 Dispatcher.InvokeAsync(async () => {
+                                    StopListening();
                                     await ShowCustomDialog("Verification Failed", "We could not send you a DM to verify your app!\n\nPlease ensure your DMs are open, or authorize the bot directly by going to:\nhttps://oxy.pizza/clippingtools/authorize\n\nAfter authorizing, click 'Activate Syncing' to try connecting again.");
                                     WriteLog("Discord DM Verification Error");
-                                    StopListening();
                                 });
                             }
                             else if (action == "custom_message")
                             {
+                                string title = doc.RootElement.TryGetProperty("title", out JsonElement titleElem) ? titleElem.GetString() : "Message";
+                                string msg = doc.RootElement.TryGetProperty("message", out JsonElement msgElem) ? msgElem.GetString() : "";
                                 Dispatcher.InvokeAsync(async () => {
-                                    string title = doc.RootElement.TryGetProperty("title", out JsonElement titleElem) ? titleElem.GetString() : "Message";
-                                    string msg = doc.RootElement.TryGetProperty("message", out JsonElement msgElem) ? msgElem.GetString() : "";
                                     await ShowCustomDialog(title, msg);
                                     WriteLog($"Received custom server message: {title}");
                                 });
                             }
                             else if (action == "pool_error")
                             {
+                                string poolMsg = doc.RootElement.GetProperty("message").GetString();
                                 Dispatcher.InvokeAsync(async () => {
-                                    await ShowCustomDialog("Pool Error", doc.RootElement.GetProperty("message").GetString());
+                                    await ShowCustomDialog("Pool Error", poolMsg);
                                     WriteLog("The connection to the pool encountered an error.");
                                 });
                             }
@@ -2678,6 +2921,25 @@ start """" ""{targetExe}""
                                 Dispatcher.Invoke(() => {
                                     ResetPoolUI();
                                     WriteLog("The pool was closed by the owner.");
+                                });
+                            }
+                            else if (action == "auth_failed")
+                            {
+                                string reason = doc.RootElement.TryGetProperty("reason", out JsonElement rElem) ? rElem.GetString() : "Unknown authentication error.";
+                                Dispatcher.InvokeAsync(async () => {
+                                    StopListening();
+                                    WriteLog("Server rejected connection: " + reason + " - Auto-triggering re-authentication.");
+
+                                    bool isCustom = CustomServerCheck.IsChecked == true && !string.IsNullOrWhiteSpace(CustomServerInput.Text);
+                                    string host = "unknown_host";
+                                    if (isCustom && Uri.TryCreate(CustomServerInput.Text.Trim(), UriKind.Absolute, out Uri uri)) host = uri.Host;
+                                    string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
+                                    string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
+
+                                    if (File.Exists(tokenPath)) File.Delete(tokenPath);
+
+                                    await ShowCustomDialog("Authentication Failed", "Your login token is invalid or expired.\n\nPlease log in via Discord again to continue syncing.");
+                                    DiscordSignInBtn_Click(null, null);
                                 });
                             }
                             else if (action == "client_pool_update")
@@ -2911,6 +3173,7 @@ start """" ""{targetExe}""
                 Dispatcher.Invoke(() => {
                     ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#f04747"));
                     ServerStatusText.Text = "Disconnected";
+                    ServerStatusText.ToolTip = null;
                     CurrentVcText.Visibility = Visibility.Collapsed;
                     VcUsersPanel.Visibility = Visibility.Collapsed;
                     PlayDisconnectSound();
@@ -2959,6 +3222,7 @@ start """" ""{targetExe}""
 
                     Dispatcher.Invoke(() => {
                         ServerStatusText.Text = "Connected";
+                        ServerStatusText.ToolTip = null;
                         ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                         PlayConnectSound();
                         ShowNotification(isCustom ? "Custom Server" : "Central Server", "Connected", "Connect");
@@ -2973,7 +3237,25 @@ start """" ""{targetExe}""
                         WriteLog($"Successfully reconnected to the central server. ({AppVersion})");
                     }
 
-                    await SendWsMessage(new { action = "identify", user_id = DiscordIdInput.Text, app_uuid = appUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
+                    string tokenId = "";
+                    string host = "unknown_host";
+                    if (isCustom && Uri.TryCreate(targetUrl, UriKind.Absolute, out Uri uri)) host = uri.Host;
+                    string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
+                    string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
+                    string appIdPath = System.IO.Path.Combine(targetFolder, "app_id.json");
+
+                    activeAppUuid = appUuid;
+                    if (File.Exists(tokenPath)) tokenId = File.ReadAllText(tokenPath).Trim('"', ' ', '\n', '\r');
+                    if (File.Exists(appIdPath)) activeAppUuid = File.ReadAllText(appIdPath).Trim('"', ' ', '\n', '\r');
+
+                    string currentDiscordId = DiscordIdInput.Text;
+                    if (string.IsNullOrWhiteSpace(currentDiscordId) || string.IsNullOrWhiteSpace(tokenId))
+                    {
+                        Dispatcher.Invoke(() => StopListening());
+                        return;
+                    }
+
+                    await SendWsMessage(new { action = "identify", discord_id = currentDiscordId, token_id = tokenId, app_uuid = activeAppUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                     AskServerToResolveNames();
 
                     _ = ReceiveMessages();
@@ -3074,7 +3356,7 @@ start """" ""{targetExe}""
                 {
                     string sentTo = combinedFriends.Count > 0 ? string.Join(", ", combinedFriends) : "nobody";
                     WriteLog($"Triggered a clip command. Sent to: {sentTo}");
-                    await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = appUuid });
+                    await SendWsMessage(new { action = "trigger", user_id = DiscordIdInput.Text, app_uuid = activeAppUuid });
 
                     if (combinedFriends.Count > 0)
                     {
@@ -4639,7 +4921,6 @@ del ""%~f0""
     {
         public bool EnableLogging { get; set; } = true;
         public int MaxLogLines { get; set; } = 1000;
-        public string AppUuid { get; set; } = "";
         public bool UseCustomServer { get; set; } = false;
         public string CustomServerUrl { get; set; } = "";
         public string ObsPath { get; set; } = "";
@@ -4658,7 +4939,6 @@ del ""%~f0""
         public bool EnsureMicMax { get; set; } = false;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
-        public string DiscordId { get; set; } = "";
         public bool AnyVCRule { get; set; } = true;
         public string TriggerKey { get; set; } = "Ctrl+Alt+F10";
         public string LocalTriggerKey { get; set; } = "Ctrl+Alt+F9";
