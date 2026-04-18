@@ -307,6 +307,7 @@ namespace ClippingTools.app
 
             _ = CheckForUpdatesAsync(true);
             _ = EnforceObsStartOnLaunch();
+            EnforceTimeSync();
             ToggleRenamerService();
 
             micWatcherCts = new CancellationTokenSource();
@@ -560,6 +561,7 @@ namespace ClippingTools.app
 
                     AutoUpdateCheck.IsChecked = settings.AutoUpdate;
                     EnsureMicMaxCheck.IsChecked = settings.EnsureMicMax;
+                    SyncTimeCheck.IsChecked = settings.SyncTimeOnLaunch;
 
                     EnableLoggingCheck.IsChecked = settings.EnableLogging;
                     MaxLogLinesInput.Text = settings.MaxLogLines > 0 ? settings.MaxLogLines.ToString() : "1000";
@@ -747,6 +749,7 @@ namespace ClippingTools.app
 
                 AutoUpdate = AutoUpdateCheck.IsChecked ?? false,
                 EnsureMicMax = EnsureMicMaxCheck.IsChecked ?? false,
+                SyncTimeOnLaunch = SyncTimeCheck.IsChecked ?? false,
 
                 EnableLogging = EnableLoggingCheck.IsChecked ?? true,
                 MaxLogLines = int.TryParse(MaxLogLinesInput.Text, out int parsedMax) && parsedMax > 0 ? parsedMax : 1000,
@@ -1092,6 +1095,7 @@ start """" ""{targetExe}""
 
             SaveSettings();
             if (sender == AutoRenameClipsCheck) ToggleRenamerService();
+            if (sender == SyncTimeCheck && SyncTimeCheck.IsChecked == true && isLoaded) EnforceTimeSync();
         }
 
         private void ClipNotifColorBox_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1172,6 +1176,48 @@ start """" ""{targetExe}""
                 await Task.Delay(2000, token);
             }
             if (enumerator != null) Marshal.ReleaseComObject(enumerator);
+        }
+
+        private void EnforceTimeSync()
+        {
+            if (SyncTimeCheck.IsChecked != true) return;
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    WriteLog("Attempting to synchronize Windows time...");
+                    ProcessStartInfo psi = new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = "/c \"sc config w32time start= auto & net start w32time & w32tm /resync\"",
+                        CreateNoWindow = true,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+                    using (Process process = Process.Start(psi))
+                    {
+                        string output = process.StandardOutput.ReadToEnd();
+                        string errorOutput = process.StandardError.ReadToEnd();
+                        process.WaitForExit();
+
+                        if (process.ExitCode == 0 || output.Contains("The command completed successfully"))
+                        {
+                            WriteLog("Windows time successfully synchronized.");
+                        }
+                        else
+                        {
+                            string combinedOutput = string.IsNullOrWhiteSpace(errorOutput) ? output : errorOutput;
+                            WriteLog($"Windows time synchronization failed: {combinedOutput.Trim()}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteLog($"Time sync error: {ex.Message}");
+                }
+            });
         }
 
         private void Window_Closing(object sender, CancelEventArgs e)
@@ -5223,6 +5269,7 @@ del ""%~f0""
         public int ObsCheckInterval { get; set; } = 5;
         public bool AutoUpdate { get; set; } = false;
         public bool EnsureMicMax { get; set; } = false;
+        public bool SyncTimeOnLaunch { get; set; } = false;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
         public bool AnyVCRule { get; set; } = true;

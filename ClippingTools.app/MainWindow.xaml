@@ -796,10 +796,11 @@
                         <TextBox x:Name="ObsIntervalInput" ToolTip="The time interval that the OBS log is checked for errors" Text="5" Width="50" Height="25" HorizontalAlignment="Left" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
                     </StackPanel>
 
-                    <Rectangle Height="1" Fill="#202225" Margin="0,20,0,20"/>
+                        <Rectangle Height="1" Fill="#202225" Margin="0,20,0,20"/>
 
-                    <TextBlock Text="Audio Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+                        <TextBlock Text="Windows Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
                         <CheckBox x:Name="EnsureMicMaxCheck" ToolTip="Monitors your Windows Audio Input volume and sets it to 100% if it isn't already" HorizontalAlignment="Left" Content="Ensure Windows Microphone is 100%" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="SyncTimeCheck" ToolTip="Forces Windows to synchronize its clock with the internet time server to ensure exact precision" HorizontalAlignment="Left" Content="Synchronize Windows Time" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
 
                     </StackPanel>
                 </ScrollViewer>
