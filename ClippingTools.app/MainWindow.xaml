@@ -154,7 +154,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
                     <StackPanel>
                         <TextBlock Text="Discord Integration" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                        <TextBlock Text="Your Discord ID:" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBlock Text="Your Discord ID:" Foreground="White" Margin="0,0,0,5"/>
                         <Grid Margin="0,0,0,30">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -271,28 +271,28 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Software Clip Keybind:" ToolTip="Keybind you press to create a clip normally" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBlock Text="Software Clip Keybind:" ToolTip="Keybind you press to create a clip normally" Foreground="White" Margin="0,0,0,5"/>
                     <WrapPanel x:Name="ClipKeyPanel" ToolTip="Click each box and press one key at a time. Press Esc to clear" Margin="0,0,0,15" Orientation="Horizontal"/>
 
-                    <TextBlock Text="Global Trigger Keybind:" ToolTip="Keybind used to create a synced clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBlock Text="Global Trigger Keybind:" ToolTip="Keybind used to create a synced clip" Foreground="White" Margin="0,0,0,5"/>
                     <TextBox x:Name="TriggerKeyInput" Text="Ctrl+Alt+F10" ToolTip="Keybind used to create a synced clip" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
 
-                    <TextBlock Text="Local Trigger Keybind:" ToolTip="Keybind used to make a local only clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBlock Text="Local Trigger Keybind:" ToolTip="Keybind used to make a local only clip" Foreground="White" Margin="0,0,0,5"/>
                     <TextBox x:Name="LocalTriggerKeyInput" Text="Ctrl+Alt+F9" ToolTip="Keybind used to make a local only clip" IsReadOnly="True" PreviewKeyDown="HotkeyInput_PreviewKeyDown" PreviewKeyUp="HotkeyInput_PreviewKeyUp" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0"/>
 
                     <StackPanel x:Name="ControllerTriggersPanel" Visibility="Collapsed">
-                        <TextBlock Text="Global Controller Trigger Keybind:" ToolTip="Controller keybind used to create a synced clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                            <TextBlock Text="Global Controller Trigger Keybind:" ToolTip="Controller keybind used to create a synced clip" Foreground="White" Margin="0,0,0,5"/>
                         <TextBox x:Name="ControllerTriggerKeyInput" ToolTip="Controller keybind used to create a synced clip" IsReadOnly="True" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="ControllerInput_PreviewMouseDown" LostFocus="ControllerInput_LostFocus" PreviewKeyDown="ControllerInput_PreviewKeyDown" Cursor="Hand"/>
 
-                        <TextBlock Text="Local Controller Trigger Keybind:" ToolTip="Controller keybind used to make a local only clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                            <TextBlock Text="Local Controller Trigger Keybind:" ToolTip="Controller keybind used to make a local only clip" Foreground="White" Margin="0,0,0,5"/>
                         <TextBox x:Name="ControllerLocalTriggerKeyInput" ToolTip="Controller keybind used to make a local only clip" IsReadOnly="True" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="ControllerInput_PreviewMouseDown" LostFocus="ControllerInput_LostFocus" PreviewKeyDown="ControllerInput_PreviewKeyDown" Cursor="Hand"/>
                     </StackPanel>
 
                     <StackPanel x:Name="WheelTriggersPanel" Visibility="Collapsed">
-                        <TextBlock Text="Global Steering Wheel Trigger Keybind:" ToolTip="Steering wheel keybind used to create a synced clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                            <TextBlock Text="Global Steering Wheel Trigger Keybind:" ToolTip="Steering wheel keybind used to create a synced clip" Foreground="White" Margin="0,0,0,5"/>
                         <TextBox x:Name="WheelTriggerKeyInput" ToolTip="Steering wheel keybind used to create a synced clip" IsReadOnly="True" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="WheelInput_PreviewMouseDown" LostFocus="WheelInput_LostFocus" PreviewKeyDown="WheelInput_PreviewKeyDown" Cursor="Hand"/>
 
-                        <TextBlock Text="Local Steering Wheel Trigger Keybind:" ToolTip="Steering wheel keybind used to make a local only clip" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                            <TextBlock Text="Local Steering Wheel Trigger Keybind:" ToolTip="Steering wheel keybind used to make a local only clip" Foreground="White" Margin="0,0,0,5"/>
                         <TextBox x:Name="WheelLocalTriggerKeyInput" ToolTip="Steering wheel keybind used to make a local only clip" IsReadOnly="True" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="WheelInput_PreviewMouseDown" LostFocus="WheelInput_LostFocus" PreviewKeyDown="WheelInput_PreviewKeyDown" Cursor="Hand"/>
                     </StackPanel>
 
@@ -305,21 +305,15 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Clip Rate Limit" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Minimum seconds between clips:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="RateLimitInput" Text="10" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="Clip Rate Limit:" ToolTip="Time in seconds to wait between clips" Foreground="#b9bbbe" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBox x:Name="RateLimitInput" ToolTip="Time in seconds to wait between clips" Text="10" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
                             </StackPanel>
-                        </StackPanel>
 
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="Clip Delay Time" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Delays the clip by this many seconds:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="ClipDelayInput" Text="0" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <TextBlock Text="Clip Delay Time:" ToolTip="Time in seconds to wait before clipping" Foreground="#b9bbbe" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBox x:Name="ClipDelayInput" ToolTip="Time in seconds to wait before clipping" Text="0" Width="50" Height="25" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" TextChanged="Setting_TextChanged" PreviewTextInput="NumberValidationTextBox"/>
                             </StackPanel>
-                        </StackPanel>
                     </Grid>
 
                     <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
@@ -723,7 +717,7 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
                                 <TextBlock Text="Time Limit:" ToolTip="Time in seconds that Toast Notifications last on your screen" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <TextBox x:Name="ClipNotifTimeLimitInput" ToolTip="Time in seconds that Toast Notifications last on your screen" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
-                                <CheckBox x:Name="ClipNotifFlipAccentCheck" Content="Flip Accent" ToolTip="Makes the accent line show towards the inside of the screen, rather than the outside" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
+                                <CheckBox x:Name="ClipNotifFlipAccentCheck" Content="Flip Accent" ToolTip="Makes the accent line show towards the inside of the screen, rather than the outside" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
                                 <TextBlock Text="Notification Accent Color:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="15,0,10,0"/>
                                 <Border x:Name="ClipNotifColorBox" Width="20" Height="20" Background="#5865F2" BorderBrush="#b9bbbe" BorderThickness="1" Cursor="Hand" MouseLeftButtonDown="ClipNotifColorBox_MouseLeftButtonDown"/>
                             </StackPanel>
@@ -747,7 +741,7 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                 <TextBlock Text="Time Limit:" ToolTip="Time in seconds that Toast Notifications last on your screen" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <TextBox x:Name="ConnectNotifTimeLimitInput" ToolTip="Time in seconds that Toast Notifications last on your screen" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
-                                <CheckBox x:Name="ConnectNotifFlipAccentCheck" Content="Flip Accent" ToolTip="Makes the accent line show towards the inside of the screen, rather than the outside" Foreground="White" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
+                                <CheckBox x:Name="ConnectNotifFlipAccentCheck" Content="Flip Accent" ToolTip="Makes the accent line show towards the inside of the screen, rather than the outside" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -758,7 +752,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
                     <StackPanel>
                         <TextBlock Text="Clip Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                        <TextBlock Text="Clip Recording Location:" ToolTip="This is the location that your clipping software saves your clips to" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBlock Text="Clip Recording Location:" ToolTip="This is the location that your clipping software saves your clips to" Foreground="White" Margin="0,0,0,5"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -786,7 +780,7 @@
                     <Rectangle Height="1" Fill="#202225" Margin="0,0,0,20"/>
 
                     <TextBlock Text="OBS Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <TextBlock Text="OBS Location:" ToolTip="This is the location where OBS is installed on your PC" Foreground="#b9bbbe" Margin="0,0,0,5"/>
+                        <TextBlock Text="OBS Location:" ToolTip="This is the location where OBS is installed on your PC" Foreground="White" Margin="0,0,0,5"/>
                     <Grid Margin="0,0,0,20">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

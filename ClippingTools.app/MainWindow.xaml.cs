@@ -3876,7 +3876,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 2;
             ResetNavBackgrounds();
             NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-            SetTabConstraints(770);
+            SetTabConstraints(570);
         }
 
         private void NavSoundsBtn_Click(object sender, RoutedEventArgs e)
