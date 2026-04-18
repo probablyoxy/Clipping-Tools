@@ -17,6 +17,11 @@
                 <Button Grid.Column="1" Content="Browse" Height="30" Background="#4f545c" Foreground="White" BorderThickness="0" Click="BrowseBtn_Click"/>
             </Grid>
 
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,20" HorizontalAlignment="Center">
+                <CheckBox x:Name="StartMenuShortcutCheck" Content="Start Menu Shortcut" Foreground="White" IsChecked="True" Margin="0,0,20,0"/>
+                <CheckBox x:Name="DesktopShortcutCheck" Content="Desktop Shortcut" Foreground="White" IsChecked="True"/>
+            </StackPanel>
+
             <Button x:Name="InstallBtn" Content="Install" Height="45" Background="#5865F2" Foreground="White" FontWeight="Bold" FontSize="16" Click="InstallBtn_Click"/>
 
             <TextBlock x:Name="StatusText" Text="" Foreground="#b9bbbe" Margin="0,20,0,5" HorizontalAlignment="Center"/>

@@ -97,7 +97,7 @@ namespace ClippingToolsInstaller
                 }
 
                 StatusText.Text = "Creating Windows shortcuts...";
-                CreateShortcuts(exePath);
+                CreateShortcuts(exePath, StartMenuShortcutCheck.IsChecked == true, DesktopShortcutCheck.IsChecked == true);
 
                 StatusText.Text = "Installation Complete!";
                 StatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(67, 181, 129));
@@ -120,28 +120,52 @@ namespace ClippingToolsInstaller
             }
         }
 
-        private void CreateShortcuts(string exePath)
+        private void CreateShortcuts(string exePath, bool createStartMenu, bool createDesktop)
         {
             try
             {
                 Type shellType = Type.GetTypeFromProgID("WScript.Shell");
                 dynamic shell = Activator.CreateInstance(shellType);
 
-                string startMenuPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-                string startShortcutPath = Path.Combine(startMenuPath, "Clipping Tools.lnk");
-                dynamic startMenuShortcut = shell.CreateShortcut(startShortcutPath);
-                startMenuShortcut.TargetPath = exePath;
-                startMenuShortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
-                startMenuShortcut.Description = "Clipping Tools";
-                startMenuShortcut.Save();
+                if (createStartMenu)
+                {
+                    string startMenuPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+                    string startShortcutPath = Path.Combine(startMenuPath, "Clipping Tools.lnk");
+                    dynamic startMenuShortcut = shell.CreateShortcut(startShortcutPath);
+                    startMenuShortcut.TargetPath = exePath;
+                    startMenuShortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
+                    startMenuShortcut.Description = "Clipping Tools";
+                    startMenuShortcut.Save();
+                }
 
-                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                string desktopShortcutPath = Path.Combine(desktopPath, "Clipping Tools.lnk");
-                dynamic desktopShortcut = shell.CreateShortcut(desktopShortcutPath);
-                desktopShortcut.TargetPath = exePath;
-                desktopShortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
-                desktopShortcut.Description = "Clipping Tools";
-                desktopShortcut.Save();
+                if (createDesktop)
+                {
+                    string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                    string desktopShortcutPath = Path.Combine(desktopPath, "Clipping Tools.lnk");
+                    dynamic desktopShortcut = shell.CreateShortcut(desktopShortcutPath);
+                    desktopShortcut.TargetPath = exePath;
+                    desktopShortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
+                    desktopShortcut.Description = "Clipping Tools";
+                    desktopShortcut.Save();
+                }
+
+                if (createStartMenu || createDesktop)
+                {
+                    string settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
+                    if (!Directory.Exists(settingsDir))
+                    {
+                        Directory.CreateDirectory(settingsDir);
+                    }
+
+                    string settingsPath = Path.Combine(settingsDir, "settings.json");
+                    var settings = new System.Collections.Generic.Dictionary<string, bool>();
+
+                    if (createStartMenu) settings.Add("StartMenuShortcut", true);
+                    if (createDesktop) settings.Add("DesktopShortcut", true);
+
+                    string jsonString = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(settingsPath, jsonString);
+                }
             }
             catch { }
         }

@@ -299,6 +299,7 @@ namespace ClippingTools.app
             };
 
             VerifyStartWithWindowsTask();
+            VerifyShortcuts();
 
             if (AutoSyncCheck.IsChecked == true)
             {
@@ -563,6 +564,9 @@ namespace ClippingTools.app
                     EnsureMicMaxCheck.IsChecked = settings.EnsureMicMax;
                     SyncTimeCheck.IsChecked = settings.SyncTimeOnLaunch;
 
+                    StartMenuShortcutCheck.IsChecked = settings.StartMenuShortcut;
+                    DesktopShortcutCheck.IsChecked = settings.DesktopShortcut;
+
                     EnableLoggingCheck.IsChecked = settings.EnableLogging;
                     MaxLogLinesInput.Text = settings.MaxLogLines > 0 ? settings.MaxLogLines.ToString() : "1000";
                     LogLinesPanel.Visibility = (EnableLoggingCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
@@ -750,6 +754,8 @@ namespace ClippingTools.app
                 AutoUpdate = AutoUpdateCheck.IsChecked ?? false,
                 EnsureMicMax = EnsureMicMaxCheck.IsChecked ?? false,
                 SyncTimeOnLaunch = SyncTimeCheck.IsChecked ?? false,
+                StartMenuShortcut = StartMenuShortcutCheck.IsChecked ?? false,
+                DesktopShortcut = DesktopShortcutCheck.IsChecked ?? false,
 
                 EnableLogging = EnableLoggingCheck.IsChecked ?? true,
                 MaxLogLines = int.TryParse(MaxLogLinesInput.Text, out int parsedMax) && parsedMax > 0 ? parsedMax : 1000,
@@ -943,6 +949,16 @@ start """" ""{targetExe}""
 
         private void UpdateShortcuts(string newExePath)
         {
+            VerifyShortcuts();
+            WriteLog("Verified and migrated shortcuts.");
+        }
+
+        private void VerifyShortcuts()
+        {
+            string exePath = Environment.ProcessPath;
+            bool wantStartMenu = StartMenuShortcutCheck.IsChecked == true;
+            bool wantDesktop = DesktopShortcutCheck.IsChecked == true;
+
             try
             {
                 Type shellType = Type.GetTypeFromProgID("WScript.Shell");
@@ -950,30 +966,44 @@ start """" ""{targetExe}""
 
                 string startMenuPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
                 string startShortcutPath = System.IO.Path.Combine(startMenuPath, "Clipping Tools.lnk");
-                if (System.IO.File.Exists(startShortcutPath))
+
+                if (wantStartMenu)
                 {
-                    dynamic startMenuShortcut = shell.CreateShortcut(startShortcutPath);
-                    startMenuShortcut.TargetPath = newExePath;
-                    startMenuShortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(newExePath);
-                    startMenuShortcut.Save();
-                    WriteLog("Migrated Start Menu shortcut.");
+                    dynamic shortcut = shell.CreateShortcut(startShortcutPath);
+                    shortcut.TargetPath = exePath;
+                    shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(exePath);
+                    shortcut.Save();
+                }
+                else if (File.Exists(startShortcutPath))
+                {
+                    File.Delete(startShortcutPath);
                 }
 
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
                 string desktopShortcutPath = System.IO.Path.Combine(desktopPath, "Clipping Tools.lnk");
-                if (System.IO.File.Exists(desktopShortcutPath))
+
+                if (wantDesktop)
                 {
-                    dynamic desktopShortcut = shell.CreateShortcut(desktopShortcutPath);
-                    desktopShortcut.TargetPath = newExePath;
-                    desktopShortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(newExePath);
-                    desktopShortcut.Save();
-                    WriteLog("Migrated Desktop shortcut.");
+                    dynamic shortcut = shell.CreateShortcut(desktopShortcutPath);
+                    shortcut.TargetPath = exePath;
+                    shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(exePath);
+                    shortcut.Save();
+                }
+                else if (File.Exists(desktopShortcutPath))
+                {
+                    File.Delete(desktopShortcutPath);
                 }
             }
             catch (Exception ex)
             {
-                WriteLog($"Failed to migrate shortcuts: {ex.Message}");
+                WriteLog($"Failed to manage shortcuts: {ex.Message}");
             }
+        }
+
+        private void ShortcutCheck_Click(object sender, RoutedEventArgs e)
+        {
+            SaveSettings();
+            VerifyShortcuts();
         }
 
         private Version GetVersion(string v)
@@ -3922,7 +3952,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 2;
             ResetNavBackgrounds();
             NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-            SetTabConstraints(570);
+            SetTabConstraints(670);
         }
 
         private void NavSoundsBtn_Click(object sender, RoutedEventArgs e)
@@ -5270,6 +5300,8 @@ del ""%~f0""
         public bool AutoUpdate { get; set; } = false;
         public bool EnsureMicMax { get; set; } = false;
         public bool SyncTimeOnLaunch { get; set; } = false;
+        public bool StartMenuShortcut { get; set; } = true;
+        public bool DesktopShortcut { get; set; } = true;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
         public bool AnyVCRule { get; set; } = true;
