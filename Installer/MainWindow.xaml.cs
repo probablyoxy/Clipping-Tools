@@ -14,6 +14,20 @@ namespace ClippingToolsInstaller
         public MainWindow()
         {
             InitializeComponent();
+            CheckAppDataFolder();
+        }
+
+        private void CheckAppDataFolder()
+        {
+            string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
+            if (Directory.Exists(appDataPath))
+            {
+                ManageAppBtn.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ManageAppBtn.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void BrowseBtn_Click(object sender, RoutedEventArgs e)
@@ -42,6 +56,7 @@ namespace ClippingToolsInstaller
                 StatusText.Text = "Finding latest version on GitHub...";
 
                 string downloadUrl = "";
+                string latestVersion = "";
                 using (HttpClient client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Add("User-Agent", "ClippingTools-Installer");
@@ -54,6 +69,7 @@ namespace ClippingToolsInstaller
                     var json = await response.Content.ReadAsStringAsync();
                     using (JsonDocument doc = JsonDocument.Parse(json))
                     {
+                        latestVersion = doc.RootElement.GetProperty("tag_name").GetString();
                         downloadUrl = doc.RootElement.GetProperty("assets")[0].GetProperty("browser_download_url").GetString();
                     }
                 }
@@ -99,6 +115,25 @@ namespace ClippingToolsInstaller
                 StatusText.Text = "Creating Windows shortcuts...";
                 CreateShortcuts(exePath, StartMenuShortcutCheck.IsChecked == true, DesktopShortcutCheck.IsChecked == true);
 
+                if (!string.IsNullOrEmpty(latestVersion))
+                {
+                    string statsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools", "statistics");
+                    if (!Directory.Exists(statsDir))
+                    {
+                        Directory.CreateDirectory(statsDir);
+                    }
+
+                    string versionPath = Path.Combine(statsDir, "version.json");
+                    var versionInfo = new
+                    {
+                        Version = latestVersion,
+                        LastUpdated = DateTime.Now
+                    };
+
+                    string versionJson = JsonSerializer.Serialize(versionInfo, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(versionPath, versionJson);
+                }
+
                 StatusText.Text = "Installation Complete!";
                 StatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(67, 181, 129));
                 InstallBtn.Content = "Launch App";
@@ -118,6 +153,71 @@ namespace ClippingToolsInstaller
                 InstallBtn.IsEnabled = true;
                 InstallProgress.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private enum PendingManageAction { None, ResetSettings, DeleteData }
+        private PendingManageAction _pendingAction = PendingManageAction.None;
+
+        private void ManageAppBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ManageOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void CloseManageOverlayBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ManageOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void ResetSettingsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _pendingAction = PendingManageAction.ResetSettings;
+            ConfirmManageTitle.Text = "Reset Settings";
+            ConfirmManageText.Text = "Are you sure you want to delete your settings.json? This will revert all configurations to default.";
+            ConfirmManageOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void DeleteDataBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _pendingAction = PendingManageAction.DeleteData;
+            ConfirmManageTitle.Text = "Delete App Data";
+            ConfirmManageText.Text = "Are you sure you want to completely delete the Clipping Tools AppData folder? This will wipe your settings, logs, authentication tokens, and everything else!";
+            ConfirmManageOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void ConfirmManageCancelBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ConfirmManageOverlay.Visibility = Visibility.Collapsed;
+            _pendingAction = PendingManageAction.None;
+        }
+
+        private void ConfirmManageOkBtn_Click(object sender, RoutedEventArgs e)
+        {
+            string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
+
+            try
+            {
+                if (_pendingAction == PendingManageAction.ResetSettings)
+                {
+                    string settingsPath = Path.Combine(appDataPath, "settings.json");
+                    if (File.Exists(settingsPath))
+                    {
+                        File.Delete(settingsPath);
+                    }
+                }
+                else if (_pendingAction == PendingManageAction.DeleteData)
+                {
+                    if (Directory.Exists(appDataPath))
+                    {
+                        Directory.Delete(appDataPath, true);
+                    }
+                }
+            }
+            catch { }
+
+            ConfirmManageOverlay.Visibility = Visibility.Collapsed;
+            ManageOverlay.Visibility = Visibility.Collapsed;
+            _pendingAction = PendingManageAction.None;
+            CheckAppDataFolder();
         }
 
         private void CreateShortcuts(string exePath, bool createStartMenu, bool createDesktop)
