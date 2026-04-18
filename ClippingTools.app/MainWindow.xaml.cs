@@ -588,6 +588,11 @@ namespace ClippingTools.app
                     {
                         ClipKeysList = settings.ClipKeys;
                     }
+                    else if (ClipKeysList.Count == 0)
+                    {
+                        ClipKeysList.Add("LeftAlt");
+                        ClipKeysList.Add("F10");
+                    }
 
                     EnableSoundCheck.IsChecked = settings.EnableSound;
                     RadioCustomSound.IsChecked = settings.UseCustomSound;
@@ -731,8 +736,8 @@ namespace ClippingTools.app
 
                 WindowLeft = double.IsNaN(this.Left) ? -1 : this.Left,
                 WindowTop = double.IsNaN(this.Top) ? -1 : this.Top,
-                WindowWidth = double.IsNaN(this.Width) ? 800 : this.Width,
-                WindowHeight = double.IsNaN(this.Height) ? 600 : this.Height,
+                WindowWidth = double.IsNaN(this.Width) ? 780 : this.Width,
+                WindowHeight = double.IsNaN(this.Height) ? 640 : this.Height,
 
                 AutoSync = AutoSyncCheck.IsChecked ?? false,
                 StartWithWindows = StartWithWindowsCheck.IsChecked ?? false,
@@ -5300,8 +5305,8 @@ del ""%~f0""
         public bool AutoUpdate { get; set; } = false;
         public bool EnsureMicMax { get; set; } = false;
         public bool SyncTimeOnLaunch { get; set; } = false;
-        public bool StartMenuShortcut { get; set; } = true;
-        public bool DesktopShortcut { get; set; } = true;
+        public bool StartMenuShortcut { get; set; } = false;
+        public bool DesktopShortcut { get; set; } = false;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;
         public bool AnyVCRule { get; set; } = true;
@@ -5315,8 +5320,8 @@ del ""%~f0""
 
         public double WindowLeft { get; set; } = -1;
         public double WindowTop { get; set; } = -1;
-        public double WindowWidth { get; set; } = 800;
-        public double WindowHeight { get; set; } = 600;
+        public double WindowWidth { get; set; } = 780;
+        public double WindowHeight { get; set; } = 640;
 
         public bool AutoSync { get; set; } = false;
         public bool StartWithWindows { get; set; } = false;
