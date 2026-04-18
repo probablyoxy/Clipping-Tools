@@ -329,8 +329,9 @@
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                                <Button x:Name="ResetUuidBtn" ToolTip="Resets the app's unique code, allowing you to reverify with the server and invalidate all old sessions" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" Margin="0,0,10,0" Click="ResetUuidBtn_Click"/>
-                                <Button x:Name="UninstallAppBtn" Content="Uninstall" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="120" Height="30" Click="UninstallAppBtn_Click"/>
+                                <Button x:Name="ResetSettingsBtn" ToolTip="Resets all settings to their default values" Content="Reset Settings" Background="#4f545c" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Margin="0,0,10,0" Click="ResetSettingsBtn_Click"/>
+                                <Button x:Name="ResetUuidBtn" ToolTip="Resets the app's unique code, allowing you to reverify with the server and invalidate all old sessions" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Margin="0,0,10,0" Click="ResetUuidBtn_Click"/>
+                                <Button x:Name="UninstallAppBtn" Content="Uninstall" Background="Firebrick" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Click="UninstallAppBtn_Click"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>

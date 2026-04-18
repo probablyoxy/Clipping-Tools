@@ -1106,6 +1106,16 @@ start """" ""{targetExe}""
                 }
             }
 
+            if (sender == AutoStartObsCheck && AutoStartObsCheck.IsChecked == true)
+            {
+                if (string.IsNullOrWhiteSpace(ObsLocationInput.Text) || ObsLocationInput.Text == "Waiting for selection...")
+                {
+                    await ShowCustomDialog("Missing OBS Location", "Please set your OBS Location first before enabling the OBS Auto Start feature.");
+                    AutoStartObsCheck.IsChecked = false;
+                    return;
+                }
+            }
+
             if (RenamerOptionsPanel != null)
             {
                 RenamerOptionsPanel.Visibility = (AutoRenameClipsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
@@ -1421,6 +1431,38 @@ start """" ""{targetExe}""
                     {
                         await ShowCustomDialog("Export Error", "Failed to export settings: " + ex.Message);
                     }
+                }
+            }
+        }
+
+        private async void ResetSettingsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (isSyncActive)
+            {
+                await ShowCustomDialog("Sync Active", "You cannot reset settings while actively syncing. Please disconnect first.");
+                return;
+            }
+
+            bool result = await ShowCustomDialog(
+                "Confirm Reset",
+                "Are you sure you want to reset all settings to their default values? This cannot be undone.",
+                true);
+
+            if (result)
+            {
+                try
+                {
+                    var defaultSettings = new AppSettings();
+                    string json = JsonSerializer.Serialize(defaultSettings, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(configFilePath, json);
+
+                    ClipKeysList.Clear();
+                    LoadSettings();
+                    await ShowCustomDialog("Success", "Settings have been reset to default.");
+                }
+                catch (Exception ex)
+                {
+                    await ShowCustomDialog("Error", "Failed to reset settings: " + ex.Message);
                 }
             }
         }
@@ -3957,7 +3999,7 @@ start """" ""{targetExe}""
             MainContent.SelectedIndex = 2;
             ResetNavBackgrounds();
             NavSettingsBtn.Background = new System.Windows.Media.SolidColorBrush((Color)ColorConverter.ConvertFromString("#4f545c"));
-            SetTabConstraints(670);
+            SetTabConstraints(720);
         }
 
         private void NavSoundsBtn_Click(object sender, RoutedEventArgs e)
@@ -4089,8 +4131,18 @@ start """" ""{targetExe}""
             e.Handled = true;
         }
 
-        private void AutoRestartObsCheck_Click(object sender, RoutedEventArgs e)
+        private async void AutoRestartObsCheck_Click(object sender, RoutedEventArgs e)
         {
+            if (AutoRestartObsCheck.IsChecked == true)
+            {
+                if (string.IsNullOrWhiteSpace(ObsLocationInput.Text) || ObsLocationInput.Text == "Waiting for selection...")
+                {
+                    await ShowCustomDialog("Missing OBS Location", "Please set your OBS Location first before enabling the OBS Auto Restart feature.");
+                    AutoRestartObsCheck.IsChecked = false;
+                    return;
+                }
+            }
+
             ObsIntervalPanel.Visibility = (AutoRestartObsCheck.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
             SaveSettings();
             ToggleObsWatchdog();
