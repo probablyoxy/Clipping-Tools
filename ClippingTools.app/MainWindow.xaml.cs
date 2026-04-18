@@ -64,6 +64,31 @@ namespace ClippingTools.app
             public short sThumbRY;
         }
 
+        [DllImport("winmm.dll")]
+        private static extern int joyGetPosEx(int uJoyID, ref JOYINFOEX pji);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOYINFOEX
+        {
+            public int dwSize;
+            public int dwFlags;
+            public int dwXpos;
+            public int dwYpos;
+            public int dwZpos;
+            public int dwRpos;
+            public int dwUpos;
+            public int dwVpos;
+            public int dwButtons;
+            public int dwButtonNumber;
+            public int dwPOV;
+            public int dwReserved1;
+            public int dwReserved2;
+        }
+        private const int JOY_RETURNBUTTONS = 0x00000080;
+        private const int JOY_RETURNPOV = 0x00000040;
+        private const int JOY_RETURNPOVCTS = 0x00000200;
+        private const int JOYERR_NOERROR = 0;
+
         [ComImport]
         [Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
         private class MMDeviceEnumerator { }
@@ -123,6 +148,16 @@ namespace ClippingTools.app
         private bool wasControllerLocalTriggerPressed = false;
         private string preCaptureGlobalText = "";
         private string preCaptureLocalText = "";
+
+        private CancellationTokenSource wheelCts;
+        private bool isCapturingWheelGlobal = false;
+        private bool isCapturingWheelLocal = false;
+        private bool wasWheelTriggerPressed = false;
+        private bool wasWheelLocalTriggerPressed = false;
+        private string preCaptureWheelGlobalText = "";
+        private string preCaptureWheelLocalText = "";
+        private string currentCapturedWheelCombo = "";
+        private int currentCapturedWheelComboCount = 0;
 
         private string currentCapturedCombo = "";
         private int currentCapturedComboCount = 0;
@@ -279,6 +314,9 @@ namespace ClippingTools.app
 
             controllerCts = new CancellationTokenSource();
             _ = ControllerPollingLoop(controllerCts.Token);
+
+            wheelCts = new CancellationTokenSource();
+            _ = WheelPollingLoop(wheelCts.Token);
         }
 
         private void PopulateMonitorCombos()
@@ -484,6 +522,9 @@ namespace ClippingTools.app
                     ControllerTriggerKeyInput.Text = settings.ControllerTriggerKey ?? "";
                     ControllerLocalTriggerKeyInput.Text = settings.ControllerLocalTriggerKey ?? "";
 
+                    WheelTriggerKeyInput.Text = settings.WheelTriggerKey ?? "";
+                    WheelLocalTriggerKeyInput.Text = settings.WheelLocalTriggerKey ?? "";
+
                     if (settings.WindowWidth > 0 && settings.WindowHeight > 0)
                     {
                         this.Width = settings.WindowWidth;
@@ -678,6 +719,8 @@ namespace ClippingTools.app
                 LocalTriggerKey = LocalTriggerKeyInput.Text,
                 ControllerTriggerKey = ControllerTriggerKeyInput?.Text ?? "",
                 ControllerLocalTriggerKey = ControllerLocalTriggerKeyInput?.Text ?? "",
+                WheelTriggerKey = WheelTriggerKeyInput?.Text ?? "",
+                WheelLocalTriggerKey = WheelLocalTriggerKeyInput?.Text ?? "",
                 ClipKeys = ClipKeysList,
 
                 WindowLeft = double.IsNaN(this.Left) ? -1 : this.Left,
@@ -1143,6 +1186,7 @@ start """" ""{targetExe}""
             {
                 WriteVersionFile();
                 controllerCts?.Cancel();
+                wheelCts?.Cancel();
                 micWatcherCts?.Cancel();
                 string renamerFolder = System.IO.Path.Combine(configFolder, "clip-management", "clip-renamer");
                 string triggerPath = System.IO.Path.Combine(renamerFolder, "exit_trigger.txt");
@@ -2176,6 +2220,232 @@ start """" ""{targetExe}""
             isCapturingControllerLocal = false;
             currentCapturedCombo = "";
             currentCapturedComboCount = 0;
+            Keyboard.ClearFocus();
+            SaveSettings();
+        }
+
+        private async Task WheelPollingLoop(CancellationToken token)
+        {
+            bool wasConnected = false;
+            while (!token.IsCancellationRequested)
+            {
+                bool anyConnected = false;
+                List<string> uniqueButtons = new List<string>();
+
+                for (int joyId = 0; joyId < 4; joyId++)
+                {
+                    JOYINFOEX state = new JOYINFOEX();
+                    state.dwSize = Marshal.SizeOf(typeof(JOYINFOEX));
+                    state.dwFlags = JOY_RETURNBUTTONS | JOY_RETURNPOV | JOY_RETURNPOVCTS;
+
+                    if (joyGetPosEx(joyId, ref state) == JOYERR_NOERROR)
+                    {
+                        anyConnected = true;
+                        string btns = GetWheelButtonsString(state);
+                        if (!string.IsNullOrEmpty(btns))
+                        {
+                            foreach (string btn in btns.Split('+'))
+                            {
+                                if (!string.IsNullOrEmpty(btn) && !uniqueButtons.Contains(btn))
+                                {
+                                    uniqueButtons.Add(btn);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                string currentButtons = string.Join("+", uniqueButtons);
+
+                if (anyConnected != wasConnected)
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            WheelTriggersPanel.Visibility = anyConnected ? Visibility.Visible : Visibility.Collapsed;
+                        });
+                        wasConnected = anyConnected;
+                    }
+
+                    if (anyConnected)
+                    {
+                        int currentButtonCount = string.IsNullOrEmpty(currentButtons) ? 0 : currentButtons.Split('+').Length;
+
+                        if (isCapturingWheelGlobal || isCapturingWheelLocal)
+                        {
+                            if (currentButtonCount > currentCapturedWheelComboCount)
+                            {
+                                currentCapturedWheelCombo = currentButtons;
+                                currentCapturedWheelComboCount = currentButtonCount;
+
+                                Dispatcher.Invoke(() =>
+                                {
+                                    if (isCapturingWheelGlobal) WheelTriggerKeyInput.Text = currentCapturedWheelCombo;
+                                    else if (isCapturingWheelLocal) WheelLocalTriggerKeyInput.Text = currentCapturedWheelCombo;
+                                });
+                            }
+
+                            if (currentCapturedWheelComboCount > 0 && currentButtonCount == 0)
+                            {
+                                Dispatcher.Invoke(() =>
+                                {
+                                    if (isCapturingWheelGlobal)
+                                    {
+                                        WheelTriggerKeyInput.Text = currentCapturedWheelCombo;
+                                        isCapturingWheelGlobal = false;
+                                    }
+                                    else if (isCapturingWheelLocal)
+                                    {
+                                        WheelLocalTriggerKeyInput.Text = currentCapturedWheelCombo;
+                                        isCapturingWheelLocal = false;
+                                    }
+                                    currentCapturedWheelCombo = "";
+                                    currentCapturedWheelComboCount = 0;
+                                    Keyboard.ClearFocus();
+                                    SaveSettings();
+                                });
+                            }
+                        }
+                        else
+                        {
+                            string globalBind = "";
+                            string localBind = "";
+                            Dispatcher.Invoke(() =>
+                            {
+                                globalBind = WheelTriggerKeyInput.Text;
+                                localBind = WheelLocalTriggerKeyInput.Text;
+                            });
+
+                            bool isGlobalPressed = !string.IsNullOrEmpty(globalBind) && currentButtons == globalBind;
+                            bool isLocalPressed = !string.IsNullOrEmpty(localBind) && currentButtons == localBind;
+
+                            if (isGlobalPressed && !wasWheelTriggerPressed)
+                            {
+                                Dispatcher.Invoke(() => OnClipTriggered(null, null));
+                            }
+                            if (isLocalPressed && !wasWheelLocalTriggerPressed)
+                            {
+                                Dispatcher.Invoke(() => OnLocalClipTriggered(null, null));
+                            }
+
+                            wasWheelTriggerPressed = isGlobalPressed;
+                            wasWheelLocalTriggerPressed = isLocalPressed;
+                        }
+
+                        await Task.Delay(20, token);
+                    }
+                    else
+                    {
+                        await Task.Delay(2000, token);
+                    }
+                }
+            }
+
+        private string GetWheelButtonsString(JOYINFOEX state)
+        {
+            List<string> buttons = new List<string>();
+            for (int btnIndex = 0; btnIndex < 32; btnIndex++)
+            {
+                if ((state.dwButtons & (1 << btnIndex)) != 0)
+                {
+                    buttons.Add($"WBtn{btnIndex + 1}");
+                }
+            }
+
+            if (state.dwPOV != 65535)
+            {
+                int pov = state.dwPOV;
+                if (pov >= 31500 || pov <= 4500) buttons.Add("WheelUp");
+                if (pov >= 4500 && pov <= 13500) buttons.Add("WheelRight");
+                if (pov >= 13500 && pov <= 22500) buttons.Add("WheelDown");
+                if (pov >= 22500 && pov <= 31500) buttons.Add("WheelLeft");
+            }
+
+            return string.Join("+", buttons);
+        }
+
+        private void WheelInput_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            TextBox tb = sender as TextBox;
+
+            if ((tb == WheelTriggerKeyInput && isCapturingWheelGlobal) ||
+                (tb == WheelLocalTriggerKeyInput && isCapturingWheelLocal))
+            {
+                return;
+            }
+
+            if (isCapturingWheelGlobal)
+            {
+                WheelTriggerKeyInput.Text = preCaptureWheelGlobalText;
+                isCapturingWheelGlobal = false;
+            }
+            if (isCapturingWheelLocal)
+            {
+                WheelLocalTriggerKeyInput.Text = preCaptureWheelLocalText;
+                isCapturingWheelLocal = false;
+            }
+
+            currentCapturedWheelCombo = "";
+            currentCapturedWheelComboCount = 0;
+
+            if (tb == WheelTriggerKeyInput)
+            {
+                preCaptureWheelGlobalText = tb.Text;
+                tb.Text = "Waiting for input...";
+                isCapturingWheelGlobal = true;
+            }
+            else if (tb == WheelLocalTriggerKeyInput)
+            {
+                preCaptureWheelLocalText = tb.Text;
+                tb.Text = "Waiting for input...";
+                isCapturingWheelLocal = true;
+            }
+
+            tb.Focus();
+            e.Handled = true;
+        }
+
+        private void WheelInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            TextBox tb = sender as TextBox;
+
+            if (tb == WheelTriggerKeyInput && isCapturingWheelGlobal)
+            {
+                isCapturingWheelGlobal = false;
+                tb.Text = preCaptureWheelGlobalText;
+            }
+            else if (tb == WheelLocalTriggerKeyInput && isCapturingWheelLocal)
+            {
+                isCapturingWheelLocal = false;
+                tb.Text = preCaptureWheelLocalText;
+            }
+        }
+
+        private void WheelInput_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            TextBox tb = sender as TextBox;
+
+            if (e.Key == Key.Escape)
+            {
+                tb.Text = (tb == WheelTriggerKeyInput) ? preCaptureWheelGlobalText : preCaptureWheelLocalText;
+                CancelWheelCapture();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Back || e.Key == Key.Delete)
+            {
+                tb.Text = "";
+                if (tb == WheelTriggerKeyInput) preCaptureWheelGlobalText = "";
+                if (tb == WheelLocalTriggerKeyInput) preCaptureWheelLocalText = "";
+                CancelWheelCapture();
+                e.Handled = true;
+            }
+        }
+
+        private void CancelWheelCapture()
+        {
+            isCapturingWheelGlobal = false;
+            isCapturingWheelLocal = false;
+            currentCapturedWheelCombo = "";
+            currentCapturedWheelComboCount = 0;
             Keyboard.ClearFocus();
             SaveSettings();
         }
@@ -4944,6 +5214,8 @@ del ""%~f0""
         public string LocalTriggerKey { get; set; } = "Ctrl+Alt+F9";
         public string ControllerTriggerKey { get; set; } = "";
         public string ControllerLocalTriggerKey { get; set; } = "";
+        public string WheelTriggerKey { get; set; } = "";
+        public string WheelLocalTriggerKey { get; set; } = "";
         public List<string> ClipKeys { get; set; } = new List<string>();
 
         public double WindowLeft { get; set; } = -1;
