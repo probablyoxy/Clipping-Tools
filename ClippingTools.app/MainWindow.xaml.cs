@@ -3287,6 +3287,7 @@ start """" ""{targetExe}""
                                     if (usersJson.TryGetProperty(myId, out JsonElement myNameElem))
                                     {
                                         myGlobalDiscordName = myNameElem.GetString();
+                                        if (DiscordUsernameInput != null) DiscordUsernameInput.Text = myGlobalDiscordName;
                                     }
 
                                     foreach (var user in ApprovedUsers)
