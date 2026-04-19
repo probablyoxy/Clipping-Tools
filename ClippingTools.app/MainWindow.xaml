@@ -714,7 +714,7 @@
                     <StackPanel Margin="0,0,10,0">
                         <TextBlock Text="Toast Notifications" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
 
-                        <CheckBox x:Name="EnableClipNotifCheck" Content="Clip Notification" Foreground="White" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="EnableClipNotifCheck" HorizontalAlignment="Left" Content="Clip Notification" Foreground="White" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" Margin="0,0,0,10" Click="Setting_Changed"/>
                         <StackPanel x:Name="ClipNotifSettingsPanel" Visibility="Collapsed" Margin="20,0,0,20">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                 <TextBlock x:Name="ClipNotifMonitorLabel" Text="Monitor:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -738,7 +738,7 @@
 
                         <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
 
-                        <CheckBox x:Name="EnableConnectNotifCheck" Content="Connection Notification" Foreground="White" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="EnableConnectNotifCheck" HorizontalAlignment="Left" Content="Connection Notification" Foreground="White" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" Margin="0,0,0,10" Click="Setting_Changed"/>
                         <StackPanel x:Name="ConnectNotifSettingsPanel" Visibility="Collapsed" Margin="20,0,0,20">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                 <TextBlock x:Name="ConnectNotifMonitorLabel" Text="Monitor:" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>

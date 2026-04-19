@@ -328,9 +328,11 @@ namespace ClippingTools.app
             var screens = System.Windows.Forms.Screen.AllScreens;
             for (int i = 0; i < screens.Length; i++)
             {
-                string name = $"Monitor {i + 1}" + (screens[i].Primary ? " (Primary)" : "");
-                ClipNotifMonitorCombo.Items.Add(new ComboBoxItem { Content = name });
-                ConnectNotifMonitorCombo.Items.Add(new ComboBoxItem { Content = name });
+                var bounds = screens[i].Bounds;
+                string name = $"Display {i + 1} ({bounds.Height}p)" + (screens[i].Primary ? "⭐" : "");
+
+                ClipNotifMonitorCombo.Items.Add(new ComboBoxItem { Content = name, Tag = screens[i].DeviceName });
+                ConnectNotifMonitorCombo.Items.Add(new ComboBoxItem { Content = name, Tag = screens[i].DeviceName });
             }
 
             if (screens.Length <= 1)
@@ -642,15 +644,29 @@ namespace ClippingTools.app
                     EnableClipNotifCheck.IsChecked = settings.EnableClipNotif;
                     EnableConnectNotifCheck.IsChecked = settings.EnableConnectNotif;
 
-                    if (settings.ClipNotifMonitorIndex >= 0 && settings.ClipNotifMonitorIndex < ClipNotifMonitorCombo.Items.Count)
-                        ClipNotifMonitorCombo.SelectedIndex = settings.ClipNotifMonitorIndex;
-                    else if (ClipNotifMonitorCombo.Items.Count > 0)
-                        ClipNotifMonitorCombo.SelectedIndex = 0;
+                    bool clipMatched = false;
+                    for (int i = 0; i < ClipNotifMonitorCombo.Items.Count; i++)
+                    {
+                        if ((ClipNotifMonitorCombo.Items[i] as ComboBoxItem)?.Tag?.ToString() == settings.ClipNotifMonitorName)
+                        {
+                            ClipNotifMonitorCombo.SelectedIndex = i;
+                            clipMatched = true;
+                            break;
+                        }
+                    }
+                    if (!clipMatched && ClipNotifMonitorCombo.Items.Count > 0) ClipNotifMonitorCombo.SelectedIndex = 0;
 
-                    if (settings.ConnectNotifMonitorIndex >= 0 && settings.ConnectNotifMonitorIndex < ConnectNotifMonitorCombo.Items.Count)
-                        ConnectNotifMonitorCombo.SelectedIndex = settings.ConnectNotifMonitorIndex;
-                    else if (ConnectNotifMonitorCombo.Items.Count > 0)
-                        ConnectNotifMonitorCombo.SelectedIndex = 0;
+                    bool connectMatched = false;
+                    for (int i = 0; i < ConnectNotifMonitorCombo.Items.Count; i++)
+                    {
+                        if ((ConnectNotifMonitorCombo.Items[i] as ComboBoxItem)?.Tag?.ToString() == settings.ConnectNotifMonitorName)
+                        {
+                            ConnectNotifMonitorCombo.SelectedIndex = i;
+                            connectMatched = true;
+                            break;
+                        }
+                    }
+                    if (!connectMatched && ConnectNotifMonitorCombo.Items.Count > 0) ConnectNotifMonitorCombo.SelectedIndex = 0;
 
                     foreach (ComboBoxItem item in ClipNotifLocationCombo.Items)
                         if (item.Content.ToString() == settings.ClipNotifLocation) { ClipNotifLocationCombo.SelectedItem = item; break; }
@@ -794,6 +810,8 @@ namespace ClippingTools.app
                 ConnectNotifTimeLimit = double.TryParse(ConnectNotifTimeLimitInput.Text, out double cnlt) ? cnlt : 3,
                 ClipNotifMonitorIndex = ClipNotifMonitorCombo.SelectedIndex >= 0 ? ClipNotifMonitorCombo.SelectedIndex : 0,
                 ConnectNotifMonitorIndex = ConnectNotifMonitorCombo.SelectedIndex >= 0 ? ConnectNotifMonitorCombo.SelectedIndex : 0,
+                ClipNotifMonitorName = (ClipNotifMonitorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
+                ConnectNotifMonitorName = (ConnectNotifMonitorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
 
                 UseCustomServer = CustomServerCheck.IsChecked ?? false,
                 CustomServerUrl = CustomServerInput.Text,
@@ -1128,11 +1146,11 @@ start """" ""{targetExe}""
 
             if (isLoaded)
             {
-                if (sender == EnableClipNotifCheck && EnableClipNotifCheck.IsChecked == true)
+                if ((sender == EnableClipNotifCheck || sender == ClipNotifMonitorCombo || sender == ClipNotifLocationCombo || sender == ClipNotifFlipAccentCheck) && EnableClipNotifCheck.IsChecked == true)
                 {
                     ShowNotification("Notification Enabled", "Example Notification", "ExampleClip");
                 }
-                else if (sender == EnableConnectNotifCheck && EnableConnectNotifCheck.IsChecked == true)
+                else if ((sender == EnableConnectNotifCheck || sender == ConnectNotifMonitorCombo || sender == ConnectNotifLocationCombo || sender == ConnectNotifFlipAccentCheck) && EnableConnectNotifCheck.IsChecked == true)
                 {
                     ShowNotification("Notification Enabled", "Example Notification", "ExampleConnect");
                 }
@@ -1156,6 +1174,11 @@ start """" ""{targetExe}""
                 var newColor = Color.FromArgb(colorDialog.Color.A, colorDialog.Color.R, colorDialog.Color.G, colorDialog.Color.B);
                 ClipNotifColorBox.Background = new SolidColorBrush(newColor);
                 SaveSettings();
+
+                if (isLoaded && EnableClipNotifCheck.IsChecked == true)
+                {
+                    ShowNotification("Notification Enabled", "Example Notification", "ExampleClip");
+                }
             }
         }
         private void Setting_TextChanged(object sender, TextChangedEventArgs e) { SaveSettings(); }
@@ -2707,7 +2730,7 @@ start """" ""{targetExe}""
             public DateTime SpawnTime { get; set; }
             public double LifespanSeconds { get; set; }
             public string Location { get; set; }
-            public int MonitorIndex { get; set; }
+            public string MonitorName { get; set; }
             public bool IsAnimatingOut { get; set; }
             public bool IsVisible { get; set; }
             public double CurrentTargetTop { get; set; }
@@ -2736,7 +2759,7 @@ start """" ""{targetExe}""
 
                 bool enabled = false;
                 string location = "Bottom Right";
-                int monitorIndex = 0;
+                string monitorName = "";
                 string colorStr = "#5865F2";
                 bool flipAccent = false;
                 double timeLimit = 3.5;
@@ -2745,7 +2768,7 @@ start """" ""{targetExe}""
                 {
                     enabled = EnableClipNotifCheck.IsChecked == true;
                     location = (ClipNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right";
-                    monitorIndex = ClipNotifMonitorCombo.SelectedIndex >= 0 ? ClipNotifMonitorCombo.SelectedIndex : 0;
+                    monitorName = (ClipNotifMonitorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
                     if (ClipNotifColorBox.Background is SolidColorBrush scb) colorStr = scb.Color.ToString();
                     flipAccent = ClipNotifFlipAccentCheck.IsChecked == true;
                     double.TryParse(ClipNotifTimeLimitInput.Text, out timeLimit);
@@ -2754,7 +2777,7 @@ start """" ""{targetExe}""
                 {
                     enabled = EnableConnectNotifCheck.IsChecked == true;
                     location = (ConnectNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right";
-                    monitorIndex = ConnectNotifMonitorCombo.SelectedIndex >= 0 ? ConnectNotifMonitorCombo.SelectedIndex : 0;
+                    monitorName = (ConnectNotifMonitorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
                     if (type == "ExampleConnect")
                     {
                         if (ClipNotifColorBox.Background is SolidColorBrush scb) colorStr = scb.Color.ToString();
@@ -2855,26 +2878,26 @@ start """" ""{targetExe}""
                     SpawnTime = DateTime.Now,
                     LifespanSeconds = timeLimit > 0 ? timeLimit : 3,
                     Location = location,
-                    MonitorIndex = monitorIndex,
+                    MonitorName = monitorName,
                     IsAnimatingOut = false,
                     IsVisible = false
                 };
 
                 _activeNotifs.Add(newNotif);
-                ProcessNotifications(location, monitorIndex);
+                ProcessNotifications(location, monitorName);
             });
         }
 
-        private void ProcessNotifications(string location, int monitorIndex)
+        private void ProcessNotifications(string location, string monitorName)
         {
             Dispatcher.Invoke(() => {
                 var now = DateTime.Now;
-                var locNotifs = _activeNotifs.Where(n => n.Location == location && n.MonitorIndex == monitorIndex).ToList();
+                var locNotifs = _activeNotifs.Where(n => n.Location == location && n.MonitorName == monitorName).ToList();
                 bool isRight = location.Contains("Right");
                 bool isBottom = location.Contains("Bottom");
 
                 var screens = System.Windows.Forms.Screen.AllScreens;
-                var screen = (monitorIndex >= 0 && monitorIndex < screens.Length) ? screens[monitorIndex] : System.Windows.Forms.Screen.PrimaryScreen;
+                var screen = screens.FirstOrDefault(s => s.DeviceName == monitorName) ?? System.Windows.Forms.Screen.PrimaryScreen;
                 var bounds = screen.WorkingArea;
 
                 PresentationSource source = PresentationSource.FromVisual(Application.Current.MainWindow);
@@ -2906,7 +2929,7 @@ start """" ""{targetExe}""
                             outStoryboard.Completed += (s, e) => {
                                 notif.Window.Close();
                                 _activeNotifs.Remove(notif);
-                                ProcessNotifications(location, monitorIndex);
+                                ProcessNotifications(location, monitorName);
                             };
                             outStoryboard.Begin();
                         }
@@ -2917,7 +2940,7 @@ start """" ""{targetExe}""
                     }
                 }
 
-                var activeQueue = _activeNotifs.Where(n => n.Location == location && n.MonitorIndex == monitorIndex && !n.IsAnimatingOut).OrderBy(n => n.SpawnTime).ToList();
+                var activeQueue = _activeNotifs.Where(n => n.Location == location && n.MonitorName == monitorName && !n.IsAnimatingOut).OrderBy(n => n.SpawnTime).ToList();
 
                 int visibleCount = 0;
                 for (int i = 0; i < activeQueue.Count; i++)
@@ -2957,7 +2980,7 @@ start """" ""{targetExe}""
 
                             Task.Run(async () => {
                                 await Task.Delay(TimeSpan.FromSeconds(remaining));
-                                ProcessNotifications(location, monitorIndex);
+                                ProcessNotifications(location, monitorName);
                             });
                         }
                     }
@@ -5410,6 +5433,8 @@ del ""%~f0""
         public double ConnectNotifTimeLimit { get; set; } = 3;
         public int ClipNotifMonitorIndex { get; set; } = 0;
         public int ConnectNotifMonitorIndex { get; set; } = 0;
+        public string ClipNotifMonitorName { get; set; } = "";
+        public string ConnectNotifMonitorName { get; set; } = "";
 
         public bool ConnectPoolActivity { get; set; } = false;
         public bool ConnectVCActivity { get; set; } = false;
