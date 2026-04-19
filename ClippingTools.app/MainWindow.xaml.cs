@@ -180,6 +180,7 @@ namespace ClippingTools.app
         private List<DiscordItem> RawFetchedUsers = new List<DiscordItem>();
 
         public List<string> ClipKeysList { get; set; } = new List<string>();
+        public ObservableCollection<AppImageItem> AppImagesList { get; set; } = new ObservableCollection<AppImageItem>();
 
         private readonly string configFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
         private string configFilePath => System.IO.Path.Combine(configFolder, "settings.json");
@@ -189,6 +190,11 @@ namespace ClippingTools.app
         private string soundsFolder => System.IO.Path.Combine(configFolder, "sounds");
         private string systemsSoundsFolder => System.IO.Path.Combine(soundsFolder, "system");
         private string customSoundsFolder => System.IO.Path.Combine(soundsFolder, "custom");
+        private string imagesFolder => System.IO.Path.Combine(configFolder, "images");
+        private string customImagesFolder => System.IO.Path.Combine(imagesFolder, "custom");
+
+        private string currentClipImagePath = "";
+        private string currentConnectImagePath = "";
 
         private bool isLoaded = false;
         private DateTime lastClipTime = DateTime.MinValue;
@@ -453,6 +459,10 @@ namespace ClippingTools.app
 
             if (!Directory.Exists(soundsFolder)) Directory.CreateDirectory(soundsFolder);
             if (!Directory.Exists(systemsSoundsFolder)) Directory.CreateDirectory(systemsSoundsFolder);
+            if (!Directory.Exists(imagesFolder)) Directory.CreateDirectory(imagesFolder);
+            if (!Directory.Exists(customImagesFolder)) Directory.CreateDirectory(customImagesFolder);
+
+            string[] builtInImages = { "littlesmall.png", "littlegray.png" };
 
             string[] builtInSounds = { "simpleyviridian-clipped.wav", "simpleyviridian-clipped2.wav", "simpleyviridian-clippedteto.wav", "confusedindividual-clipped.mp3", "confusedindividual-clipped!.wav" };
             string[] builtInSystemSounds = { "confusedindividual-server connect.wav", "confusedindividual-server disconnect.wav", "simpleyviridian-connected.wav", "simpleyviridian-disconnected.wav", "simpleyviridian-connected2.wav", "simpleyviridian-disconnected2.wav" };
@@ -489,6 +499,27 @@ namespace ClippingTools.app
                     try
                     {
                         string resourceName = resourceNames.FirstOrDefault(r => r.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+                        if (resourceName != null)
+                        {
+                            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                            using (FileStream fileStream = new FileStream(dest, FileMode.Create, FileAccess.Write))
+                            {
+                                stream.CopyTo(fileStream);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            foreach (var img in builtInImages)
+            {
+                string dest = System.IO.Path.Combine(imagesFolder, img);
+                if (!File.Exists(dest))
+                {
+                    try
+                    {
+                        string resourceName = resourceNames.FirstOrDefault(r => r.EndsWith(img, StringComparison.OrdinalIgnoreCase));
                         if (resourceName != null)
                         {
                             using (Stream stream = assembly.GetManifestResourceStream(resourceName))
@@ -681,6 +712,10 @@ namespace ClippingTools.app
                     ClipNotifTimeLimitInput.Text = settings.ClipNotifTimeLimit.ToString();
                     ConnectNotifTimeLimitInput.Text = settings.ConnectNotifTimeLimit.ToString();
 
+                    string defaultImg = System.IO.Path.Combine(imagesFolder, "littlesmall.png");
+                    currentClipImagePath = string.IsNullOrEmpty(settings.AppImagePathClip) ? defaultImg : settings.AppImagePathClip;
+                    currentConnectImagePath = string.IsNullOrEmpty(settings.AppImagePathConnect) ? defaultImg : settings.AppImagePathConnect;
+
                     if (ClipNotifSettingsPanel != null) ClipNotifSettingsPanel.Visibility = settings.EnableClipNotif ? Visibility.Visible : Visibility.Collapsed;
                     if (ConnectNotifSettingsPanel != null) ConnectNotifSettingsPanel.Visibility = settings.EnableConnectNotif ? Visibility.Visible : Visibility.Collapsed;
 
@@ -812,6 +847,9 @@ namespace ClippingTools.app
                 ConnectNotifMonitorIndex = ConnectNotifMonitorCombo.SelectedIndex >= 0 ? ConnectNotifMonitorCombo.SelectedIndex : 0,
                 ClipNotifMonitorName = (ClipNotifMonitorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
                 ConnectNotifMonitorName = (ConnectNotifMonitorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
+
+                AppImagePathClip = currentClipImagePath,
+                AppImagePathConnect = currentConnectImagePath,
 
                 UseCustomServer = CustomServerCheck.IsChecked ?? false,
                 CustomServerUrl = CustomServerInput.Text,
@@ -2404,87 +2442,87 @@ start """" ""{targetExe}""
                 string currentButtons = string.Join("+", uniqueButtons);
 
                 if (anyConnected != wasConnected)
+                {
+                    Dispatcher.Invoke(() =>
                     {
-                        Dispatcher.Invoke(() =>
-                        {
-                            WheelTriggersPanel.Visibility = anyConnected ? Visibility.Visible : Visibility.Collapsed;
-                        });
-                        wasConnected = anyConnected;
-                    }
+                        WheelTriggersPanel.Visibility = anyConnected ? Visibility.Visible : Visibility.Collapsed;
+                    });
+                    wasConnected = anyConnected;
+                }
 
-                    if (anyConnected)
+                if (anyConnected)
+                {
+                    int currentButtonCount = string.IsNullOrEmpty(currentButtons) ? 0 : currentButtons.Split('+').Length;
+
+                    if (isCapturingWheelGlobal || isCapturingWheelLocal)
                     {
-                        int currentButtonCount = string.IsNullOrEmpty(currentButtons) ? 0 : currentButtons.Split('+').Length;
-
-                        if (isCapturingWheelGlobal || isCapturingWheelLocal)
+                        if (currentButtonCount > currentCapturedWheelComboCount)
                         {
-                            if (currentButtonCount > currentCapturedWheelComboCount)
-                            {
-                                currentCapturedWheelCombo = currentButtons;
-                                currentCapturedWheelComboCount = currentButtonCount;
+                            currentCapturedWheelCombo = currentButtons;
+                            currentCapturedWheelComboCount = currentButtonCount;
 
-                                Dispatcher.Invoke(() =>
-                                {
-                                    if (isCapturingWheelGlobal) WheelTriggerKeyInput.Text = currentCapturedWheelCombo;
-                                    else if (isCapturingWheelLocal) WheelLocalTriggerKeyInput.Text = currentCapturedWheelCombo;
-                                });
-                            }
-
-                            if (currentCapturedWheelComboCount > 0 && currentButtonCount == 0)
-                            {
-                                Dispatcher.Invoke(() =>
-                                {
-                                    if (isCapturingWheelGlobal)
-                                    {
-                                        WheelTriggerKeyInput.Text = currentCapturedWheelCombo;
-                                        isCapturingWheelGlobal = false;
-                                    }
-                                    else if (isCapturingWheelLocal)
-                                    {
-                                        WheelLocalTriggerKeyInput.Text = currentCapturedWheelCombo;
-                                        isCapturingWheelLocal = false;
-                                    }
-                                    currentCapturedWheelCombo = "";
-                                    currentCapturedWheelComboCount = 0;
-                                    Keyboard.ClearFocus();
-                                    SaveSettings();
-                                });
-                            }
-                        }
-                        else
-                        {
-                            string globalBind = "";
-                            string localBind = "";
                             Dispatcher.Invoke(() =>
                             {
-                                globalBind = WheelTriggerKeyInput.Text;
-                                localBind = WheelLocalTriggerKeyInput.Text;
+                                if (isCapturingWheelGlobal) WheelTriggerKeyInput.Text = currentCapturedWheelCombo;
+                                else if (isCapturingWheelLocal) WheelLocalTriggerKeyInput.Text = currentCapturedWheelCombo;
                             });
-
-                            bool isGlobalPressed = !string.IsNullOrEmpty(globalBind) && currentButtons == globalBind;
-                            bool isLocalPressed = !string.IsNullOrEmpty(localBind) && currentButtons == localBind;
-
-                            if (isGlobalPressed && !wasWheelTriggerPressed)
-                            {
-                                Dispatcher.Invoke(() => OnClipTriggered(null, null));
-                            }
-                            if (isLocalPressed && !wasWheelLocalTriggerPressed)
-                            {
-                                Dispatcher.Invoke(() => OnLocalClipTriggered(null, null));
-                            }
-
-                            wasWheelTriggerPressed = isGlobalPressed;
-                            wasWheelLocalTriggerPressed = isLocalPressed;
                         }
 
-                        await Task.Delay(20, token);
+                        if (currentCapturedWheelComboCount > 0 && currentButtonCount == 0)
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                if (isCapturingWheelGlobal)
+                                {
+                                    WheelTriggerKeyInput.Text = currentCapturedWheelCombo;
+                                    isCapturingWheelGlobal = false;
+                                }
+                                else if (isCapturingWheelLocal)
+                                {
+                                    WheelLocalTriggerKeyInput.Text = currentCapturedWheelCombo;
+                                    isCapturingWheelLocal = false;
+                                }
+                                currentCapturedWheelCombo = "";
+                                currentCapturedWheelComboCount = 0;
+                                Keyboard.ClearFocus();
+                                SaveSettings();
+                            });
+                        }
                     }
                     else
                     {
-                        await Task.Delay(2000, token);
+                        string globalBind = "";
+                        string localBind = "";
+                        Dispatcher.Invoke(() =>
+                        {
+                            globalBind = WheelTriggerKeyInput.Text;
+                            localBind = WheelLocalTriggerKeyInput.Text;
+                        });
+
+                        bool isGlobalPressed = !string.IsNullOrEmpty(globalBind) && currentButtons == globalBind;
+                        bool isLocalPressed = !string.IsNullOrEmpty(localBind) && currentButtons == localBind;
+
+                        if (isGlobalPressed && !wasWheelTriggerPressed)
+                        {
+                            Dispatcher.Invoke(() => OnClipTriggered(null, null));
+                        }
+                        if (isLocalPressed && !wasWheelLocalTriggerPressed)
+                        {
+                            Dispatcher.Invoke(() => OnLocalClipTriggered(null, null));
+                        }
+
+                        wasWheelTriggerPressed = isGlobalPressed;
+                        wasWheelLocalTriggerPressed = isLocalPressed;
                     }
+
+                    await Task.Delay(20, token);
+                }
+                else
+                {
+                    await Task.Delay(2000, token);
                 }
             }
+        }
 
         private string GetWheelButtonsString(JOYINFOEX state)
         {
@@ -2851,9 +2889,25 @@ start """" ""{targetExe}""
                 textPanel.Children.Add(topTb);
                 textPanel.Children.Add(bottomTb);
 
+                ImageSource finalIcon = _cachedAppIcon;
+                string targetPath = isClip ? currentClipImagePath : currentConnectImagePath;
+                if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
+                {
+                    try { finalIcon = LoadImage(targetPath); } catch { }
+                }
+
+                if (finalIcon == null)
+                {
+                    var icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath);
+                    if (icon != null)
+                    {
+                        finalIcon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                    }
+                }
+
                 Image iconImage = new Image
                 {
-                    Source = _cachedAppIcon,
+                    Source = finalIcon,
                     Width = 32,
                     Height = 32,
                     Margin = new Thickness(10),
@@ -5344,16 +5398,345 @@ del ""%~f0""
             forceExit = true;
             Application.Current.Shutdown();
         }
+    
+
+    private BitmapImage LoadImage(string path)
+        {
+            BitmapImage bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.UriSource = new Uri(path);
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bitmap;
+        }
+
+        private void ManageAppImageBtn_Click(object sender, RoutedEventArgs e)
+        {
+            AppImageListBox.ItemsSource = AppImagesList;
+            PopulateAppImagesList();
+            ManageImageOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void CloseManageImageBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ManageImageOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void RefreshImageSelections()
+        {
+            SolidColorBrush clipColor = ClipNotifColorBox.Background as SolidColorBrush ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5865F2"));
+            SolidColorBrush connectColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5865F2"));
+
+            foreach (var item in AppImagesList)
+            {
+                if (item.IsCustom && !string.IsNullOrEmpty(item.ImagePath) && !File.Exists(item.ImagePath))
+                    continue;
+
+                item.IsClipSelected = (item.ImagePath == currentClipImagePath);
+                item.IsConnectSelected = (item.ImagePath == currentConnectImagePath);
+                item.IsAllSelected = (item.IsClipSelected && item.IsConnectSelected);
+
+                if (item.IsClipSelected)
+                {
+                    item.HighlightBrush = clipColor;
+                    item.HighlightThickness = new Thickness(2);
+                }
+                else if (item.IsConnectSelected)
+                {
+                    item.HighlightBrush = connectColor;
+                    item.HighlightThickness = new Thickness(2);
+                }
+                else
+                {
+                    item.HighlightBrush = Brushes.Transparent;
+                    item.HighlightThickness = new Thickness(0);
+                }
+            }
+
+            SortAppImagesList();
+        }
+
+        private void SortAppImagesList()
+        {
+            var sortedList = AppImagesList.OrderBy(x =>
+            {
+                if (x.IsAddButtonVisibility == Visibility.Visible) return 0;
+                if (x.IsClipSelected) return 1;
+                if (x.IsConnectSelected) return 2;
+                return 3;
+            }).ThenBy(x => x.DisplayName ?? "").ToList();
+
+            AppImagesList.Clear();
+            foreach (var item in sortedList)
+            {
+                AppImagesList.Add(item);
+            }
+        }
+
+        private void PopulateAppImagesList()
+        {
+            AppImagesList.Clear();
+            AppImagesList.Add(new AppImageItem { IsAddButtonVisibility = Visibility.Visible, IsImageVisibility = Visibility.Collapsed, DeleteVisibility = Visibility.Collapsed });
+
+            List<AppImageItem> filesFound = new List<AppImageItem>();
+
+            if (Directory.Exists(imagesFolder))
+            {
+                foreach (var f in Directory.GetFiles(imagesFolder))
+                {
+                    filesFound.Add(new AppImageItem
+                    {
+                        ImagePath = f,
+                        DisplayName = System.IO.Path.GetFileName(f),
+                        IsCustom = false,
+                        CreationTime = File.GetCreationTime(f)
+                    });
+                }
+            }
+
+            if (Directory.Exists(customImagesFolder))
+            {
+                foreach (var f in Directory.GetFiles(customImagesFolder))
+                {
+                    filesFound.Add(new AppImageItem
+                    {
+                        ImagePath = f,
+                        DisplayName = System.IO.Path.GetFileName(f),
+                        IsCustom = true,
+                        CreationTime = File.GetCreationTime(f)
+                    });
+                }
+            }
+
+            foreach (var item in filesFound.OrderByDescending(x => x.CreationTime))
+            {
+                item.IsAddButtonVisibility = Visibility.Collapsed;
+                item.IsImageVisibility = Visibility.Visible;
+                item.DeleteVisibility = item.IsCustom ? Visibility.Visible : Visibility.Collapsed;
+                try { item.ImageSource = LoadImage(item.ImagePath); } catch { continue; }
+                AppImagesList.Add(item);
+            }
+            RefreshImageSelections();
+        }
+
+        private void AppImageItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            var border = sender as Border;
+            var item = border?.Tag as AppImageItem;
+            if (item != null)
+            {
+                if (item.IsAddButtonVisibility == Visibility.Visible)
+                {
+                    OpenFileDialog ofd = new OpenFileDialog();
+                    ofd.Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.ico";
+                    if (ofd.ShowDialog() == true)
+                    {
+                        string fileName = System.IO.Path.GetFileNameWithoutExtension(ofd.FileName) + ".png";
+                        string dest = System.IO.Path.Combine(customImagesFolder, fileName);
+
+                        BitmapImage src = new BitmapImage();
+                        src.BeginInit();
+                        src.UriSource = new Uri(ofd.FileName);
+                        src.DecodePixelWidth = 32;
+                        src.DecodePixelHeight = 32;
+                        src.CacheOption = BitmapCacheOption.OnLoad;
+                        src.EndInit();
+
+                        BitmapEncoder encoder = new PngBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(src));
+                        using (FileStream fs = new FileStream(dest, FileMode.Create))
+                        {
+                            encoder.Save(fs);
+                        }
+
+                        SetImageForAll(dest);
+                        PopulateAppImagesList();
+                    }
+                }
+                else
+                {
+                    SetImageForAll(item.ImagePath);
+                }
+            }
+        }
+
+        private void SetImageForAll(string path)
+        {
+            currentClipImagePath = path;
+            currentConnectImagePath = path;
+            SaveSettings();
+            RefreshImageSelections();
+            ShowNotification("Image Selected", "Applied to both Notifications", "ExampleClip");
+        }
+
+        private void ContextMenu_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is ContextMenu cm)
+            {
+                cm.IsOpen = false;
+            }
+        }
+
+        private AppImageItem GetContextItem(object sender)
+        {
+            if (sender is MenuItem mi && mi.Parent is ContextMenu cm && cm.PlacementTarget is Border border)
+            {
+                return border.Tag as AppImageItem;
+            }
+            return null;
+        }
+
+        private void ContextSetAll_Click(object sender, RoutedEventArgs e)
+        {
+            var item = GetContextItem(sender);
+            if (item != null)
+            {
+                if (item.DisplayName.ToLower() == "littlesmall.png")
+                {
+                    SetImageForAll(item.ImagePath);
+                }
+                else
+                {
+                    if (item.IsAllSelected) SetImageForAll(System.IO.Path.Combine(imagesFolder, "littlesmall.png"));
+                    else SetImageForAll(item.ImagePath);
+                }
+            }
+        }
+
+        private void ContextSetClip_Click(object sender, RoutedEventArgs e)
+        {
+            var item = GetContextItem(sender);
+            if (item != null)
+            {
+                if (item.DisplayName.ToLower() == "littlesmall.png")
+                {
+                    currentClipImagePath = item.ImagePath;
+                }
+                else
+                {
+                    currentClipImagePath = currentClipImagePath == item.ImagePath ? System.IO.Path.Combine(imagesFolder, "littlesmall.png") : item.ImagePath;
+                }
+                SaveSettings();
+                RefreshImageSelections();
+                ShowNotification("Image Selected", "Applied to Clip Notifications", "ExampleClip");
+            }
+        }
+
+        private void ContextSetConnect_Click(object sender, RoutedEventArgs e)
+        {
+            var item = GetContextItem(sender);
+            if (item != null)
+            {
+                if (item.DisplayName.ToLower() == "littlesmall.png")
+                {
+                    currentConnectImagePath = item.ImagePath;
+                }
+                else
+                {
+                    currentConnectImagePath = currentConnectImagePath == item.ImagePath ? System.IO.Path.Combine(imagesFolder, "littlesmall.png") : item.ImagePath;
+                }
+                SaveSettings();
+                RefreshImageSelections();
+                ShowNotification("Image Selected", "Applied to Connection Notifications", "ExampleConnect");
+            }
+        }
+
+        private async void ContextDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var item = GetContextItem(sender);
+            if (item != null && item.IsCustom)
+            {
+                bool result = await ShowCustomDialog("Confirm Delete", $"Are you sure you want to delete {item.DisplayName}?");
+                if (result)
+                {
+                    if (File.Exists(item.ImagePath))
+                    {
+                        try { File.Delete(item.ImagePath); } catch { }
+                    }
+
+                    bool changed = false;
+                    string defaultImage = System.IO.Path.Combine(imagesFolder, "littlesmall.png");
+
+                    if (currentClipImagePath == item.ImagePath)
+                    {
+                        currentClipImagePath = defaultImage;
+                        changed = true;
+                    }
+                    if (currentConnectImagePath == item.ImagePath)
+                    {
+                        currentConnectImagePath = defaultImage;
+                        changed = true;
+                    }
+
+                    if (changed)
+                    {
+                        SaveSettings();
+                    }
+
+                    PopulateAppImagesList();
+                }
+            }
+        }
+    }
+
+    public class AppImageItem : INotifyPropertyChanged
+    {
+        public string ImagePath { get; set; }
+        public string DisplayName { get; set; }
+        public ImageSource ImageSource { get; set; }
+        public bool IsCustom { get; set; }
+        public DateTime CreationTime { get; set; }
+        public Visibility DeleteVisibility { get; set; }
+        public Visibility IsAddButtonVisibility { get; set; }
+        public Visibility IsImageVisibility { get; set; }
+
+        private bool _isAllSelected;
+        public bool IsAllSelected
+        {
+            get => _isAllSelected;
+            set { _isAllSelected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsAllSelected")); }
+        }
+
+        private bool _isClipSelected;
+        public bool IsClipSelected
+        {
+            get => _isClipSelected;
+            set { _isClipSelected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsClipSelected")); }
+        }
+
+        private bool _isConnectSelected;
+        public bool IsConnectSelected
+        {
+            get => _isConnectSelected;
+            set { _isConnectSelected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsConnectSelected")); }
+        }
+
+        private Brush _highlightBrush;
+        public Brush HighlightBrush
+        {
+            get => _highlightBrush;
+            set { _highlightBrush = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("HighlightBrush")); }
+        }
+
+        private Thickness _highlightThickness;
+        public Thickness HighlightThickness
+        {
+            get => _highlightThickness;
+            set { _highlightThickness = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("HighlightThickness")); }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
     }
 
     public class TotalClipsStat
-    {
-        public int Sent { get; set; } = 0;
-        public int Received { get; set; } = 0;
-    }
+{
+    public int Sent { get; set; } = 0;
+    public int Received { get; set; } = 0;
+}
 
-    public class UserStatCount
-    {
+public class UserStatCount
+{
         public string Id { get; set; } = "";
         public string Name { get; set; } = "";
         public int Count { get; set; } = 0;
@@ -5435,6 +5818,9 @@ del ""%~f0""
         public int ConnectNotifMonitorIndex { get; set; } = 0;
         public string ClipNotifMonitorName { get; set; } = "";
         public string ConnectNotifMonitorName { get; set; } = "";
+
+        public string AppImagePathClip { get; set; } = "";
+        public string AppImagePathConnect { get; set; } = "";
 
         public bool ConnectPoolActivity { get; set; } = false;
         public bool ConnectVCActivity { get; set; } = false;

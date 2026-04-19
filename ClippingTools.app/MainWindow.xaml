@@ -289,11 +289,11 @@
                         </StackPanel>
 
                         <StackPanel x:Name="WheelTriggersPanel" Visibility="Collapsed">
-                            <TextBlock Text="Global Steering Wheel Trigger Keybind:" ToolTip="Steering wheel keybind used to create a synced clip" Foreground="White" Margin="0,0,0,5"/>
-                            <TextBox x:Name="WheelTriggerKeyInput" ToolTip="Steering wheel keybind used to create a synced clip" IsReadOnly="True" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="WheelInput_PreviewMouseDown" LostFocus="WheelInput_LostFocus" PreviewKeyDown="WheelInput_PreviewKeyDown" Cursor="Hand"/>
+                            <TextBlock Text="Global Steering Wheel Trigger Keybind:" ToolTip="Steering Wheel keybind used to create a synced clip" Foreground="White" Margin="0,0,0,5"/>
+                            <TextBox x:Name="WheelTriggerKeyInput" ToolTip="Steering Wheel keybind used to create a synced clip" IsReadOnly="True" Height="30" Margin="0,0,0,15" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="WheelInput_PreviewMouseDown" LostFocus="WheelInput_LostFocus" PreviewKeyDown="WheelInput_PreviewKeyDown" Cursor="Hand"/>
 
-                            <TextBlock Text="Local Steering Wheel Trigger Keybind:" ToolTip="Steering wheel keybind used to make a local only clip" Foreground="White" Margin="0,0,0,5"/>
-                            <TextBox x:Name="WheelLocalTriggerKeyInput" ToolTip="Steering wheel keybind used to make a local only clip" IsReadOnly="True" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="WheelInput_PreviewMouseDown" LostFocus="WheelInput_LostFocus" PreviewKeyDown="WheelInput_PreviewKeyDown" Cursor="Hand"/>
+                            <TextBlock Text="Local Steering Wheel Trigger Keybind:" ToolTip="Steering Wheel keybind used to make a local only clip" Foreground="White" Margin="0,0,0,5"/>
+                            <TextBox x:Name="WheelLocalTriggerKeyInput" ToolTip="Steering Wheel keybind used to make a local only clip" IsReadOnly="True" Height="30" Margin="0,0,0,20" Background="#202225" Foreground="White" BorderBrush="#202225" VerticalContentAlignment="Center" Padding="5,0" PreviewMouseDown="WheelInput_PreviewMouseDown" LostFocus="WheelInput_LostFocus" PreviewKeyDown="WheelInput_PreviewKeyDown" Cursor="Hand"/>
                         </StackPanel>
 
                         <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
@@ -330,8 +330,8 @@
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                                 <Button x:Name="ResetSettingsBtn" ToolTip="Resets all settings to their default values" Content="Reset Settings" Background="#4f545c" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Margin="0,0,10,0" Click="ResetSettingsBtn_Click"/>
-                                <Button x:Name="ResetUuidBtn" ToolTip="Resets the app's unique code, allowing you to reverify with the server and invalidate all old sessions" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Margin="0,0,10,0" Click="ResetUuidBtn_Click"/>
-                                <Button x:Name="UninstallAppBtn" Content="Uninstall" Background="Firebrick" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Click="UninstallAppBtn_Click"/>
+                                <Button x:Name="ResetUuidBtn" ToolTip="Resets the app's unique code, forcing you to reverify with the server" Content="Reset UUID" Background="IndianRed" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Margin="0,0,10,0" Click="ResetUuidBtn_Click"/>
+                                <Button x:Name="UninstallAppBtn" ToolTip="Removes Clipping Tools and, optionally, all data" Content="Uninstall" Background="Firebrick" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="105" Height="30" Click="UninstallAppBtn_Click"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
@@ -751,12 +751,16 @@
                                     <ComboBoxItem Content="Bottom Right" IsSelected="True"/>
                                 </ComboBox>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
                                 <TextBlock Text="Time Limit:" ToolTip="Time in seconds that Toast Notifications last on your screen" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <TextBox x:Name="ConnectNotifTimeLimitInput" ToolTip="Time in seconds that Toast Notifications last on your screen" Width="50" Text="3" TextChanged="Setting_Changed" Background="#202225" Foreground="White" BorderBrush="#202225"/>
                                 <CheckBox x:Name="ConnectNotifFlipAccentCheck" Content="Flip Accent" ToolTip="Makes the accent line show towards the inside of the screen, rather than the outside" Foreground="#b9bbbe" VerticalAlignment="Center" Margin="15,0,10,0" Click="Setting_Changed"/>
                             </StackPanel>
                         </StackPanel>
+
+                        <Rectangle Height="1" Fill="#202225" Margin="0,10,0,20"/>
+                        <TextBlock Text="Notification Icons" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Button x:Name="ManageAppImageBtn" Content="Manage Notification Icons" Width="150" Height="30" HorizontalAlignment="Left" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,0,0,20" Click="ManageAppImageBtn_Click"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -1116,7 +1120,7 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="GenericMessageOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#99000000" Panel.ZIndex="120">
+        <Grid x:Name="GenericMessageOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#99000000" Panel.ZIndex="150">
             <Border Background="#36393f" Width="400" MinHeight="150" CornerRadius="8" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel>
                     <TextBlock x:Name="GenericMessageTitle" Text="Title" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
@@ -1145,6 +1149,52 @@
                         <Button x:Name="UninstallConfirmBtn" Content="Confirm" Width="80" Height="30" Background="#f04747" Foreground="White" BorderThickness="0" Click="UninstallConfirmBtn_Click"/>
                     </StackPanel>
                 </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ManageImageOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#99000000" Panel.ZIndex="140">
+            <Border Background="#36393f" Width="540" Height="450" CornerRadius="8" Padding="20">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Manage App Images" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+                    <ListBox x:Name="AppImageListBox" Grid.Row="1" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="100" Height="120" Background="#202225" CornerRadius="4" Margin="5" Cursor="Hand" Tag="{Binding}" MouseLeftButtonUp="AppImageItem_MouseLeftButtonUp" BorderBrush="{Binding HighlightBrush}" BorderThickness="{Binding HighlightThickness}">
+                                    <Border.ContextMenu>
+                                        <ContextMenu MouseLeave="ContextMenu_MouseLeave">
+                                            <MenuItem Header="Set for All" IsCheckable="True" IsChecked="{Binding IsAllSelected, Mode=OneWay}" Click="ContextSetAll_Click"/>
+                                            <MenuItem Header="Set for Clip Notification" IsCheckable="True" IsChecked="{Binding IsClipSelected, Mode=OneWay}" Click="ContextSetClip_Click"/>
+                                            <MenuItem Header="Set for Connection Notification" IsCheckable="True" IsChecked="{Binding IsConnectSelected, Mode=OneWay}" Click="ContextSetConnect_Click"/>
+                                            <Separator Visibility="{Binding DeleteVisibility}"/>
+                                            <MenuItem Header="Delete Custom Image" Foreground="IndianRed" Visibility="{Binding DeleteVisibility}" Click="ContextDelete_Click"/>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Visibility="{Binding IsAddButtonVisibility}">
+                                            <TextBlock Text="+" FontSize="36" Foreground="#b9bbbe" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Add Image" Foreground="#b9bbbe" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel VerticalAlignment="Center" Visibility="{Binding IsImageVisibility}" Margin="5">
+                                            <Image Source="{Binding ImageSource}" Width="64" Height="64" Margin="0,0,0,5" Stretch="Uniform"/>
+                                            <TextBlock Text="{Binding DisplayName}" Foreground="White" FontSize="10" TextAlignment="Center" TextWrapping="Wrap" MaxHeight="30" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <Button Grid.Row="2" Content="Close" Width="80" Height="30" HorizontalAlignment="Right" Background="#4f545c" Foreground="White" BorderThickness="0" Margin="0,15,0,0" Click="CloseManageImageBtn_Click"/>
+                </Grid>
             </Border>
         </Grid>
 

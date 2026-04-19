@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <None Remove="clip_renamer\ClipRenamer.exe" />
+    <None Remove="images\littlegray.png" />
+    <None Remove="images\littlesmall.png" />
     <None Remove="sosmall.ico" />
     <None Remove="sounds\clippedteto.wav" />
     <None Remove="sounds\confusedindividual-clipped!.wav" />
@@ -45,6 +47,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="clip_renamer\ClipRenamer.exe" />
+    <EmbeddedResource Include="images\littlegray.png" />
+    <EmbeddedResource Include="images\littlesmall.png" />
     <EmbeddedResource Include="sounds\confusedindividual-clipped!.wav" />
     <EmbeddedResource Include="sounds\confusedindividual-clipped.mp3" />
     <EmbeddedResource Include="sounds\simpleyviridian-clipped.wav" />
