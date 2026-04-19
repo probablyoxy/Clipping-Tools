@@ -2,7 +2,7 @@
 
 **Clipping Tools** is a lightweight app that lets you sync your game capture software with all of your friends. When one person clips, everyone will.
 
-By linking with my Discord bot, [**Clipping Tools#8377**](https://oxy.pizza/clippingtools/invite), the app watches your active voice channels to see who you are talking with. When you hit your clip button and send the signal, it instantly distributes it to everyone connected in your VC, triggering their software to record at the exact same time. Now you can capture everyone's perspective of the same moment, no matter what!
+By linking with the Discord bot, [**Clipping Tools#8377**](https://oxy.pizza/clippingtools/invite), the app watches your active voice channels to see who you are talking with. When you hit your clip button and send the signal, it instantly distributes it to everyone connected in your VC, triggering their software to record at the exact same time. Now you can capture everyone's perspective of the same moment, no matter what!
 *Authorize Bot for DM:* You can authorize the bot to DM you [**here**](https://oxy.pizza/clippingtools/authorize).
 
 ## Getting Started
@@ -14,7 +14,7 @@ Follow this basic setup to get connected:
 ### 1. Authenticate
 * Go to the **Discord** tab and press **Sign In w/ Discord**. 
 * Follow the steps in the new browser tab that opens. 
-* When you first connect to the network, the bot will DM you to verify your Discord account and link it to the backend. Make sure it can message you or you will not be able to verify your account. *(This is a strict security feature to prevent people from pretending to be you and sending false clip commands).*
+* When you first connect to the network, the bot will DM you to verify your app and link it to the backend. Make sure it can message you or you will not be able to verify your app belongs to your account.
 
 ### 2. Configure Keybinds
 * Change your **Software Clip Keybind** to the actual keybind used for your clipping software (the buttons you usually press to make a clip in OBS, Medal, Shadowplay, etc.).
