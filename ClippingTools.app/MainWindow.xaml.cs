@@ -4700,7 +4700,7 @@ objShell.Run Chr(34) & ""{detectedObsPath}"" & Chr(34) & "" --startreplaybuffer 
                 using (HttpClient client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Add("User-Agent", "ClipSync-Updater");
-                    string url = "https://api.github.com/repos/probablyoxy/Clipping-Tools/releases/latest";
+                    string url = "https://api.github.com/repos/probablyoxy/Clipping-Tools/releases";
 
                     var response = await client.GetAsync(url);
                     if (response.IsSuccessStatusCode)
@@ -4708,48 +4708,79 @@ objShell.Run Chr(34) & ""{detectedObsPath}"" & Chr(34) & "" --startreplaybuffer 
                         var json = await response.Content.ReadAsStringAsync();
                         using (JsonDocument doc = JsonDocument.Parse(json))
                         {
-                            string latestVersion = doc.RootElement.GetProperty("tag_name").GetString();
-
-                            string releaseNotes = doc.RootElement.TryGetProperty("body", out JsonElement bodyElement)
-                                ? bodyElement.GetString() : "No release notes provided.";
-
-                            if (latestVersion != AppVersion)
+                            if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
                             {
-                                downloadUrlForUpdate = doc.RootElement.GetProperty("assets")[0].GetProperty("browser_download_url").GetString();
+                                var latestRelease = doc.RootElement[0];
+                                string latestVersion = latestRelease.GetProperty("tag_name").GetString();
 
-                                if (isSilentStartup)
+                                Version currentVer = GetVersion(AppVersion);
+                                Version latestVer = GetVersion(latestVersion);
+
+                                StringBuilder accumulatedNotes = new StringBuilder();
+
+                                if (latestVer > currentVer)
                                 {
-                                    if (AutoUpdateCheck.IsChecked == true)
+                                    foreach (var release in doc.RootElement.EnumerateArray())
                                     {
-                                        PerformUpdateBtn_Click(null, null);
+                                        string tag = release.GetProperty("tag_name").GetString();
+                                        Version releaseVer = GetVersion(tag);
+
+                                        if (releaseVer > currentVer)
+                                        {
+                                            string title = release.TryGetProperty("name", out JsonElement nameElement) && !string.IsNullOrEmpty(nameElement.GetString()) ? nameElement.GetString() : tag;
+                                            string body = release.TryGetProperty("body", out JsonElement bodyElement) ? bodyElement.GetString() : "No release notes provided.";
+
+                                            if (accumulatedNotes.Length > 0) accumulatedNotes.AppendLine("\n\n");
+                                            accumulatedNotes.AppendLine("─────────────────");
+                                            accumulatedNotes.AppendLine(title);
+                                            accumulatedNotes.AppendLine("─────────────────");
+                                            accumulatedNotes.Append(body);
+                                        }
+                                    }
+                                }
+
+                                string releaseNotes = accumulatedNotes.Length > 0
+                                    ? accumulatedNotes.ToString()
+                                    : (latestRelease.TryGetProperty("body", out JsonElement singleBody) ? singleBody.GetString() : "No release notes provided.");
+
+                                if (latestVersion != AppVersion)
+                                {
+                                    downloadUrlForUpdate = latestRelease.GetProperty("assets")[0].GetProperty("browser_download_url").GetString();
+
+                                    if (isSilentStartup)
+                                    {
+                                        if (AutoUpdateCheck.IsChecked == true)
+                                        {
+                                            PerformUpdateBtn_Click(null, null);
+                                        }
+                                        else
+                                        {
+                                            NavUpdateBtn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ff69b4"));
+                                            NavUpdateBtn.Content = "Update Available!!";
+                                            NavUpdateBtn.Foreground = Brushes.White;
+                                        }
                                     }
                                     else
                                     {
-                                        NavUpdateBtn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ff69b4"));
-                                        NavUpdateBtn.Content = "Update Available!!";
-                                        NavUpdateBtn.Foreground = Brushes.White;
+                                        LatestVersionText.Text = latestVersion;
+                                        UpdateStatusText.Text = "A new update is available!";
+                                        UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581"));
+                                        PerformUpdateBtn.Visibility = Visibility.Visible;
+
+                                        ReleaseNotesText.Text = releaseNotes;
+                                        ReleaseNotesTitle.Visibility = Visibility.Visible;
+                                        ReleaseNotesText.Visibility = Visibility.Visible;
                                     }
                                 }
-                                else
+                                else if (!isSilentStartup)
                                 {
                                     LatestVersionText.Text = latestVersion;
-                                    UpdateStatusText.Text = "A new update is available!";
-                                    UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43b581"));
-                                    PerformUpdateBtn.Visibility = Visibility.Visible;
+                                    UpdateStatusText.Text = "You are on the latest version.";
 
                                     ReleaseNotesText.Text = releaseNotes;
                                     ReleaseNotesTitle.Visibility = Visibility.Visible;
                                     ReleaseNotesText.Visibility = Visibility.Visible;
                                 }
-                            }
-                            else if (!isSilentStartup)
-                            {
-                                LatestVersionText.Text = latestVersion;
-                                UpdateStatusText.Text = "You are on the latest version.";
-
-                                ReleaseNotesText.Text = releaseNotes;
-                                ReleaseNotesTitle.Visibility = Visibility.Visible;
-                                ReleaseNotesText.Visibility = Visibility.Visible;
                             }
                         }
                     }
