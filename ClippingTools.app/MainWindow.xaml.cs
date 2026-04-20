@@ -1169,6 +1169,8 @@ start """" ""{targetExe}""
                     AutoStartObsCheck.IsChecked = false;
                     return;
                 }
+
+                _ = EnforceObsStartOnLaunch();
             }
 
             if (RenamerOptionsPanel != null)
