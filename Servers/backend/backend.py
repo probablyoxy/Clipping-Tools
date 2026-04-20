@@ -406,6 +406,10 @@ async def handle_client(websocket):
                     unverified_connections[user_id][app_uuid] = {"ws": websocket, "approved_users": approved_users, "version": app_version}
                     print(f"[Desktop] User {user_id} connected with unverified UUID {app_uuid} ({app_version}). Requesting bot link.")
                     
+                    try:
+                        asyncio.create_task(websocket.send(json.dumps({"action": "awaiting_approval"})))
+                    except: pass
+
                     pref_ws = None
                     other_ws = []
                     for b_ws, b_id in active_bots.items():

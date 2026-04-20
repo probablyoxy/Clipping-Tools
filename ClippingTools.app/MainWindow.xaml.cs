@@ -3318,6 +3318,7 @@ start """" ""{targetExe}""
                             {
                                 int count = doc.RootElement.GetProperty("count").GetInt32();
                                 Dispatcher.Invoke(() => {
+                                    ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                                     if (count > 1)
                                     {
                                         ServerStatusText.Text = $"Connected in {count} locations at once";
@@ -3336,6 +3337,14 @@ start """" ""{targetExe}""
                                     StopListening();
                                     await ShowCustomDialog("Linking Locked", "App linking is currently locked for your Discord account.\n\nPlease DM the bot with the command '/unlock' to allow new apps to connect, then try again.");
                                     WriteLog("Connection blocked: App linking is locked by user.");
+                                });
+                            }
+                            else if (action == "awaiting_approval")
+                            {
+                                Dispatcher.InvokeAsync(async () => {
+                                    ServerStatusText.Text = "Waiting for app link on Discord...";
+                                    ServerStatusDot.Fill = System.Windows.Media.Brushes.Orange;
+                                    await ShowCustomDialog("Awaiting Approval", "Please check your Discord DMs to verify and link this app.");
                                 });
                             }
                             else if (action == "rate_limited")
