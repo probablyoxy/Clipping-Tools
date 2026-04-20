@@ -1554,7 +1554,7 @@ start """" ""{targetExe}""
                 }
             }
 
-            if (availableServers.Count > 1)
+            if (availableServers.Count > 0)
             {
                 if (!(this.Content is Grid rootGrid)) return;
 
@@ -1638,11 +1638,7 @@ start """" ""{targetExe}""
             }
             else
             {
-                bool isCustom = CustomServerCheck.IsChecked == true && !string.IsNullOrWhiteSpace(CustomServerInput.Text);
-                string host = "unknown_host";
-                if (isCustom && Uri.TryCreate(CustomServerInput.Text.Trim(), UriKind.Absolute, out Uri uri)) host = uri.Host;
-                string targetFolder = isCustom ? System.IO.Path.Combine(customTokensFolder, host) : appTokensFolder;
-                await PerformUuidReset(targetFolder, "the network");
+                await ShowCustomDialog("No Saved UUIDs", "There are currently no saved server UUIDs to reset.");
             }
         }
 
@@ -3120,9 +3116,18 @@ start """" ""{targetExe}""
                 string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
                 string appIdPath = System.IO.Path.Combine(targetFolder, "app_id.json");
 
-                activeAppUuid = appUuid;
                 if (File.Exists(tokenPath)) tokenId = File.ReadAllText(tokenPath).Trim('"', ' ', '\n', '\r');
-                if (File.Exists(appIdPath)) activeAppUuid = File.ReadAllText(appIdPath).Trim('"', ' ', '\n', '\r');
+
+                if (File.Exists(appIdPath))
+                {
+                    activeAppUuid = File.ReadAllText(appIdPath).Trim('"', ' ', '\n', '\r');
+                }
+                else
+                {
+                    activeAppUuid = Guid.NewGuid().ToString();
+                    File.WriteAllText(appIdPath, $"\"{activeAppUuid}\"");
+                    if (!isCustom) appUuid = activeAppUuid;
+                }
 
                 string currentDiscordId = DiscordIdInput.Text;
                 if (string.IsNullOrWhiteSpace(currentDiscordId) || string.IsNullOrWhiteSpace(tokenId))
@@ -3731,9 +3736,18 @@ start """" ""{targetExe}""
                     string tokenPath = System.IO.Path.Combine(targetFolder, ".token_id.json");
                     string appIdPath = System.IO.Path.Combine(targetFolder, "app_id.json");
 
-                    activeAppUuid = appUuid;
                     if (File.Exists(tokenPath)) tokenId = File.ReadAllText(tokenPath).Trim('"', ' ', '\n', '\r');
-                    if (File.Exists(appIdPath)) activeAppUuid = File.ReadAllText(appIdPath).Trim('"', ' ', '\n', '\r');
+
+                    if (File.Exists(appIdPath))
+                    {
+                        activeAppUuid = File.ReadAllText(appIdPath).Trim('"', ' ', '\n', '\r');
+                    }
+                    else
+                    {
+                        activeAppUuid = Guid.NewGuid().ToString();
+                        File.WriteAllText(appIdPath, $"\"{activeAppUuid}\"");
+                        if (!isCustom) appUuid = activeAppUuid;
+                    }
 
                     string currentDiscordId = DiscordIdInput.Text;
                     if (string.IsNullOrWhiteSpace(currentDiscordId) || string.IsNullOrWhiteSpace(tokenId))
