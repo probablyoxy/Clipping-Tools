@@ -22,6 +22,15 @@ if not os.path.exists(USERS_DIR):
 verified_uuids = {}
 linking_locks = {}
 
+stats_lock = asyncio.Lock()
+user_data_locks = {}
+
+def get_user_lock(user_id):
+    uid_str = str(user_id)
+    if uid_str not in user_data_locks:
+        user_data_locks[uid_str] = asyncio.Lock()
+    return user_data_locks[uid_str]
+
 def load_all_users():
     for user_id in os.listdir(USERS_DIR):
         user_dir = os.path.join(USERS_DIR, user_id)
@@ -40,22 +49,23 @@ def load_all_users():
 load_all_users()
 
 async def save_user_data(user_id):
-    def _write():
-        uid_str = str(user_id)
-        user_dir = os.path.join(USERS_DIR, uid_str)
-        tokens_dir = os.path.join(user_dir, ".tokens")
-        if not os.path.exists(tokens_dir):
-            os.makedirs(tokens_dir)
-            
-        with open(os.path.join(user_dir, "user.json"), "w") as f:
-            json.dump({
-                "discord_id": uid_str,
-                "linking_locked": linking_locks.get(uid_str, False)
-            }, f)
-            
-        with open(os.path.join(tokens_dir, "apps.json"), "w") as f:
-            json.dump(verified_uuids.get(uid_str, []), f)
-    await asyncio.to_thread(_write)
+    async with get_user_lock(user_id):
+        def _write():
+            uid_str = str(user_id)
+            user_dir = os.path.join(USERS_DIR, uid_str)
+            tokens_dir = os.path.join(user_dir, ".tokens")
+            if not os.path.exists(tokens_dir):
+                os.makedirs(tokens_dir)
+                
+            with open(os.path.join(user_dir, "user.json"), "w") as f:
+                json.dump({
+                    "discord_id": uid_str,
+                    "linking_locked": linking_locks.get(uid_str, False)
+                }, f)
+                
+            with open(os.path.join(tokens_dir, "apps.json"), "w") as f:
+                json.dump(verified_uuids.get(uid_str, []), f)
+        await asyncio.to_thread(_write)
 
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 config = {}
@@ -81,10 +91,11 @@ else:
     server_stats = {"clips_synced": 0, "clips_taken": 0}
 
 async def save_stats():
-    def _write():
-        with open(STATS_FILE, "w") as f:
-            json.dump(server_stats, f)
-    await asyncio.to_thread(_write)
+    async with stats_lock:
+        def _write():
+            with open(STATS_FILE, "w") as f:
+                json.dump(server_stats, f)
+        await asyncio.to_thread(_write)
 
 active_connections = {}
 unverified_connections = {}
@@ -119,18 +130,19 @@ def load_server_tokens():
 load_server_tokens()
 
 async def save_server_token(user_id, token):
-    def _write():
-        uid_str = str(user_id)
-        user_server_tokens[uid_str] = token
-        
-        tokens_dir = os.path.join(USERS_DIR, uid_str, ".tokens")
-        if not os.path.exists(tokens_dir):
-            os.makedirs(tokens_dir)
+    async with get_user_lock(user_id):
+        def _write():
+            uid_str = str(user_id)
+            user_server_tokens[uid_str] = token
             
-        token_path = os.path.join(tokens_dir, ".token.json")
-        with open(token_path, "w") as f:
-            json.dump(token, f)
-    await asyncio.to_thread(_write)
+            tokens_dir = os.path.join(USERS_DIR, uid_str, ".tokens")
+            if not os.path.exists(tokens_dir):
+                os.makedirs(tokens_dir)
+                
+            token_path = os.path.join(tokens_dir, ".token.json")
+            with open(token_path, "w") as f:
+                json.dump(token, f)
+        await asyncio.to_thread(_write)
 
 async def assign_guilds_to_bots():
     guild_candidates = {}
