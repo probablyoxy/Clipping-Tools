@@ -326,7 +326,7 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <CheckBox x:Name="StartMenuShortcutCheck" ToolTip="Adds a shortcut for Clipping Tools to your Windows Start Menu" HorizontalAlignment="Left" Content="Start Menu Shortcut" Foreground="White" Margin="0,0,0,10" Click="ShortcutCheck_Click"/>
+                                <CheckBox x:Name="StartMenuShortcutCheck" ToolTip="Adds a shortcut for Clipping Tools to your Windows Start Menu" HorizontalAlignment="Left" Content="Start Menu Shortcut" Foreground="White" Margin="0,0,0,10" Click="ShortcutCheck_Click" IsChecked="True"/>
                                 <CheckBox x:Name="DesktopShortcutCheck" ToolTip="Adds a shortcut for Clipping Tools to your Windows Desktop" HorizontalAlignment="Left" Content="Desktop Shortcut" Foreground="White" Click="ShortcutCheck_Click"/>
                             </StackPanel>
 

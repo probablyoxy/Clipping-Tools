@@ -810,7 +810,7 @@ namespace ClippingTools.app
                 AutoUpdate = AutoUpdateCheck.IsChecked ?? false,
                 EnsureMicMax = EnsureMicMaxCheck.IsChecked ?? false,
                 SyncTimeOnLaunch = SyncTimeCheck.IsChecked ?? false,
-                StartMenuShortcut = StartMenuShortcutCheck.IsChecked ?? false,
+                StartMenuShortcut = StartMenuShortcutCheck.IsChecked ?? true,
                 DesktopShortcut = DesktopShortcutCheck.IsChecked ?? false,
 
                 EnableLogging = EnableLoggingCheck.IsChecked ?? true,
@@ -5804,7 +5804,7 @@ public class UserStatCount
         public bool AutoUpdate { get; set; } = false;
         public bool EnsureMicMax { get; set; } = false;
         public bool SyncTimeOnLaunch { get; set; } = false;
-        public bool StartMenuShortcut { get; set; } = false;
+        public bool StartMenuShortcut { get; set; } = true;
         public bool DesktopShortcut { get; set; } = false;
         public bool SendClips { get; set; } = true;
         public bool ReceiveClips { get; set; } = true;

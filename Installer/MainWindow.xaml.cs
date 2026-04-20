@@ -249,23 +249,30 @@ namespace ClippingToolsInstaller
                     desktopShortcut.Save();
                 }
 
-                if (createStartMenu || createDesktop)
+                string settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
+                if (!Directory.Exists(settingsDir))
                 {
-                    string settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClippingTools");
-                    if (!Directory.Exists(settingsDir))
-                    {
-                        Directory.CreateDirectory(settingsDir);
-                    }
-
-                    string settingsPath = Path.Combine(settingsDir, "settings.json");
-                    var settings = new System.Collections.Generic.Dictionary<string, bool>();
-
-                    if (createStartMenu) settings.Add("StartMenuShortcut", true);
-                    if (createDesktop) settings.Add("DesktopShortcut", true);
-
-                    string jsonString = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(settingsPath, jsonString);
+                    Directory.CreateDirectory(settingsDir);
                 }
+
+                string settingsPath = Path.Combine(settingsDir, "settings.json");
+                var settings = new System.Collections.Generic.Dictionary<string, object>();
+
+                if (File.Exists(settingsPath))
+                {
+                    try
+                    {
+                        string existingJson = File.ReadAllText(settingsPath);
+                        settings = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(existingJson) ?? new System.Collections.Generic.Dictionary<string, object>();
+                    }
+                    catch { }
+                }
+
+                settings["StartMenuShortcut"] = createStartMenu;
+                settings["DesktopShortcut"] = createDesktop;
+
+                string jsonString = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(settingsPath, jsonString);
             }
             catch { }
         }
