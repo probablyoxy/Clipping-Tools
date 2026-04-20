@@ -622,17 +622,17 @@ async def handle_client(websocket):
                         user_versions[target_user] = conn_data.get("version", "Unknown")
                         print(f"[Desktop] Moved {target_user} to active connections.")
                         
-                        app_count = len(active_connections[target_user])
-                        for a_uuid, a_ws in list(active_connections[target_user].items()):
-                            try:
-                                asyncio.create_task(a_ws.send(json.dumps({"action": "concurrent_apps", "count": app_count})))
-                            except: pass
-                            
-                        broadcast_vc_updates()
-                        
                         if "cached_resolved_ids" in conn_data:
                             try: await conn_data["ws"].send(conn_data["cached_resolved_ids"])
                             except: pass
+                        
+                        app_count = len(active_connections[target_user])
+                        for a_uuid, a_ws in list(active_connections[target_user].items()):
+                            try:
+                                await a_ws.send(json.dumps({"action": "concurrent_apps", "count": app_count}))
+                            except: pass
+                            
+                        broadcast_vc_updates()
 
             elif action == "bot_identify":
                 bot_id = data.get("bot_id")

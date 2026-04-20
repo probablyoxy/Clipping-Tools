@@ -3318,6 +3318,12 @@ start """" ""{targetExe}""
                             {
                                 int count = doc.RootElement.GetProperty("count").GetInt32();
                                 Dispatcher.Invoke(() => {
+                                    if (GenericMessageTitle.Text == "Awaiting Approval" && GenericMessageOverlay.Visibility == Visibility.Visible)
+                                    {
+                                        GenericMessageOverlay.Visibility = Visibility.Collapsed;
+                                        _currentDialogTcs?.TrySetResult(true);
+                                    }
+
                                     ServerStatusDot.Fill = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#43b581"));
                                     if (count > 1)
                                     {
