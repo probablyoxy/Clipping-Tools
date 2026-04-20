@@ -73,7 +73,7 @@ else:
     ALLOWED_BOT_IDS = []
     PREFERRED_BOT_ID = ""
 
-STATS_FILE = "stats.json"
+STATS_FILE = os.path.join(BASE_DIR, "stats.json")
 if os.path.exists(STATS_FILE):
     with open(STATS_FILE, "r") as f:
         server_stats = json.load(f)
