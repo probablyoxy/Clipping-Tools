@@ -8,12 +8,21 @@ namespace ClipRenamer
 {
     class Program
     {
+        private const string ClipRenamerVersion = "v0.4";
+
         static void Main(string[] args)
         {
             if (args.Length < 2) return;
 
             string renamerFolder = args[0];
             string clipFolder = args[1];
+
+            string versionFile = Path.Combine(renamerFolder, "version.txt");
+            try
+            {
+                File.WriteAllText(versionFile, ClipRenamerVersion);
+            }
+            catch { }
 
             string triggerFile = Path.Combine(renamerFolder, "exit_trigger.txt");
             string queueFile = Path.Combine(renamerFolder, "clip_queue.txt");

@@ -171,7 +171,6 @@ namespace ClippingTools.app
         private System.Windows.Forms.NotifyIcon trayIcon;
         private bool forceExit = false;
         private CancellationTokenSource windowSaveCts;
-        private bool needsRenamerUpdate = false;
 
         public ObservableCollection<DiscordItem> ApprovedUsers { get; set; } = new ObservableCollection<DiscordItem>();
         public ObservableCollection<DiscordItem> ApprovedChannels { get; set; } = new ObservableCollection<DiscordItem>();
@@ -207,6 +206,9 @@ namespace ClippingTools.app
         //
         //
         private const string AppVersion = "v0.1.9";
+        //
+        //
+        private const string ClipRenamerVersion = "v0.4";
         //
         //
         // CHANGE WHEN UPDATE :)
@@ -282,6 +284,7 @@ namespace ClippingTools.app
             allUserView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
 
             isLoaded = true;
+            WriteLog("Clipping Tools Started");
             CheckAndUpdateVersion();
             isLoaded = false;
 
@@ -290,7 +293,6 @@ namespace ClippingTools.app
             LoadSettings();
             LoadStats();
             isLoaded = true;
-            WriteLog("Clipping Tools Started");
 
             CurrentVersionText.Text = AppVersion;
 
@@ -987,9 +989,6 @@ start """" ""{targetExe}""
                 {
                     UpdateShortcuts(exePath);
 
-                    needsRenamerUpdate = true;
-                    WriteLog("Migration v0.1.7: Flagged ClipRenamer for re-extraction.");
-
                     currentStat.Version = "v0.1.7";
                     storedVersion = v017;
                     WriteVersionFile(currentStat);
@@ -1011,7 +1010,7 @@ start """" ""{targetExe}""
         private void UpdateShortcuts(string newExePath)
         {
             VerifyShortcuts();
-            WriteLog("Verified and migrated shortcuts.");
+            WriteLog("Verified and applied shortcuts.");
         }
 
         private void VerifyShortcuts()
@@ -4316,6 +4315,32 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
 
             if (!shouldRun || string.IsNullOrEmpty(clipFolder)) return;
 
+            string versionFile = System.IO.Path.Combine(renamerFolder, "version.txt");
+            string renamerExe = System.IO.Path.Combine(renamerFolder, "ClipRenamer.exe");
+            bool needsExtraction = false;
+
+            if (!File.Exists(versionFile) || File.ReadAllText(versionFile).Trim() != ClipRenamerVersion || !File.Exists(renamerExe))
+            {
+                needsExtraction = true;
+            }
+
+            if (needsExtraction)
+            {
+                WriteLog("ClipRenamer version mismatch or missing. Updating...");
+                try
+                {
+                    if (Directory.Exists(renamerFolder))
+                    {
+                        Directory.Delete(renamerFolder, true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteLog($"Warning: Could not fully delete ClipRenamer folder: {ex.Message}");
+                }
+                Directory.CreateDirectory(renamerFolder);
+            }
+
             try
             {
                 var queueFiles = Directory.GetFiles(renamerFolder, "*queue*.txt");
@@ -4328,15 +4353,6 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
 
             File.WriteAllText(triggerPath, "");
             File.WriteAllText(statusPath, "");
-
-            string renamerExe = System.IO.Path.Combine(renamerFolder, "ClipRenamer.exe");
-
-            bool needsExtraction = false;
-            if (!File.Exists(renamerExe) || needsRenamerUpdate)
-            {
-                needsExtraction = true;
-                needsRenamerUpdate = false;
-            }
 
             if (needsExtraction)
             {
@@ -4352,6 +4368,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
                         {
                             stream.CopyTo(fileStream);
                         }
+                        File.WriteAllText(versionFile, ClipRenamerVersion);
                         WriteLog("Successfully unpacked ClipRenamer.exe.");
                     }
                     else
