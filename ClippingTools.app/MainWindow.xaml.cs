@@ -4638,9 +4638,18 @@ objShell.Run Chr(34) & ""{obsPath}"" & Chr(34) & "" --startreplaybuffer --minimi
                         try
                         {
                             detectedObsPath = obsProcesses[0].MainModule.FileName;
-                            detectedObsDir = System.IO.Path.GetDirectoryName(detectedObsPath);
                         }
                         catch { }
+
+                        if (string.IsNullOrEmpty(detectedObsPath) || !File.Exists(detectedObsPath))
+                        {
+                            Application.Current.Dispatcher.Invoke(() => { detectedObsPath = ObsLocationInput.Text; });
+                        }
+
+                        if (!string.IsNullOrEmpty(detectedObsPath))
+                        {
+                            try { detectedObsDir = System.IO.Path.GetDirectoryName(detectedObsPath); } catch { }
+                        }
 
                         var latestLog = new DirectoryInfo(logDir).GetFiles("*.txt")
                                         .OrderByDescending(f => f.LastWriteTime)
