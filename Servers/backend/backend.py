@@ -221,6 +221,7 @@ def broadcast_vc_updates():
                         "name": c["name"],
                         "user_name": c.get("user_name", "Unknown User"),
                         "server_name": c.get("server_name", ""),
+                        "avatar": c.get("avatar", ""),
                         "is_connected": u in active_connections,
                         "relationship": rel
                     }
@@ -770,7 +771,8 @@ async def handle_client(websocket):
                     if current and current.get("id") == channel_id:
                         continue
                         
-                    vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name, "server_name": server_name}
+                    avatar = data.get("avatar", "")
+                    vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name, "server_name": server_name, "avatar": avatar}
                     print(f"[Bot Update] {target_user} ({user_name}) joined VC {channel_name} in {server_name}.")
                 else:
                     if target_user in vc_map:
@@ -805,7 +807,8 @@ async def handle_client(websocket):
                         if current and current.get("id") == channel_id:
                             continue
                             
-                        vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name, "server_name": server_name}
+                        avatar = u.get("avatar", "")
+                        vc_map[target_user] = {"id": channel_id, "name": channel_name, "user_name": user_name, "server_name": server_name, "avatar": avatar}
                         changed = True
                 
                 if changed:

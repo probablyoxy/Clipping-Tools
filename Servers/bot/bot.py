@@ -92,12 +92,15 @@ async def connect_to_router():
                         channels_to_check = data.get("channels", [])
 
                         resolved_users = {}
+                        resolved_avatars = {}
                         resolved_channels = {}
 
                         for uid in users_to_check:
                             try:
                                 user = bot.get_user(int(uid)) or await bot.fetch_user(int(uid))
-                                if user: resolved_users[str(uid)] = user.name
+                                if user: 
+                                    resolved_users[str(uid)] = user.name
+                                    resolved_avatars[str(uid)] = user.avatar.key if user.avatar else ""
                             except: pass
 
                         for cid in channels_to_check:
@@ -110,6 +113,7 @@ async def connect_to_router():
                             "action": "resolved_ids",
                             "client_id": client_id,
                             "users": resolved_users,
+                            "avatars": resolved_avatars,
                             "channels": resolved_channels
                         }))
 
@@ -185,6 +189,7 @@ async def connect_to_router():
                                         "channel_id": str(vc.id),
                                         "channel_name": vc.name,
                                         "server_name": guild.name,
+                                        "avatar": member.avatar.key if member.avatar else "",
                                         "timestamp": time.time()
                                     })
                         if updates:
@@ -275,6 +280,7 @@ async def on_voice_state_update(member, before, after):
         "channel_id": channel_id,
         "channel_name": after.channel.name if after.channel else None,
         "server_name": member.guild.name if after.channel else None,
+        "avatar": member.avatar.key if member.avatar else "",
         "timestamp": time.time()
     }
     

@@ -232,6 +232,8 @@ namespace ClippingTools.app
         private string currentPerspectiveName = "";
         private string myGlobalDiscordName = "";
 
+        private Dictionary<string, string> _userAvatarHashes = new Dictionary<string, string>();
+
         private bool isConnectPoolEnabled = false;
         private bool isConnectVCEnabled = false;
         private bool isDisconnectPoolEnabled = false;
@@ -1187,11 +1189,11 @@ start """" ""{targetExe}""
             {
                 if ((sender == EnableClipNotifCheck || sender == ClipNotifMonitorCombo || sender == ClipNotifLocationCombo || sender == ClipNotifFlipAccentCheck) && EnableClipNotifCheck.IsChecked == true)
                 {
-                    ShowNotification("Notification Enabled", "Example Notification", "ExampleClip");
+                    ShowNotification("Notification Enabled", "Example Notification", "ExampleClip", DiscordIdInput.Text);
                 }
                 else if ((sender == EnableConnectNotifCheck || sender == ConnectNotifMonitorCombo || sender == ConnectNotifLocationCombo || sender == ConnectNotifFlipAccentCheck) && EnableConnectNotifCheck.IsChecked == true)
                 {
-                    ShowNotification("Notification Enabled", "Example Notification", "ExampleConnect");
+                    ShowNotification("Notification Enabled", "Example Notification", "ExampleConnect", DiscordIdInput.Text);
                 }
             }
 
@@ -1216,7 +1218,7 @@ start """" ""{targetExe}""
 
                 if (isLoaded && EnableClipNotifCheck.IsChecked == true)
                 {
-                    ShowNotification("Notification Enabled", "Example Notification", "ExampleClip");
+                    ShowNotification("Notification Enabled", "Example Notification", "ExampleClip", DiscordIdInput.Text);
                 }
             }
         }
@@ -2758,6 +2760,13 @@ start """" ""{targetExe}""
             return friendStr;
         }
 
+        private string ExtractIdFromFriendString(string friendStr)
+        {
+            int spaceIdx = friendStr.IndexOf(' ');
+            if (spaceIdx > 0) return friendStr.Substring(0, spaceIdx);
+            return "";
+        }
+
         public class ActiveNotification
         {
             public Window Window { get; set; }
@@ -2774,7 +2783,131 @@ start """" ""{targetExe}""
         private List<ActiveNotification> _activeNotifs = new List<ActiveNotification>();
         private ImageSource _cachedAppIcon = null;
 
-        private void ShowNotification(string topText, string bottomText, string type)
+        private void CleanupUnusedAvatars()
+        {
+            string discordFolder = System.IO.Path.Combine(imagesFolder, "discord");
+            if (!Directory.Exists(discordFolder)) return;
+
+            string myId = "";
+            Application.Current.Dispatcher.Invoke(() => myId = DiscordIdInput.Text);
+
+            var approvedIds = new HashSet<string>(ApprovedUsers.Select(u => u.Id));
+            var activePoolIds = new HashSet<string>(currentActivePoolFriends.Select(f => ExtractIdFromFriendString(f)).Where(id => !string.IsNullOrEmpty(id)));
+
+            foreach (var file in Directory.GetFiles(discordFolder, "*.png"))
+            {
+                string fileName = System.IO.Path.GetFileNameWithoutExtension(file);
+                string[] parts = fileName.Split('_');
+                if (parts.Length > 0)
+                {
+                    string userId = parts[0];
+                    if (userId != myId && !approvedIds.Contains(userId) && !activePoolIds.Contains(userId))
+                    {
+                        try { File.Delete(file); } catch { }
+                    }
+                }
+            }
+        }
+
+        private void RefreshDiscordAvatars()
+        {
+            if (currentClipImagePath != "DISCORD" && currentConnectImagePath != "DISCORD") return;
+
+            string myId = "";
+            Application.Current.Dispatcher.Invoke(() => myId = DiscordIdInput.Text);
+
+            var activeVcIds = new HashSet<string>(currentActiveVcFriends.Select(f => ExtractIdFromFriendString(f)).Where(id => !string.IsNullOrEmpty(id)));
+            var activePoolIds = new HashSet<string>(currentActivePoolFriends.Select(f => ExtractIdFromFriendString(f)).Where(id => !string.IsNullOrEmpty(id)));
+
+            foreach (var kvp in _userAvatarHashes)
+            {
+                if (kvp.Key == myId || activeVcIds.Contains(kvp.Key) || activePoolIds.Contains(kvp.Key))
+                {
+                    _ = CacheDiscordAvatar(kvp.Key, kvp.Value);
+                }
+            }
+        }
+
+        private void DeleteCachedAvatar(string userId)
+        {
+            string discordFolder = System.IO.Path.Combine(imagesFolder, "discord");
+            if (Directory.Exists(discordFolder))
+            {
+                foreach (var file in Directory.GetFiles(discordFolder, $"{userId}_*.png"))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+            }
+        }
+
+        private void UpdateDiscordPreviewImage()
+        {
+            var discordItem = AppImagesList.FirstOrDefault(x => x.ImagePath == "DISCORD");
+            if (discordItem != null)
+            {
+                string myId = DiscordIdInput.Text;
+                string safeHash = _userAvatarHashes.ContainsKey(myId) && !string.IsNullOrEmpty(_userAvatarHashes[myId]) ? _userAvatarHashes[myId] : "default";
+                string discordFolder = System.IO.Path.Combine(imagesFolder, "discord");
+                string expectedFile = System.IO.Path.Combine(discordFolder, $"{myId}_{safeHash}.png");
+
+                if (File.Exists(expectedFile))
+                {
+                    try
+                    {
+                        discordItem.ImageSource = LoadImage(expectedFile);
+                        discordItem.DiscordTextVisibility = Visibility.Collapsed;
+                        discordItem.DiscordIconVisibility = Visibility.Visible;
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        private async Task CacheDiscordAvatar(string userId, string avatarHash)
+        {
+            string myId = "";
+            Application.Current.Dispatcher.Invoke(() => myId = DiscordIdInput.Text);
+
+            if (userId != myId && currentClipImagePath != "DISCORD" && currentConnectImagePath != "DISCORD") return;
+
+            if (string.IsNullOrEmpty(userId)) return;
+            string discordFolder = System.IO.Path.Combine(imagesFolder, "discord");
+            if (!Directory.Exists(discordFolder)) Directory.CreateDirectory(discordFolder);
+
+            string safeHash = string.IsNullOrEmpty(avatarHash) ? "default" : avatarHash;
+            string expectedFile = System.IO.Path.Combine(discordFolder, $"{userId}_{safeHash}.png");
+
+            bool shouldDownload = !File.Exists(expectedFile);
+
+            if (shouldDownload)
+            {
+                foreach (var file in Directory.GetFiles(discordFolder, $"{userId}_*.png"))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+
+                string url = string.IsNullOrEmpty(avatarHash)
+                    ? $"https://cdn.discordapp.com/embed/avatars/{(long.TryParse(userId, out long idNum) ? (idNum >> 22) % 6 : 0)}.png"
+                    : $"https://cdn.discordapp.com/avatars/{userId}/{avatarHash}.png?size=64";
+
+                try
+                {
+                    using (HttpClient client = new HttpClient())
+                    {
+                        var bytes = await client.GetByteArrayAsync(url);
+                        File.WriteAllBytes(expectedFile, bytes);
+                    }
+                }
+                catch { }
+            }
+
+            if (userId == myId)
+            {
+                Application.Current.Dispatcher.Invoke(() => UpdateDiscordPreviewImage());
+            }
+        }
+
+        private void ShowNotification(string topText, string bottomText, string type, string userId = "")
         {
             Dispatcher.Invoke(() => {
                 if (_cachedAppIcon == null)
@@ -2892,6 +3025,19 @@ start """" ""{targetExe}""
                 if (targetPath == "NONE")
                 {
                     finalIcon = null;
+                }
+                else if (targetPath == "DISCORD")
+                {
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        string safeHash = _userAvatarHashes.ContainsKey(userId) && !string.IsNullOrEmpty(_userAvatarHashes[userId]) ? _userAvatarHashes[userId] : "default";
+                        string discordFolder = System.IO.Path.Combine(imagesFolder, "discord");
+                        string pfpPath = System.IO.Path.Combine(discordFolder, $"{userId}_{safeHash}.png");
+                        if (File.Exists(pfpPath))
+                        {
+                            try { finalIcon = LoadImage(pfpPath); } catch { }
+                        }
+                    }
                 }
                 else
                 {
@@ -3152,6 +3298,8 @@ start """" ""{targetExe}""
                 await SendWsMessage(new { action = "identify", discord_id = currentDiscordId, token_id = tokenId, app_uuid = activeAppUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                 AskServerToResolveNames();
 
+                if (currentClipImagePath == "DISCORD" || currentConnectImagePath == "DISCORD") CleanupUnusedAvatars();
+
                 _ = ReceiveMessages();
             }
             catch
@@ -3210,6 +3358,12 @@ start """" ""{targetExe}""
         private void ResetPoolUI()
         {
             Dispatcher.Invoke(() => {
+                foreach (var f in currentActivePoolFriends)
+                {
+                    string id = ExtractIdFromFriendString(f);
+                    if (!string.IsNullOrEmpty(id) && !ApprovedUsers.Any(u => u.Id == id)) DeleteCachedAvatar(id);
+                }
+
                 CurrentPoolText.Visibility = Visibility.Collapsed;
                 PoolUsersPanel.Visibility = Visibility.Collapsed;
                 currentActivePoolFriends.Clear();
@@ -3283,7 +3437,7 @@ start """" ""{targetExe}""
                                 {
                                     WriteLog($"Received remote clip command from user {senderId} ({matchedUser.DisplayName}).");
 
-                                    bool wasClipped = await ReceiveNetworkClipCommand(matchedUser.DisplayName);
+                                    bool wasClipped = await ReceiveNetworkClipCommand(matchedUser.DisplayName, senderId);
 
                                     if (wasClipped)
                                     {
@@ -3318,6 +3472,20 @@ start """" ""{targetExe}""
                                     {
                                         if (channelsJson.TryGetProperty(channel.Id, out JsonElement nameElement))
                                             channel.DisplayName = nameElement.GetString();
+                                    }
+
+                                    if (doc.RootElement.TryGetProperty("avatars", out JsonElement avatarsJson))
+                                    {
+                                        foreach (var prop in avatarsJson.EnumerateObject())
+                                        {
+                                            string hash = prop.Value.GetString();
+                                            _userAvatarHashes[prop.Name] = hash;
+
+                                            if (prop.Name == myId)
+                                            {
+                                                _ = CacheDiscordAvatar(prop.Name, hash);
+                                            }
+                                        }
                                     }
                                 });
                             }
@@ -3491,6 +3659,17 @@ start """" ""{targetExe}""
                                         string uid = prop.Name;
                                         bool isConnected = prop.Value.GetProperty("is_connected").GetBoolean();
 
+                                        if (prop.Value.TryGetProperty("avatar", out JsonElement avElem))
+                                        {
+                                            string hash = avElem.GetString();
+                                            _userAvatarHashes[uid] = hash;
+                                            _ = CacheDiscordAvatar(uid, hash);
+                                        }
+                                        else
+                                        {
+                                            _ = CacheDiscordAvatar(uid, "");
+                                        }
+
                                         string displayName = uid;
 
                                         if (uid == myId)
@@ -3523,12 +3702,21 @@ start """" ""{targetExe}""
                                     var addedPool = currentActivePoolFriends.Except(previousPoolFriends).ToList();
                                     var removedPool = previousPoolFriends.Except(currentActivePoolFriends).ToList();
 
+                                    foreach (var f in removedPool)
+                                    {
+                                        string removedId = ExtractIdFromFriendString(f);
+                                        if (!string.IsNullOrEmpty(removedId) && !ApprovedUsers.Any(u => u.Id == removedId))
+                                        {
+                                            DeleteCachedAvatar(removedId);
+                                        }
+                                    }
+
                                     if (activePoolCode == previousPoolCode && !string.IsNullOrEmpty(activePoolCode))
                                     {
                                         if (isConnectPoolEnabled && addedPool.Count > 0) PlayConnectSound(isActivity: true);
                                         if (isDisconnectPoolEnabled && removedPool.Count > 0) PlayDisconnectSound(isActivity: true);
-                                        foreach (var f in addedPool) ShowNotification(ExtractNameFromFriendString(f), "Connected", "Connect");
-                                        foreach (var f in removedPool) ShowNotification(ExtractNameFromFriendString(f), "Disconnected", "Disconnect");
+                                        foreach (var f in addedPool) ShowNotification(ExtractNameFromFriendString(f), "Connected", "Connect", ExtractIdFromFriendString(f));
+                                        foreach (var f in removedPool) ShowNotification(ExtractNameFromFriendString(f), "Disconnected", "Disconnect", ExtractIdFromFriendString(f));
                                     }
                                     previousPoolCode = activePoolCode;
 
@@ -3589,6 +3777,17 @@ start """" ""{targetExe}""
 
                                     foreach (var prop in vcMapElement.EnumerateObject())
                                     {
+                                        if (prop.Value.TryGetProperty("avatar", out JsonElement avElem))
+                                        {
+                                            string hash = avElem.GetString();
+                                            _userAvatarHashes[prop.Name] = hash;
+
+                                            if (ApprovedUsers.Any(u => u.Id == prop.Name))
+                                            {
+                                                _ = CacheDiscordAvatar(prop.Name, hash);
+                                            }
+                                        }
+
                                         if (prop.Value.GetProperty("id").GetString() == myChannelId)
                                         {
                                             string displayName = prop.Value.TryGetProperty("user_name", out JsonElement nameElem) ? nameElem.GetString() : "Unknown User";
@@ -3623,8 +3822,8 @@ start """" ""{targetExe}""
                                     {
                                         if (isConnectVCEnabled && addedVc.Count > 0) PlayConnectSound(isActivity: true);
                                         if (isDisconnectVCEnabled && removedVc.Count > 0) PlayDisconnectSound(isActivity: true);
-                                        foreach (var f in addedVc) ShowNotification(ExtractNameFromFriendString(f), "Connected", "Connect");
-                                        foreach (var f in removedVc) ShowNotification(ExtractNameFromFriendString(f), "Disconnected", "Disconnect");
+                                        foreach (var f in addedVc) ShowNotification(ExtractNameFromFriendString(f), "Connected", "Connect", ExtractIdFromFriendString(f));
+                                        foreach (var f in removedVc) ShowNotification(ExtractNameFromFriendString(f), "Disconnected", "Disconnect", ExtractIdFromFriendString(f));
                                     }
                                     previousVcId = myChannelId;
 
@@ -3772,6 +3971,8 @@ start """" ""{targetExe}""
                     await SendWsMessage(new { action = "identify", discord_id = currentDiscordId, token_id = tokenId, app_uuid = activeAppUuid, approved_users = ApprovedUsers.Select(u => u.Id).ToList(), version = AppVersion });
                     AskServerToResolveNames();
 
+                    if (currentClipImagePath == "DISCORD" || currentConnectImagePath == "DISCORD") CleanupUnusedAvatars();
+
                     _ = ReceiveMessages();
                     return;
                 }
@@ -3915,7 +4116,7 @@ start """" ""{targetExe}""
 
             await PerformSafeHardwareClip();
             string myName = !string.IsNullOrEmpty(myGlobalDiscordName) ? myGlobalDiscordName : Environment.UserName;
-            ShowNotification(myName, "Global Clipped", "Clip");
+            ShowNotification(myName, "Global Clipped", "Clip", DiscordIdInput.Text);
             SendRenamerTrigger(myName);
         }
 
@@ -3936,11 +4137,11 @@ start """" ""{targetExe}""
 
             await PerformSafeHardwareClip();
             string myName = !string.IsNullOrEmpty(myGlobalDiscordName) ? myGlobalDiscordName : Environment.UserName;
-            ShowNotification(myName, "Local Clipped", "Clip");
+            ShowNotification(myName, "Local Clipped", "Clip", DiscordIdInput.Text);
             SendRenamerTrigger(myName);
         }
 
-        public async Task<bool> ReceiveNetworkClipCommand(string clipperName)
+        public async Task<bool> ReceiveNetworkClipCommand(string clipperName, string senderId)
         {
             if (!CanTriggerClip()) return false;
 
@@ -3954,7 +4155,7 @@ start """" ""{targetExe}""
             }
 
             await PerformSafeHardwareClip();
-            ShowNotification(clipperName, "Clipped", "Clip");
+            ShowNotification(clipperName, "Clipped", "Clip", senderId);
             SendRenamerTrigger(clipperName);
             return true;
         }
@@ -5053,6 +5254,7 @@ del ""%~f0""
                     WriteLog($"Removed user {itemToRemove.DisplayName} from Approved Users.");
                     SaveSettings();
                     SyncApprovedUsersToServer();
+                    DeleteCachedAvatar(itemToRemove.Id);
                 }
             }
         }
@@ -5564,9 +5766,10 @@ del ""%~f0""
             var sortedList = AppImagesList.OrderBy(x =>
             {
                 if (x.IsAddButtonVisibility == Visibility.Visible) return 0;
-                if (x.IsClipSelected) return 1;
-                if (x.IsConnectSelected) return 2;
-                return 3;
+                if (x.IsDiscordVisibility == Visibility.Visible) return 1;
+                if (x.IsClipSelected) return 2;
+                if (x.IsConnectSelected) return 3;
+                return 4;
             }).ThenBy(x => x.DisplayName ?? "").ToList();
 
             AppImagesList.Clear();
@@ -5579,7 +5782,8 @@ del ""%~f0""
         private void PopulateAppImagesList()
         {
             AppImagesList.Clear();
-            AppImagesList.Add(new AppImageItem { IsAddButtonVisibility = Visibility.Visible, IsImageVisibility = Visibility.Collapsed, DeleteVisibility = Visibility.Collapsed });
+            AppImagesList.Add(new AppImageItem { IsAddButtonVisibility = Visibility.Visible, IsImageVisibility = Visibility.Collapsed, IsDiscordVisibility = Visibility.Collapsed, DeleteVisibility = Visibility.Collapsed });
+            AppImagesList.Add(new AppImageItem { IsAddButtonVisibility = Visibility.Collapsed, IsImageVisibility = Visibility.Collapsed, IsDiscordVisibility = Visibility.Visible, DeleteVisibility = Visibility.Collapsed, DisplayName = "Discord PFP", ImagePath = "DISCORD", IsCustom = false });
 
             List<AppImageItem> filesFound = new List<AppImageItem>();
 
@@ -5615,11 +5819,13 @@ del ""%~f0""
             {
                 item.IsAddButtonVisibility = Visibility.Collapsed;
                 item.IsImageVisibility = Visibility.Visible;
+                item.IsDiscordVisibility = Visibility.Collapsed;
                 item.DeleteVisibility = item.IsCustom ? Visibility.Visible : Visibility.Collapsed;
                 try { item.ImageSource = LoadImage(item.ImagePath); } catch { continue; }
                 AppImagesList.Add(item);
             }
             RefreshImageSelections();
+            UpdateDiscordPreviewImage();
         }
 
         private void AppImageItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -5672,12 +5878,14 @@ del ""%~f0""
 
         private void SetImageForAll(string path)
         {
+            if (path == "DISCORD") CleanupUnusedAvatars();
             currentClipImagePath = path;
             currentConnectImagePath = path;
+            if (path == "DISCORD") RefreshDiscordAvatars();
             SaveSettings();
             RefreshImageSelections();
-            if (path == "NONE") ShowNotification("Image Unselected", "Removed from both Notifications", "ExampleClip");
-            else ShowNotification("Image Selected", "Applied to both Notifications", "ExampleClip");
+            if (path == "NONE") ShowNotification("Image Unselected", "Removed from both Notifications", "ExampleClip", DiscordIdInput.Text);
+            else ShowNotification("Image Selected", "Applied to both Notifications", "ExampleClip", DiscordIdInput.Text);
         }
 
         private void ContextMenu_MouseLeave(object sender, MouseEventArgs e)
@@ -5713,10 +5921,15 @@ del ""%~f0""
             if (item != null)
             {
                 currentClipImagePath = currentClipImagePath == item.ImagePath ? "NONE" : item.ImagePath;
+                if (currentClipImagePath == "DISCORD")
+                {
+                    CleanupUnusedAvatars();
+                    RefreshDiscordAvatars();
+                }
                 SaveSettings();
                 RefreshImageSelections();
-                if (currentClipImagePath == "NONE") ShowNotification("Image Unselected", "Removed from Clip Notifications", "ExampleClip");
-                else ShowNotification("Image Selected", "Applied to Clip Notifications", "ExampleClip");
+                if (currentClipImagePath == "NONE") ShowNotification("Image Unselected", "Removed from Clip Notifications", "ExampleClip", DiscordIdInput.Text);
+                else ShowNotification("Image Selected", "Applied to Clip Notifications", "ExampleClip", DiscordIdInput.Text);
             }
         }
 
@@ -5726,10 +5939,15 @@ del ""%~f0""
             if (item != null)
             {
                 currentConnectImagePath = currentConnectImagePath == item.ImagePath ? "NONE" : item.ImagePath;
+                if (currentConnectImagePath == "DISCORD")
+                {
+                    CleanupUnusedAvatars();
+                    RefreshDiscordAvatars();
+                }
                 SaveSettings();
                 RefreshImageSelections();
-                if (currentConnectImagePath == "NONE") ShowNotification("Image Unselected", "Removed from Connection Notifications", "ExampleConnect");
-                else ShowNotification("Image Selected", "Applied to Connection Notifications", "ExampleConnect");
+                if (currentConnectImagePath == "NONE") ShowNotification("Image Unselected", "Removed from Connection Notifications", "ExampleConnect", DiscordIdInput.Text);
+                else ShowNotification("Image Selected", "Applied to Connection Notifications", "ExampleConnect", DiscordIdInput.Text);
             }
         }
 
@@ -5775,12 +5993,33 @@ del ""%~f0""
     {
         public string ImagePath { get; set; }
         public string DisplayName { get; set; }
-        public ImageSource ImageSource { get; set; }
         public bool IsCustom { get; set; }
         public DateTime CreationTime { get; set; }
         public Visibility DeleteVisibility { get; set; }
         public Visibility IsAddButtonVisibility { get; set; }
         public Visibility IsImageVisibility { get; set; }
+        public Visibility IsDiscordVisibility { get; set; } = Visibility.Collapsed;
+
+        private ImageSource _imageSource;
+        public ImageSource ImageSource
+        {
+            get => _imageSource;
+            set { _imageSource = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("ImageSource")); }
+        }
+
+        private Visibility _discordTextVisibility = Visibility.Visible;
+        public Visibility DiscordTextVisibility
+        {
+            get => _discordTextVisibility;
+            set { _discordTextVisibility = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("DiscordTextVisibility")); }
+        }
+
+        private Visibility _discordIconVisibility = Visibility.Collapsed;
+        public Visibility DiscordIconVisibility
+        {
+            get => _discordIconVisibility;
+            set { _discordIconVisibility = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("DiscordIconVisibility")); }
+        }
 
         private bool _isAllSelected;
         public bool IsAllSelected

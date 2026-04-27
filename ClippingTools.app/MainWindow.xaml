@@ -1161,7 +1161,7 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Manage App Images" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+                    <TextBlock Text="Manage Notification Images" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
                     <ListBox x:Name="AppImageListBox" Grid.Row="1" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -1184,6 +1184,16 @@
                                         <StackPanel VerticalAlignment="Center" Visibility="{Binding IsAddButtonVisibility}">
                                             <TextBlock Text="+" FontSize="36" Foreground="#b9bbbe" HorizontalAlignment="Center"/>
                                             <TextBlock Text="Add Image" Foreground="#b9bbbe" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel VerticalAlignment="Center" ToolTip="Uses the Discord profile picture of the person who triggered the notification action" Visibility="{Binding IsDiscordVisibility}">
+                                            <TextBlock Text="💬" FontSize="36" Foreground="#5865F2" HorizontalAlignment="Center" ToolTip="Uses the Discord profile picture of the person who triggered the notification action" Visibility="{Binding DiscordTextVisibility}"/>
+                                            <Border Width="36" Height="36" CornerRadius="18" Visibility="{Binding DiscordIconVisibility}" ToolTip="Uses the Discord profile picture of the person who triggered the notification action" Margin="0,0,0,5" HorizontalAlignment="Center">
+                                                <Border.Background>
+                                                    <ImageBrush ImageSource="{Binding ImageSource}" Stretch="UniformToFill"/>
+                                                </Border.Background>
+                                            </Border>
+                                            <TextBlock Text="Use Discord" ToolTip="Uses the Discord profile picture of the person who triggered the notification action" Foreground="#5865F2" FontSize="10" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                                            <TextBlock Text="Profile Picture" ToolTip="Uses the Discord profile picture of the person who triggered the notification action" Foreground="#5865F2" FontSize="10" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,0"/>
                                         </StackPanel>
                                         <StackPanel VerticalAlignment="Center" Visibility="{Binding IsImageVisibility}" Margin="5">
                                             <Image Source="{Binding ImageSource}" Width="64" Height="64" Margin="0,0,0,5" Stretch="Uniform"/>
