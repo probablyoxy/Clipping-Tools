@@ -678,6 +678,7 @@ namespace ClippingTools.app
 
                     EnableClipNotifCheck.IsChecked = settings.EnableClipNotif;
                     EnableConnectNotifCheck.IsChecked = settings.EnableConnectNotif;
+                    CircleNotifImageCheck.IsChecked = settings.CircleNotifImage;
 
                     bool clipMatched = false;
                     for (int i = 0; i < ClipNotifMonitorCombo.Items.Count; i++)
@@ -840,6 +841,7 @@ namespace ClippingTools.app
 
                 EnableClipNotif = EnableClipNotifCheck.IsChecked ?? false,
                 EnableConnectNotif = EnableConnectNotifCheck.IsChecked ?? false,
+                CircleNotifImage = CircleNotifImageCheck.IsChecked ?? true,
                 ClipNotifLocation = (ClipNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right",
                 ConnectNotifLocation = (ConnectNotifLocationCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bottom Right",
                 ClipNotifColor = ClipNotifColorBox.Background is SolidColorBrush scb ? scb.Color.ToString() : "#5865F2",
@@ -1187,11 +1189,11 @@ start """" ""{targetExe}""
 
             if (isLoaded)
             {
-                if ((sender == EnableClipNotifCheck || sender == ClipNotifMonitorCombo || sender == ClipNotifLocationCombo || sender == ClipNotifFlipAccentCheck) && EnableClipNotifCheck.IsChecked == true)
+                if ((sender == EnableClipNotifCheck || sender == ClipNotifMonitorCombo || sender == ClipNotifLocationCombo || sender == ClipNotifFlipAccentCheck || sender == CircleNotifImageCheck) && EnableClipNotifCheck.IsChecked == true)
                 {
                     ShowNotification("Notification Enabled", "Example Notification", "ExampleClip", DiscordIdInput.Text);
                 }
-                else if ((sender == EnableConnectNotifCheck || sender == ConnectNotifMonitorCombo || sender == ConnectNotifLocationCombo || sender == ConnectNotifFlipAccentCheck) && EnableConnectNotifCheck.IsChecked == true)
+                else if ((sender == EnableConnectNotifCheck || sender == ConnectNotifMonitorCombo || sender == ConnectNotifLocationCombo || sender == ConnectNotifFlipAccentCheck || sender == CircleNotifImageCheck) && EnableConnectNotifCheck.IsChecked == true)
                 {
                     ShowNotification("Notification Enabled", "Example Notification", "ExampleConnect", DiscordIdInput.Text);
                 }
@@ -3056,28 +3058,55 @@ start """" ""{targetExe}""
                     }
                 }
 
-                Image iconImage = new Image
-                {
-                    Source = finalIcon,
-                    Width = 32,
-                    Height = 32,
-                    Margin = new Thickness(10),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
+                UIElement iconElement;
 
-                if (finalIcon == null)
+                if (CircleNotifImageCheck.IsChecked == true)
                 {
-                    iconImage.Visibility = Visibility.Collapsed;
+                    Border circleBorder = new Border
+                    {
+                        Width = 32,
+                        Height = 32,
+                        CornerRadius = new CornerRadius(16),
+                        Margin = new Thickness(10),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    if (finalIcon != null)
+                    {
+                        circleBorder.Background = new ImageBrush { ImageSource = finalIcon, Stretch = Stretch.UniformToFill };
+                    }
+                    else
+                    {
+                        circleBorder.Visibility = Visibility.Collapsed;
+                    }
+                    iconElement = circleBorder;
+                }
+                else
+                {
+                    Image iconImage = new Image
+                    {
+                        Source = finalIcon,
+                        Width = 32,
+                        Height = 32,
+                        Margin = new Thickness(10),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+
+                    if (finalIcon == null)
+                    {
+                        iconImage.Visibility = Visibility.Collapsed;
+                    }
+                    iconElement = iconImage;
                 }
 
                 Grid.SetColumn(accentLine, putAccentOnLeft ? 0 : 2);
                 Grid.SetColumn(textPanel, putAccentOnLeft ? 1 : 0);
-                Grid.SetColumn(iconImage, putAccentOnLeft ? 2 : 1);
+                Grid.SetColumn(iconElement, putAccentOnLeft ? 2 : 1);
 
                 grid.Children.Add(accentLine);
                 grid.Children.Add(textPanel);
-                grid.Children.Add(iconImage);
+                grid.Children.Add(iconElement);
                 mainBorder.Child = grid;
                 notif.Content = mainBorder;
 
@@ -6137,6 +6166,7 @@ public class UserStatCount
 
         public bool EnableClipNotif { get; set; } = false;
         public bool EnableConnectNotif { get; set; } = false;
+        public bool CircleNotifImage { get; set; } = true;
         public string ClipNotifLocation { get; set; } = "Bottom Right";
         public string ConnectNotifLocation { get; set; } = "Bottom Right";
         public string ClipNotifColor { get; set; } = "#5865F2";

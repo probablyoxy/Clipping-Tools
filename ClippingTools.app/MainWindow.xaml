@@ -1161,7 +1161,13 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Manage Notification Images" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+                    <Grid Margin="0,0,0,15">
+                        <TextBlock Text="Manage Notification Images" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="Circle" ToolTip="Crops the chosen image to a circle" Foreground="White" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <CheckBox x:Name="CircleNotifImageCheck" ToolTip="Crops the chosen image to a circle"  VerticalAlignment="Center" Click="Setting_Changed" IsChecked="True"/>
+                        </StackPanel>
+                    </Grid>
                     <ListBox x:Name="AppImageListBox" Grid.Row="1" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
