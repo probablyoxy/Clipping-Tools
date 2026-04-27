@@ -2888,17 +2888,25 @@ start """" ""{targetExe}""
 
                 ImageSource finalIcon = _cachedAppIcon;
                 string targetPath = isClip ? currentClipImagePath : currentConnectImagePath;
-                if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
-                {
-                    try { finalIcon = LoadImage(targetPath); } catch { }
-                }
 
-                if (finalIcon == null)
+                if (targetPath == "NONE")
                 {
-                    var icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath);
-                    if (icon != null)
+                    finalIcon = null;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
                     {
-                        finalIcon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                        try { finalIcon = LoadImage(targetPath); } catch { }
+                    }
+
+                    if (finalIcon == null)
+                    {
+                        var icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath);
+                        if (icon != null)
+                        {
+                            finalIcon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                        }
                     }
                 }
 
@@ -2911,6 +2919,11 @@ start """" ""{targetExe}""
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
+
+                if (finalIcon == null)
+                {
+                    iconImage.Visibility = Visibility.Collapsed;
+                }
 
                 Grid.SetColumn(accentLine, putAccentOnLeft ? 0 : 2);
                 Grid.SetColumn(textPanel, putAccentOnLeft ? 1 : 0);
@@ -5645,7 +5658,14 @@ del ""%~f0""
                 }
                 else
                 {
-                    SetImageForAll(item.ImagePath);
+                    if (item.IsAllSelected)
+                    {
+                        SetImageForAll("NONE");
+                    }
+                    else
+                    {
+                        SetImageForAll(item.ImagePath);
+                    }
                 }
             }
         }
@@ -5656,7 +5676,8 @@ del ""%~f0""
             currentConnectImagePath = path;
             SaveSettings();
             RefreshImageSelections();
-            ShowNotification("Image Selected", "Applied to both Notifications", "ExampleClip");
+            if (path == "NONE") ShowNotification("Image Unselected", "Removed from both Notifications", "ExampleClip");
+            else ShowNotification("Image Selected", "Applied to both Notifications", "ExampleClip");
         }
 
         private void ContextMenu_MouseLeave(object sender, MouseEventArgs e)
@@ -5681,15 +5702,8 @@ del ""%~f0""
             var item = GetContextItem(sender);
             if (item != null)
             {
-                if (item.DisplayName.ToLower() == "littlesmall.png")
-                {
-                    SetImageForAll(item.ImagePath);
-                }
-                else
-                {
-                    if (item.IsAllSelected) SetImageForAll(System.IO.Path.Combine(imagesFolder, "littlesmall.png"));
-                    else SetImageForAll(item.ImagePath);
-                }
+                if (item.IsAllSelected) SetImageForAll("NONE");
+                else SetImageForAll(item.ImagePath);
             }
         }
 
@@ -5698,17 +5712,11 @@ del ""%~f0""
             var item = GetContextItem(sender);
             if (item != null)
             {
-                if (item.DisplayName.ToLower() == "littlesmall.png")
-                {
-                    currentClipImagePath = item.ImagePath;
-                }
-                else
-                {
-                    currentClipImagePath = currentClipImagePath == item.ImagePath ? System.IO.Path.Combine(imagesFolder, "littlesmall.png") : item.ImagePath;
-                }
+                currentClipImagePath = currentClipImagePath == item.ImagePath ? "NONE" : item.ImagePath;
                 SaveSettings();
                 RefreshImageSelections();
-                ShowNotification("Image Selected", "Applied to Clip Notifications", "ExampleClip");
+                if (currentClipImagePath == "NONE") ShowNotification("Image Unselected", "Removed from Clip Notifications", "ExampleClip");
+                else ShowNotification("Image Selected", "Applied to Clip Notifications", "ExampleClip");
             }
         }
 
@@ -5717,17 +5725,11 @@ del ""%~f0""
             var item = GetContextItem(sender);
             if (item != null)
             {
-                if (item.DisplayName.ToLower() == "littlesmall.png")
-                {
-                    currentConnectImagePath = item.ImagePath;
-                }
-                else
-                {
-                    currentConnectImagePath = currentConnectImagePath == item.ImagePath ? System.IO.Path.Combine(imagesFolder, "littlesmall.png") : item.ImagePath;
-                }
+                currentConnectImagePath = currentConnectImagePath == item.ImagePath ? "NONE" : item.ImagePath;
                 SaveSettings();
                 RefreshImageSelections();
-                ShowNotification("Image Selected", "Applied to Connection Notifications", "ExampleConnect");
+                if (currentConnectImagePath == "NONE") ShowNotification("Image Unselected", "Removed from Connection Notifications", "ExampleConnect");
+                else ShowNotification("Image Selected", "Applied to Connection Notifications", "ExampleConnect");
             }
         }
 
@@ -5745,7 +5747,7 @@ del ""%~f0""
                     }
 
                     bool changed = false;
-                    string defaultImage = System.IO.Path.Combine(imagesFolder, "littlesmall.png");
+                    string defaultImage = "NONE";
 
                     if (currentClipImagePath == item.ImagePath)
                     {
