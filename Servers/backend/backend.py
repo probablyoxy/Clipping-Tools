@@ -992,6 +992,12 @@ async def auth_callback(request):
                 return web.Response(text="Failed to get user info", status=400)
             user_data = await resp.json()
             discord_id = str(user_data['id'])
+            avatar_hash = user_data.get('avatar')
+            if avatar_hash:
+                ext = "gif" if avatar_hash.startswith("a_") else "png"
+                avatar_url = f"https://cdn.discordapp.com/avatars/{discord_id}/{avatar_hash}.{ext}?size=128"
+            else:
+                avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
 
     existing_token = user_server_tokens.get(discord_id)
     if existing_token:
@@ -999,6 +1005,13 @@ async def auth_callback(request):
     else:
         server_token = ''.join(random.choices(string.ascii_letters + string.digits, k=64))
         await save_server_token(discord_id, server_token)
+
+    if state == "web":
+        response = web.HTTPFound('/')
+        response.set_cookie('web_token', server_token, max_age=31536000, path='/')
+        response.set_cookie('web_discord_id', discord_id, max_age=31536000, path='/')
+        response.set_cookie('web_avatar', urllib.parse.quote(avatar_url), max_age=31536000, path='/')
+        return response
 
     if state in auth_listeners:
         ws = auth_listeners[state]
@@ -1021,6 +1034,63 @@ async def auth_callback(request):
     """
     return web.Response(text=html, content_type='text/html')
 
+async def api_settings_get(request):
+    discord_id = request.cookies.get('web_discord_id')
+    if not discord_id or user_server_tokens.get(discord_id) != request.cookies.get('web_token'):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    
+    return web.json_response({
+        "linking_locked": linking_locks.get(discord_id, False),
+        "uuids": verified_uuids.get(discord_id, [])
+    })
+
+async def api_settings_lock(request):
+    discord_id = request.cookies.get('web_discord_id')
+    if not discord_id or user_server_tokens.get(discord_id) != request.cookies.get('web_token'):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    
+    data = await request.json()
+    linking_locks[discord_id] = data.get('locked', False)
+    await save_user_data(discord_id)
+    return web.json_response({"success": True})
+
+async def api_settings_remove_uuid(request):
+    discord_id = request.cookies.get('web_discord_id')
+    if not discord_id or user_server_tokens.get(discord_id) != request.cookies.get('web_token'):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    
+    data = await request.json()
+    uuid_to_remove = data.get('uuid')
+    if discord_id in verified_uuids and uuid_to_remove in verified_uuids[discord_id]:
+        verified_uuids[discord_id].remove(uuid_to_remove)
+        await save_user_data(discord_id)
+        
+        if discord_id in active_connections and uuid_to_remove in active_connections[discord_id]:
+            try: asyncio.create_task(active_connections[discord_id][uuid_to_remove].close())
+            except: pass
+            
+    return web.json_response({"success": True})
+
+async def api_settings_reset(request):
+    discord_id = request.cookies.get('web_discord_id')
+    if not discord_id or user_server_tokens.get(discord_id) != request.cookies.get('web_token'):
+        return web.json_response({"error": "unauthorized"}, status=401)
+    
+    if discord_id in verified_uuids:
+        verified_uuids[discord_id] = []
+        await save_user_data(discord_id)
+        
+        if discord_id in active_connections:
+            for app_uuid, ws in list(active_connections[discord_id].items()):
+                try: asyncio.create_task(ws.close())
+                except: pass
+        if discord_id in unverified_connections:
+            for u_app_uuid, u_data in list(unverified_connections[discord_id].items()):
+                try: asyncio.create_task(u_data["ws"].close())
+                except: pass
+                
+    return web.json_response({"success": True})
+
 async def main():
     print("Starting Clipping Tools Central Router...")
     
@@ -1032,6 +1102,10 @@ async def main():
     app.router.add_get('/style.css', serve_style)
     app.router.add_get('/auth/login', auth_login)
     app.router.add_get('/auth/callback', auth_callback)
+    app.router.add_get('/api/settings', api_settings_get)
+    app.router.add_post('/api/settings/lock', api_settings_lock)
+    app.router.add_post('/api/settings/remove_uuid', api_settings_remove_uuid)
+    app.router.add_post('/api/settings/reset', api_settings_reset)
     runner = web.AppRunner(app)
     await runner.setup()
     

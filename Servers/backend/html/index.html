@@ -7,18 +7,53 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h1>Clipping Tools</h1>
-    <div class="subtitle">Starting April 2026, Clipping Tools has <span id="stats-users">{users}</span> total users, creating:</div>
+    <div class="header">
+        <img id="profile-btn" class="discord-icon" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="" title="Login / Settings">
+    </div>
 
-    <div class="stats-container">
-        <div class="stat-box">
-            <div class="stat-number" id="stats-sent">0</div>
-            <div class="stat-label">Global Clip Moments</div>
+    <div id="main-content">
+        <h1>Clipping Tools</h1>
+        <div class="subtitle">Starting April 2026, Clipping Tools has <span id="stats-users">{users}</span> total users, creating:</div>
+
+        <div class="stats-container">
+            <div class="stat-box">
+                <div class="stat-number" id="stats-sent">0</div>
+                <div class="stat-label">Global Clip Moments</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-number" id="stats-received">0</div>
+                <div class="stat-label">Total Clips Taken</div>
+            </div>
         </div>
+    </div>
 
-        <div class="stat-box">
-            <div class="stat-number" id="stats-received">0</div>
-            <div class="stat-label">Total Clips Taken</div>
+    <div id="settings-content" style="display: none;">
+        <h1>Settings</h1>
+        <div class="settings-box">
+            <div class="setting-row">
+                <span>Lock App Linking</span>
+                <label class="switch">
+                    <input type="checkbox" id="lock-toggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <h3>Verified Apps</h3>
+            <div id="uuid-list" class="uuid-list"></div>
+
+            <button id="reset-all-btn" class="danger-btn">Reset All App UUIDs</button>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <p id="modal-text"></p>
+            <div class="modal-buttons">
+                <button id="modal-cancel" class="cancel-btn">Cancel</button>
+                <button id="modal-confirm" class="confirm-btn">Confirm</button>
+            </div>
         </div>
     </div>
 
