@@ -1,4 +1,23 @@
 <Solution>
+  <Folder Name="/Servers/" />
+  <Folder Name="/Servers/Backend/">
+    <File Path="Servers/backend/backend.py" />
+    <File Path="Servers/backend/config.json" />
+  </Folder>
+  <Folder Name="/Servers/Backend/html/">
+    <File Path="Servers/backend/html/index.html" />
+    <File Path="Servers/backend/html/script.js" />
+    <File Path="Servers/backend/html/style.css" />
+  </Folder>
+  <Folder Name="/Servers/Backend/html/assets/" />
+  <Folder Name="/Servers/Backend/html/auth/" />
+  <Folder Name="/Servers/Backend/html/auth/callback/">
+    <File Path="Servers/backend/html/auth/callback/auth.html" />
+  </Folder>
+  <Folder Name="/Servers/Bot/">
+    <File Path="Servers/bot/bot.py" />
+    <File Path="Servers/bot/config.json" />
+  </Folder>
   <Project Path="ClippingTools.app/ClippingTools.csproj" />
   <Project Path="ClipRenamer/ClipRenamer.csproj" Id="fc8c0e59-1fd3-4705-9ac0-fef7655119b7" />
   <Project Path="Installer/Installer.csproj" Id="cf770e31-c43e-4eeb-92ea-3a6573317e9b" />

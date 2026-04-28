@@ -205,7 +205,7 @@ namespace ClippingTools.app
         // CHANGE WHEN UPDATE :)
         //
         //
-        private const string AppVersion = "v0.1.9";
+        private const string AppVersion = "v0.2.0";
         //
         //
         private const string ClipRenamerVersion = "v0.4";

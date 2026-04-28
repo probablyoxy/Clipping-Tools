@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipping Tools - Statistics</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>Clipping Tools</h1>
+    <div class="subtitle">Starting April 2026, Clipping Tools has <span id="stats-users">{users}</span> total users, creating:</div>
+
+    <div class="stats-container">
+        <div class="stat-box">
+            <div class="stat-number" id="stats-sent">0</div>
+            <div class="stat-label">Global Clip Moments</div>
+        </div>
+
+        <div class="stat-box">
+            <div class="stat-number" id="stats-received">0</div>
+            <div class="stat-label">Total Clips Taken</div>
+        </div>
+    </div>
+
+    <script>
+        const wsUrl = '/*WS_URL*/';
+    </script>
+    <script src="/script.js"></script>
+</body>
+</html>

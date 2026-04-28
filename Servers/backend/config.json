@@ -4,6 +4,7 @@
     "your_secret_bot_id_2"
   ],
   "PREFERRED_BOT_ID": "preferred_bot_discord_id",
+  "WEBSOCKET_URL": "wss://your.websocket.url",
   "WS_PORT": 4242,
   "HTTP_PORT": 4244,
   "DISCORD_CLIENT_ID": "your_discord_client_id",

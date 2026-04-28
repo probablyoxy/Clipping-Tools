@@ -14,6 +14,7 @@ from aiohttp import web
 logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HTML_DIR = os.path.join(BASE_DIR, "html")
 
 USERS_DIR = os.path.join(BASE_DIR, "users")
 if not os.path.exists(USERS_DIR):
@@ -119,6 +120,27 @@ bot_guild_stats = {}
 
 auth_listeners = {}
 user_server_tokens = {}
+web_listeners = set()
+
+async def web_stats_broadcaster():
+    while True:
+        await asyncio.sleep(20)
+        if web_listeners:
+            total_users = len([name for name in os.listdir(USERS_DIR) if os.path.isdir(os.path.join(USERS_DIR, name))])
+            payload = json.dumps({
+                "action": "stats_update",
+                "users": total_users,
+                "clips_synced": server_stats.get("clips_synced", 0),
+                "clips_taken": server_stats.get("clips_taken", 0)
+            })
+            dead_ws = set()
+            for ws in list(web_listeners):
+                try:
+                    await ws.send(payload)
+                except:
+                    dead_ws.add(ws)
+            for ws in dead_ws:
+                web_listeners.discard(ws)
 
 def load_server_tokens():
     for user_id in os.listdir(USERS_DIR):
@@ -326,7 +348,11 @@ async def handle_client(websocket):
             # ==========================================
             # DESKTOP APP MESSAGES
             # ==========================================
-            if action == "auth_listen":
+            if action == "web_listen":
+                web_listeners.add(websocket)
+                print(f"[Web] Browser connected for stats: {client_ip}")
+
+            elif action == "auth_listen":
                 state_code = data.get("state")
                 if state_code:
                     old_states = [s for s, ws in auth_listeners.items() if ws == websocket]
@@ -820,6 +846,9 @@ async def handle_client(websocket):
     except Exception as e:
         print(f"[Error] {e}")
     finally:
+        if websocket in web_listeners:
+            web_listeners.discard(websocket)
+
         keys_to_remove = [state for state, ws in auth_listeners.items() if ws == websocket]
         for key in keys_to_remove: del auth_listeners[key]
 
@@ -869,6 +898,49 @@ async def handle_client(websocket):
                 del bot_guild_stats[websocket]
                 asyncio.create_task(assign_guilds_to_bots())
             print("[Bot] A Discord Bot disconnected.")
+
+async def serve_index(request):
+    index_path = os.path.join(HTML_DIR, "index.html")
+    if not os.path.exists(index_path):
+        return web.Response(text="index.html not found", status=404)
+        
+    with open(index_path, "r", encoding="utf-8") as f:
+        html = f.read()
+        
+    total_users = len([name for name in os.listdir(USERS_DIR) if os.path.isdir(os.path.join(USERS_DIR, name))])
+        
+    html = html.replace('{users}', str(total_users))
+    html = html.replace('id="stats-sent">0</div>', f'id="stats-sent">{server_stats.get("clips_synced", 0)}</div>')
+    html = html.replace('id="stats-received">0</div>', f'id="stats-received">{server_stats.get("clips_taken", 0)}</div>')
+    html = html.replace('/*WS_URL*/', config.get("WEBSOCKET_URL", ""))
+    
+    return web.Response(text=html, content_type='text/html')
+
+async def serve_script(request):
+    script_path = os.path.join(BASE_DIR, "script.js")
+    if not os.path.exists(script_path):
+        script_path = os.path.join(HTML_DIR, "script.js")
+        
+    if not os.path.exists(script_path):
+        return web.Response(text="console.error('script.js not found.');", status=404, content_type='application/javascript')
+        
+    with open(script_path, "r", encoding="utf-8") as f:
+        js = f.read()
+        
+    return web.Response(text=js, content_type='application/javascript')
+
+async def serve_style(request):
+    style_path = os.path.join(BASE_DIR, "style.css")
+    if not os.path.exists(style_path):
+        style_path = os.path.join(HTML_DIR, "style.css")
+        
+    if not os.path.exists(style_path):
+        return web.Response(text="/* style.css not found */", status=404, content_type='text/css')
+        
+    with open(style_path, "r", encoding="utf-8") as f:
+        css = f.read()
+        
+    return web.Response(text=css, content_type='text/css')
 
 async def auth_login(request):
     state = request.query.get('state')
@@ -952,7 +1024,12 @@ async def auth_callback(request):
 async def main():
     print("Starting Clipping Tools Central Router...")
     
+    asyncio.create_task(web_stats_broadcaster())
+    
     app = web.Application()
+    app.router.add_get('/', serve_index)
+    app.router.add_get('/script.js', serve_script)
+    app.router.add_get('/style.css', serve_style)
     app.router.add_get('/auth/login', auth_login)
     app.router.add_get('/auth/callback', auth_callback)
     runner = web.AppRunner(app)
