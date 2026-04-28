@@ -3,7 +3,10 @@
 **Clipping Tools** is a lightweight app that lets you sync your game capture software with all of your friends. When one person clips, everyone will.
 
 By linking with the Discord bot, [**Clipping Tools#8377**](https://oxy.pizza/clippingtools/invite), the app watches your active voice channels to see who you are talking with. When you hit your clip button and send the signal, it instantly distributes it to everyone connected in your VC, triggering their software to record at the exact same time. Now you can capture everyone's perspective of the same moment, no matter what!
+
 *Authorize Bot for DM:* You can authorize the bot to DM you [**here**](https://oxy.pizza/clippingtools/authorize).
+
+You can manage your account and view global stats on the [**website**](https://clippingtools.oxy.pizza/).
 
 ## Getting Started
 

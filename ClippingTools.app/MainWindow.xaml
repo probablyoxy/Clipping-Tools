@@ -952,7 +952,12 @@
                                 <Run FontWeight="Bold" Foreground="#5865F2" Text="here"/>
                             </Hyperlink>
                             <Run Text="."/>
-                            
+                            <LineBreak/>
+                            <Run Text="You can manage your account and view global stats on the "/>
+                            <Hyperlink NavigateUri="https://clippingtools.oxy.pizza/" RequestNavigate="Hyperlink_RequestNavigate" TextDecorations="None">
+                                <Run FontWeight="Bold" Foreground="#5865F2" Text="website"/>
+                            </Hyperlink>
+                            <Run Text="."/>
                         </TextBlock>
 
                         <TextBlock Text="Getting Started" Foreground="White" FontSize="22" FontWeight="Bold" Margin="0,0,0,10"/>
