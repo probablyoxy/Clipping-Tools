@@ -899,49 +899,6 @@ async def handle_client(websocket):
                 asyncio.create_task(assign_guilds_to_bots())
             print("[Bot] A Discord Bot disconnected.")
 
-async def serve_index(request):
-    index_path = os.path.join(HTML_DIR, "index.html")
-    if not os.path.exists(index_path):
-        return web.Response(text="index.html not found", status=404)
-        
-    with open(index_path, "r", encoding="utf-8") as f:
-        html = f.read()
-        
-    total_users = len([name for name in os.listdir(USERS_DIR) if os.path.isdir(os.path.join(USERS_DIR, name))])
-        
-    html = html.replace('{users}', str(total_users))
-    html = html.replace('id="stats-sent">0</div>', f'id="stats-sent">{server_stats.get("clips_synced", 0)}</div>')
-    html = html.replace('id="stats-received">0</div>', f'id="stats-received">{server_stats.get("clips_taken", 0)}</div>')
-    html = html.replace('/*WS_URL*/', config.get("WEBSOCKET_URL", ""))
-    
-    return web.Response(text=html, content_type='text/html')
-
-async def serve_script(request):
-    script_path = os.path.join(BASE_DIR, "script.js")
-    if not os.path.exists(script_path):
-        script_path = os.path.join(HTML_DIR, "script.js")
-        
-    if not os.path.exists(script_path):
-        return web.Response(text="console.error('script.js not found.');", status=404, content_type='application/javascript')
-        
-    with open(script_path, "r", encoding="utf-8") as f:
-        js = f.read()
-        
-    return web.Response(text=js, content_type='application/javascript')
-
-async def serve_style(request):
-    style_path = os.path.join(BASE_DIR, "style.css")
-    if not os.path.exists(style_path):
-        style_path = os.path.join(HTML_DIR, "style.css")
-        
-    if not os.path.exists(style_path):
-        return web.Response(text="/* style.css not found */", status=404, content_type='text/css')
-        
-    with open(style_path, "r", encoding="utf-8") as f:
-        css = f.read()
-        
-    return web.Response(text=css, content_type='text/css')
-
 async def auth_login(request):
     state = request.query.get('state')
     if not state:
@@ -1097,9 +1054,7 @@ async def main():
     asyncio.create_task(web_stats_broadcaster())
     
     app = web.Application()
-    app.router.add_get('/', serve_index)
-    app.router.add_get('/script.js', serve_script)
-    app.router.add_get('/style.css', serve_style)
+    app.router.add_get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html')))
     app.router.add_get('/auth/login', auth_login)
     app.router.add_get('/auth/callback', auth_callback)
     app.router.add_get('/api/settings', api_settings_get)
