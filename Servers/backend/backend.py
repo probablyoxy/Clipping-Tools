@@ -1,14 +1,5 @@
-import asyncio
-import websockets
-import json
-import logging
-import os
-import random
-import string
-import time
-import urllib.parse
-import aiohttp
-import sys
+import asyncio, logging, os, json, random, string, urllib.parse
+import aiohttp, websockets
 from aiohttp import web
 
 logging.getLogger("websockets").setLevel(logging.CRITICAL)
