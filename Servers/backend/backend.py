@@ -6,10 +6,8 @@ logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_DIR = os.path.join(BASE_DIR, "html")
-
 USERS_DIR = os.path.join(BASE_DIR, "users")
-if not os.path.exists(USERS_DIR):
-    os.makedirs(USERS_DIR)
+os.makedirs(USERS_DIR, exist_ok=True)
 
 verified_uuids = {}
 linking_locks = {}
