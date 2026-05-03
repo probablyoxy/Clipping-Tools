@@ -1037,22 +1037,24 @@ async def main():
     asyncio.create_task(web_stats_broadcaster())
     
     app = web.Application()
-    app.router.add_get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html')))
-    app.router.add_static('/', path=HTML_DIR, name='static')
-    app.router.add_get('/auth/login', auth_login)
-    app.router.add_get('/auth/callback', auth_callback)
-    app.router.add_get('/api/settings', api_settings_get)
-    app.router.add_post('/api/settings/lock', api_settings_lock)
-    app.router.add_post('/api/settings/remove_uuid', api_settings_remove_uuid)
-    app.router.add_post('/api/settings/reset', api_settings_reset)
+    app.add_routes([
+        web.get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html'))),
+        web.get('/auth/login', auth_login),
+        web.get('/auth/callback', auth_callback),
+        web.get('/api/settings', api_settings_get),
+        web.post('/api/settings/lock', api_settings_lock),
+        web.post('/api/settings/remove_uuid', api_settings_remove_uuid),
+        web.post('/api/settings/reset', api_settings_reset),
+        web.static('/', HTML_DIR)
+    ])
+
     runner = web.AppRunner(app)
     await runner.setup()
-    
+
     http_port = config.get("HTTP_PORT", 4244)
     ws_port = config.get("WS_PORT", 4242)
-    
-    site = web.TCPSite(runner, '0.0.0.0', http_port)
-    await site.start()
+
+    await web.TCPSite(runner, '0.0.0.0', http_port).start()
     print(f"HTTP Auth Server listening on port {http_port}")
 
     async with websockets.serve(handle_client, "0.0.0.0", ws_port, max_size=None):
