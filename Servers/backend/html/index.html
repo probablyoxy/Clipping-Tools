@@ -3,32 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clipping Tools - Statistics</title>
+    <title>Clipping Tools</title>
+    <link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
     <link rel="stylesheet" href="/assets/css/styles.css">
 </head>
 <body>
-    <div class="header">
-        <img id="profile-btn" class="discord-icon" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="" title="Login / Settings">
-    </div>
+    <!-- NAVBAR -->
+    <header>
+        <div class="nav">
+            <a href="/auth/login" id="login-link" class="discord-btn">
+                <img src="/assets/icons/discord-brands-solid-full.svg" alt="" class="discord-icon">
+                <span>Login</span>
+            </a>
+        </div>
+    </header>
+    
+    <section class="top-section">
+        <!-- HERO SECTION -->
+        <div class="hero-section">
+            <h1 class="hero-text">CLIPPING TOOLS</h1>
+        </div>
 
-    <div id="main-content">
-        <h1>Clipping Tools</h1>
-        <div class="subtitle">Starting April 2026, Clipping Tools has <span id="stats-users">{users}</span> total users, creating:</div>
+        <!-- STATS SECTION -->
+        <div class="stats-section">
+            <p>Starting April 2026, Clipping Tools has <span id="stats-users">{users}</span> total users, creating:</p>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-number" id="stats-sent">0</div>
+                    <div class="stat-label">Global Clip Moments</div>
+                </div>
 
-        <div class="stats-container">
-            <div class="stat-box">
-                <div class="stat-number" id="stats-sent">0</div>
-                <div class="stat-label">Global Clip Moments</div>
-            </div>
-
-            <div class="stat-box">
-                <div class="stat-number" id="stats-received">0</div>
-                <div class="stat-label">Total Clips Taken</div>
+                <div class="stat-box">
+                    <div class="stat-number" id="stats-received">0</div>
+                    <div class="stat-label">Total Clips Taken</div>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div id="settings-content" style="display: none;">
+    <section class="bottom-section">
+        <div class="wave-container">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="shape-fill"></path>
+            </svg>
+        </div>
+
+        <h1>WHAT IS CLIPPING TOOLS</h1>
+        <br>
+        <p>blah blah blah blah blah blah blah blah blah blah blah blah blah blah lmao</p>
+    </section>
+
+    <!-- SETTINGS SECTION-->
+    <!--<div id="settings-content" style="display: none;">
         <h1>Settings</h1>
         <div class="settings-box">
             <div class="setting-row">
@@ -55,7 +81,7 @@
                 <button id="modal-confirm" class="confirm-btn">Confirm</button>
             </div>
         </div>
-    </div>
+    </div>-->
 
     <script>
         const wsUrl = '/*WS_URL*/';
