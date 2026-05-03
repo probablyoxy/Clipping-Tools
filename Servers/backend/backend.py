@@ -1046,6 +1046,7 @@ async def main():
     
     app = web.Application()
     app.router.add_get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html')))
+    app.router.add_static('/', path=HTML_DIR, name='static')
     app.router.add_get('/auth/login', auth_login)
     app.router.add_get('/auth/callback', auth_callback)
     app.router.add_get('/api/settings', api_settings_get)
