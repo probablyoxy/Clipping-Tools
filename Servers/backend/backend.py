@@ -972,13 +972,7 @@ async def auth_callback(request):
             pass
         del auth_listeners[state]
 
-    html = """
-    <html><body style='background:#36393f; color:white; font-family:sans-serif; text-align:center; padding-top:50px;'>
-    <h2 style='color:#43b581'>Success!</h2><p>You can close this window and return to the app.</p>
-    <script>window.close();</script>
-    </body></html>
-    """
-    return web.Response(text=html, content_type='text/html')
+    return web.FileResponse(BASE_DIR / "success.html")
 
 async def api_settings_get(request):
     discord_id = request.cookies.get('web_discord_id')
