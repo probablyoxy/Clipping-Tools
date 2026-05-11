@@ -819,8 +819,9 @@
 
                         <TextBlock Text="Windows Management" Foreground="White" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
                         <CheckBox x:Name="EnsureMicMaxCheck" ToolTip="Monitors your Windows Audio Input volume and sets it to 100% if it isn't already" HorizontalAlignment="Left" Content="Ensure Windows Microphone is 100%" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
+                        <CheckBox x:Name="UnmuteMicCheck" ToolTip="Unmutes your Windows Microphone when this setting is checked or when the app launches" HorizontalAlignment="Left" Content="Unmute Windows Microphone" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="UnmuteMicCheck_Click"/>
                         <CheckBox x:Name="SyncTimeCheck" ToolTip="Forces Windows to synchronize its clock with the internet time server to improve accuracy" HorizontalAlignment="Left" Content="Synchronize Windows Time" Foreground="White" FontSize="14" Margin="0,0,0,10" Click="Setting_Changed"/>
-
+                        
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

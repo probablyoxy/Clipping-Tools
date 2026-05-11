@@ -122,6 +122,12 @@ namespace ClippingTools.app
             [PreserveSig] int SetMasterVolumeLevelScalar(float fLevel, Guid pguidEventContext);
             [PreserveSig] int GetMasterVolumeLevel(out float pfLevelDB);
             [PreserveSig] int GetMasterVolumeLevelScalar(out float pfLevel);
+            [PreserveSig] int SetChannelVolumeLevel(uint nChannel, float fLevelDB, Guid pguidEventContext);
+            [PreserveSig] int SetChannelVolumeLevelScalar(uint nChannel, float fLevel, Guid pguidEventContext);
+            [PreserveSig] int GetChannelVolumeLevel(uint nChannel, out float pfLevelDB);
+            [PreserveSig] int GetChannelVolumeLevelScalar(uint nChannel, out float pfLevel);
+            [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, Guid pguidEventContext);
+            [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool pbMute);
         }
 
         private string GetActiveWindowTitle()
@@ -319,6 +325,10 @@ namespace ClippingTools.app
             _ = CheckForUpdatesAsync(true);
             _ = EnforceObsStartOnLaunch();
             EnforceTimeSync();
+            if (UnmuteMicCheck.IsChecked == true)
+            {
+                UnmuteMicrophone();
+            }
             ToggleRenamerService();
 
             micWatcherCts = new CancellationTokenSource();
@@ -599,6 +609,7 @@ namespace ClippingTools.app
 
                     AutoUpdateCheck.IsChecked = settings.AutoUpdate;
                     EnsureMicMaxCheck.IsChecked = settings.EnsureMicMax;
+                    UnmuteMicCheck.IsChecked = settings.UnmuteMicOnLaunch;
                     SyncTimeCheck.IsChecked = settings.SyncTimeOnLaunch;
 
                     StartMenuShortcutCheck.IsChecked = settings.StartMenuShortcut;
@@ -814,6 +825,7 @@ namespace ClippingTools.app
 
                 AutoUpdate = AutoUpdateCheck.IsChecked ?? false,
                 EnsureMicMax = EnsureMicMaxCheck.IsChecked ?? false,
+                UnmuteMicOnLaunch = UnmuteMicCheck.IsChecked ?? false,
                 SyncTimeOnLaunch = SyncTimeCheck.IsChecked ?? false,
                 StartMenuShortcut = StartMenuShortcutCheck.IsChecked ?? true,
                 DesktopShortcut = DesktopShortcutCheck.IsChecked ?? false,
@@ -1287,6 +1299,41 @@ start """" ""{targetExe}""
                 await Task.Delay(2000, token);
             }
             if (enumerator != null) Marshal.ReleaseComObject(enumerator);
+        }
+
+        private void UnmuteMicCheck_Click(object sender, RoutedEventArgs e)
+        {
+            if (UnmuteMicCheck.IsChecked == true && isLoaded)
+            {
+                UnmuteMicrophone();
+            }
+            Setting_Changed(sender, e);
+        }
+
+        private void UnmuteMicrophone()
+        {
+            try
+            {
+                IMMDeviceEnumerator enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
+                Guid IID_IAudioEndpointVolume = new Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
+
+                if (enumerator.GetDefaultAudioEndpoint(1, 1, out IMMDevice mic) == 0 && mic != null)
+                {
+                    if (mic.Activate(ref IID_IAudioEndpointVolume, 23, IntPtr.Zero, out object endpointVolumeObj) == 0)
+                    {
+                        IAudioEndpointVolume endpointVolume = (IAudioEndpointVolume)endpointVolumeObj;
+                        endpointVolume.SetMute(false, Guid.Empty);
+                        Marshal.ReleaseComObject(endpointVolume);
+                    }
+                    Marshal.ReleaseComObject(mic);
+                }
+                Marshal.ReleaseComObject(enumerator);
+                WriteLog("Windows microphone unmuted.");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Failed to unmute microphone: {ex.Message}");
+            }
         }
 
         private void EnforceTimeSync()
@@ -6121,6 +6168,7 @@ public class UserStatCount
         public int ObsCheckInterval { get; set; } = 5;
         public bool AutoUpdate { get; set; } = false;
         public bool EnsureMicMax { get; set; } = false;
+        public bool UnmuteMicOnLaunch { get; set; } = false;
         public bool SyncTimeOnLaunch { get; set; } = false;
         public bool StartMenuShortcut { get; set; } = true;
         public bool DesktopShortcut { get; set; } = false;
