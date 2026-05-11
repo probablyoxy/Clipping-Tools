@@ -1,24 +1,13 @@
-import asyncio
-import websockets
-import json
-import logging
-import os
-import random
-import string
-import time
-import urllib.parse
-import aiohttp
-import sys
+import asyncio, logging, os, json, random, string, urllib.parse
+import aiohttp, websockets
 from aiohttp import web
 
 logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_DIR = os.path.join(BASE_DIR, "html")
-
 USERS_DIR = os.path.join(BASE_DIR, "users")
-if not os.path.exists(USERS_DIR):
-    os.makedirs(USERS_DIR)
+os.makedirs(USERS_DIR, exist_ok=True)
 
 verified_uuids = {}
 linking_locks = {}
@@ -899,49 +888,6 @@ async def handle_client(websocket):
                 asyncio.create_task(assign_guilds_to_bots())
             print("[Bot] A Discord Bot disconnected.")
 
-async def serve_index(request):
-    index_path = os.path.join(HTML_DIR, "index.html")
-    if not os.path.exists(index_path):
-        return web.Response(text="index.html not found", status=404)
-        
-    with open(index_path, "r", encoding="utf-8") as f:
-        html = f.read()
-        
-    total_users = len([name for name in os.listdir(USERS_DIR) if os.path.isdir(os.path.join(USERS_DIR, name))])
-        
-    html = html.replace('{users}', str(total_users))
-    html = html.replace('id="stats-sent">0</div>', f'id="stats-sent">{server_stats.get("clips_synced", 0)}</div>')
-    html = html.replace('id="stats-received">0</div>', f'id="stats-received">{server_stats.get("clips_taken", 0)}</div>')
-    html = html.replace('/*WS_URL*/', config.get("WEBSOCKET_URL", ""))
-    
-    return web.Response(text=html, content_type='text/html')
-
-async def serve_script(request):
-    script_path = os.path.join(BASE_DIR, "script.js")
-    if not os.path.exists(script_path):
-        script_path = os.path.join(HTML_DIR, "script.js")
-        
-    if not os.path.exists(script_path):
-        return web.Response(text="console.error('script.js not found.');", status=404, content_type='application/javascript')
-        
-    with open(script_path, "r", encoding="utf-8") as f:
-        js = f.read()
-        
-    return web.Response(text=js, content_type='application/javascript')
-
-async def serve_style(request):
-    style_path = os.path.join(BASE_DIR, "style.css")
-    if not os.path.exists(style_path):
-        style_path = os.path.join(HTML_DIR, "style.css")
-        
-    if not os.path.exists(style_path):
-        return web.Response(text="/* style.css not found */", status=404, content_type='text/css')
-        
-    with open(style_path, "r", encoding="utf-8") as f:
-        css = f.read()
-        
-    return web.Response(text=css, content_type='text/css')
-
 async def auth_login(request):
     state = request.query.get('state')
     if not state:
@@ -1026,13 +972,7 @@ async def auth_callback(request):
             pass
         del auth_listeners[state]
 
-    html = """
-    <html><body style='background:#36393f; color:white; font-family:sans-serif; text-align:center; padding-top:50px;'>
-    <h2 style='color:#43b581'>Success!</h2><p>You can close this window and return to the app.</p>
-    <script>window.close();</script>
-    </body></html>
-    """
-    return web.Response(text=html, content_type='text/html')
+    return web.FileResponse(BASE_DIR / "success.html")
 
 async def api_settings_get(request):
     discord_id = request.cookies.get('web_discord_id')
@@ -1097,23 +1037,24 @@ async def main():
     asyncio.create_task(web_stats_broadcaster())
     
     app = web.Application()
-    app.router.add_get('/', serve_index)
-    app.router.add_get('/script.js', serve_script)
-    app.router.add_get('/style.css', serve_style)
-    app.router.add_get('/auth/login', auth_login)
-    app.router.add_get('/auth/callback', auth_callback)
-    app.router.add_get('/api/settings', api_settings_get)
-    app.router.add_post('/api/settings/lock', api_settings_lock)
-    app.router.add_post('/api/settings/remove_uuid', api_settings_remove_uuid)
-    app.router.add_post('/api/settings/reset', api_settings_reset)
+    app.add_routes([
+        web.get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html'))),
+        web.get('/auth/login', auth_login),
+        web.get('/auth/callback', auth_callback),
+        web.get('/api/settings', api_settings_get),
+        web.post('/api/settings/lock', api_settings_lock),
+        web.post('/api/settings/remove_uuid', api_settings_remove_uuid),
+        web.post('/api/settings/reset', api_settings_reset),
+        web.static('/', HTML_DIR)
+    ])
+
     runner = web.AppRunner(app)
     await runner.setup()
-    
+
     http_port = config.get("HTTP_PORT", 4244)
     ws_port = config.get("WS_PORT", 4242)
-    
-    site = web.TCPSite(runner, '0.0.0.0', http_port)
-    await site.start()
+
+    await web.TCPSite(runner, '0.0.0.0', http_port).start()
     print(f"HTTP Auth Server listening on port {http_port}")
 
     async with websockets.serve(handle_client, "0.0.0.0", ws_port, max_size=None):
