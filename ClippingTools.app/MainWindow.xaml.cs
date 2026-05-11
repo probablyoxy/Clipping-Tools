@@ -2458,34 +2458,110 @@ start """" ""{targetExe}""
 
         private async Task WheelPollingLoop(CancellationToken token)
         {
-            bool wasConnected = false;
-            while (!token.IsCancellationRequested)
+            await Task.Run(async () =>
             {
-                bool anyConnected = false;
-                List<string> uniqueButtons = new List<string>();
+                SharpDX.DirectInput.DirectInput directInput = new SharpDX.DirectInput.DirectInput();
+                Dictionary<Guid, SharpDX.DirectInput.Joystick> activeJoysticks = new Dictionary<Guid, SharpDX.DirectInput.Joystick>();
+                Dictionary<Guid, Dictionary<int, string>> hardwareButtonNames = new Dictionary<Guid, Dictionary<int, string>>();
+                bool wasConnected = false;
+                int deviceCheckTimer = 0;
 
-                for (int joyId = 0; joyId < 4; joyId++)
+                while (!token.IsCancellationRequested)
                 {
-                    JOYINFOEX state = new JOYINFOEX();
-                    state.dwSize = Marshal.SizeOf(typeof(JOYINFOEX));
-                    state.dwFlags = JOY_RETURNBUTTONS | JOY_RETURNPOV | JOY_RETURNPOVCTS;
+                    bool anyConnected = false;
+                    List<string> uniqueButtons = new List<string>();
 
-                    if (joyGetPosEx(joyId, ref state) == JOYERR_NOERROR)
+                    try
                     {
-                        anyConnected = true;
-                        string btns = GetWheelButtonsString(state);
-                        if (!string.IsNullOrEmpty(btns))
+                        if (deviceCheckTimer <= 0)
                         {
-                            foreach (string btn in btns.Split('+'))
+                            var devices = directInput.GetDevices(SharpDX.DirectInput.DeviceClass.GameControl, SharpDX.DirectInput.DeviceEnumerationFlags.AttachedOnly);
+                            var connectedGuids = new List<Guid>();
+
+                            foreach (var deviceInstance in devices)
                             {
-                                if (!string.IsNullOrEmpty(btn) && !uniqueButtons.Contains(btn))
+                                bool isWheel = deviceInstance.Type == SharpDX.DirectInput.DeviceType.Driving || deviceInstance.Type == SharpDX.DirectInput.DeviceType.Flight || deviceInstance.Type == SharpDX.DirectInput.DeviceType.Joystick;
+                                bool isGamepad = deviceInstance.Type == SharpDX.DirectInput.DeviceType.Gamepad || deviceInstance.Type == SharpDX.DirectInput.DeviceType.FirstPerson;
+
+                                if (isGamepad && !isWheel) continue;
+
+                                connectedGuids.Add(deviceInstance.InstanceGuid);
+
+                                if (!activeJoysticks.ContainsKey(deviceInstance.InstanceGuid))
                                 {
-                                    uniqueButtons.Add(btn);
+                                    var joystick = new SharpDX.DirectInput.Joystick(directInput, deviceInstance.InstanceGuid);
+                                    joystick.Properties.BufferSize = 128;
+                                    try { joystick.Acquire(); } catch { }
+                                    activeJoysticks[deviceInstance.InstanceGuid] = joystick;
+
+                                    var btnNames = new Dictionary<int, string>();
+                                    try
+                                    {
+                                        foreach (var obj in joystick.GetObjects(SharpDX.DirectInput.DeviceObjectTypeFlags.Button))
+                                        {
+                                            btnNames[obj.ObjectId.InstanceNumber] = obj.Name;
+                                        }
+                                    }
+                                    catch { }
+                                    hardwareButtonNames[deviceInstance.InstanceGuid] = btnNames;
                                 }
                             }
+
+                            var keysToRemove = new List<Guid>();
+                            foreach (var key in activeJoysticks.Keys)
+                            {
+                                if (!connectedGuids.Contains(key))
+                                {
+                                    try { activeJoysticks[key].Unacquire(); activeJoysticks[key].Dispose(); } catch { }
+                                    keysToRemove.Add(key);
+                                }
+                            }
+                            foreach (var key in keysToRemove)
+                            {
+                                activeJoysticks.Remove(key);
+                                hardwareButtonNames.Remove(key);
+                            }
+
+                            deviceCheckTimer = 100;
+                        }
+                        deviceCheckTimer--;
+
+                        foreach (var kvp in activeJoysticks)
+                        {
+                            var currentJoystick = kvp.Value;
+                            var btnNames = hardwareButtonNames.ContainsKey(kvp.Key) ? hardwareButtonNames[kvp.Key] : new Dictionary<int, string>();
+
+                            try
+                            {
+                                currentJoystick.Poll();
+                                var state = currentJoystick.GetCurrentState();
+                                anyConnected = true;
+
+                                for (int i = 0; i < state.Buttons.Length; i++)
+                                {
+                                    if (state.Buttons[i])
+                                    {
+                                        string btn = btnNames.ContainsKey(i) && !string.IsNullOrWhiteSpace(btnNames[i]) ? btnNames[i] : $"Button {i + 1}";
+                                        if (!uniqueButtons.Contains(btn)) uniqueButtons.Add(btn);
+                                    }
+                                }
+
+                                int pov = state.PointOfViewControllers[0];
+                            if (pov != -1)
+                            {
+                                if (pov >= 31500 || pov <= 4500) uniqueButtons.Add("WheelUp");
+                                if (pov >= 4500 && pov <= 13500) uniqueButtons.Add("WheelRight");
+                                if (pov >= 13500 && pov <= 22500) uniqueButtons.Add("WheelDown");
+                                if (pov >= 22500 && pov <= 31500) uniqueButtons.Add("WheelLeft");
+                            }
+                        }
+                        catch
+                        {
+                            try { currentJoystick.Acquire(); } catch { }
                         }
                     }
                 }
+                catch { }
 
                 string currentButtons = string.Join("+", uniqueButtons);
 
@@ -2559,17 +2635,14 @@ start """" ""{targetExe}""
                             Dispatcher.Invoke(() => OnLocalClipTriggered(null, null));
                         }
 
-                        wasWheelTriggerPressed = isGlobalPressed;
-                        wasWheelLocalTriggerPressed = isLocalPressed;
+                            wasWheelTriggerPressed = isGlobalPressed;
+                            wasWheelLocalTriggerPressed = isLocalPressed;
+                        }
                     }
 
                     await Task.Delay(20, token);
                 }
-                else
-                {
-                    await Task.Delay(2000, token);
-                }
-            }
+            });
         }
 
         private string GetWheelButtonsString(JOYINFOEX state)
