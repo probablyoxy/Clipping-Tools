@@ -972,7 +972,7 @@ async def auth_callback(request):
             pass
         del auth_listeners[state]
 
-    return web.FileResponse(BASE_DIR / "success.html")
+    return web.FileResponse(os.path.join(BASE_DIR, "success.html"))
 
 async def api_settings_get(request):
     discord_id = request.cookies.get('web_discord_id')
