@@ -6,10 +6,8 @@ logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_DIR = os.path.join(BASE_DIR, "html")
-
 USERS_DIR = os.path.join(BASE_DIR, "users")
-if not os.path.exists(USERS_DIR):
-    os.makedirs(USERS_DIR)
+os.makedirs(USERS_DIR, exist_ok=True)
 
 verified_uuids = {}
 linking_locks = {}
@@ -893,7 +891,7 @@ async def handle_client(websocket):
 async def auth_login(request):
     state = request.query.get('state')
     if not state:
-        return web.Response(text="Missing state parameter", status=400)
+        state = "web"
     
     client_id = config.get('DISCORD_CLIENT_ID', '1480703669555957791')
     redirect_uri = config.get('DISCORD_REDIRECT_URI', '')
@@ -974,13 +972,7 @@ async def auth_callback(request):
             pass
         del auth_listeners[state]
 
-    html = """
-    <html><body style='background:#36393f; color:white; font-family:sans-serif; text-align:center; padding-top:50px;'>
-    <h2 style='color:#43b581'>Success!</h2><p>You can close this window and return to the app.</p>
-    <script>window.close();</script>
-    </body></html>
-    """
-    return web.Response(text=html, content_type='text/html')
+    return web.FileResponse(os.path.join(BASE_DIR, "success.html"))
 
 async def api_settings_get(request):
     discord_id = request.cookies.get('web_discord_id')
@@ -1045,22 +1037,24 @@ async def main():
     asyncio.create_task(web_stats_broadcaster())
     
     app = web.Application()
-    app.router.add_get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html')))
-    app.router.add_static('/', path=HTML_DIR, name='static')
-    app.router.add_get('/auth/login', auth_login)
-    app.router.add_get('/auth/callback', auth_callback)
-    app.router.add_get('/api/settings', api_settings_get)
-    app.router.add_post('/api/settings/lock', api_settings_lock)
-    app.router.add_post('/api/settings/remove_uuid', api_settings_remove_uuid)
-    app.router.add_post('/api/settings/reset', api_settings_reset)
+    app.add_routes([
+        web.get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html'))),
+        web.get('/auth/login', auth_login),
+        web.get('/auth/callback', auth_callback),
+        web.get('/api/settings', api_settings_get),
+        web.post('/api/settings/lock', api_settings_lock),
+        web.post('/api/settings/remove_uuid', api_settings_remove_uuid),
+        web.post('/api/settings/reset', api_settings_reset),
+        web.static('/', HTML_DIR)
+    ])
+
     runner = web.AppRunner(app)
     await runner.setup()
-    
+
     http_port = config.get("HTTP_PORT", 4244)
     ws_port = config.get("WS_PORT", 4242)
-    
-    site = web.TCPSite(runner, '0.0.0.0', http_port)
-    await site.start()
+
+    await web.TCPSite(runner, '0.0.0.0', http_port).start()
     print(f"HTTP Auth Server listening on port {http_port}")
 
     async with websockets.serve(handle_client, "0.0.0.0", ws_port, max_size=None):
