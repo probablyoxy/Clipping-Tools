@@ -891,7 +891,7 @@ async def handle_client(websocket):
 async def auth_login(request):
     state = request.query.get('state')
     if not state:
-        return web.Response(text="Missing state parameter", status=400)
+        state = "web"
     
     client_id = config.get('DISCORD_CLIENT_ID', '1480703669555957791')
     redirect_uri = config.get('DISCORD_REDIRECT_URI', '')
