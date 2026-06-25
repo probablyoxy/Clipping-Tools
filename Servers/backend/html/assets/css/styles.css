@@ -440,3 +440,52 @@ input:checked + .slider {
         opacity: 1;
     }
 }
+
+/* LAYOUT WRAPPER */
+.content-wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 120px 20px 80px 20px; /* Top padding clears the wave */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 60px;
+    z-index: 5;
+    position: relative;
+}
+
+/* TYPOGRAPHY */
+.intro-header {
+    text-align: center;
+    max-width: 800px;
+}
+
+.neon-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--text-light);
+    margin-bottom: 10px;
+}
+
+.intro-text {
+    font-size: 1.1rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+    margin-bottom: 0;
+}
+
+/* CALL TO ACTION */
+.cta-container {
+    margin-top: 20px;
+}
+
+.discord-btn.cta-large {
+    font-size: 1.1rem;
+    padding: 1em 2.5em;
+    box-shadow: 0 8px 20px rgba(88, 101, 242, 0.3);
+}
+
+.discord-btn.cta-large:hover {
+    box-shadow: 0 10px 25px rgba(88, 101, 242, 0.5), 0 0 15px rgba(255, 51, 235, 0.3);
+}
