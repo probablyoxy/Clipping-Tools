@@ -2,7 +2,7 @@
     --bg-color: #121011; /* PHASE OUT */
     
     --bg-light: #313131;
-    --bg-dark: #252525;
+    --bg-dark: #141114;
 
     --text-main: #e1e1e6; /* PHASE OUT */
 
@@ -140,6 +140,7 @@ header {
     left: 0;
     width: 100%;
     line-height: 0;
+    filter: drop-shadow(0px -12px 6px rgba(255, 77, 148, 0.35));
 }
 
 .wave-container svg {
@@ -163,7 +164,7 @@ header {
 }
 
 .pink-text {
-    color: var(--accent-pink);
+    color: var(--text);
     font-weight: bold;
 }
 
@@ -184,7 +185,7 @@ header {
 .stat-number {
     font-size: clamp(3rem, 6vw, 4.5rem);
     font-weight: 400;
-    color: var(--accent-pink);
+    color: var(--text-light);
     line-height: 1;
     animation: countPulse 4s infinite ease-in-out;
 }
@@ -212,7 +213,7 @@ header {
 }
 
 #stats-users {
-    color: var(--accent-pink);
+    color: var(--text-light);
     font-weight: 500;
     text-shadow: 0 0 12px rgba(255, 77, 148, 0.4);
     background: rgba(255, 77, 148, 0.1);
