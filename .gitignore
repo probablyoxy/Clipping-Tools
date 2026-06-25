@@ -364,4 +364,3 @@ FodyWeavers.xsd
 
 __pycache__/
 verified_uuids.json
-Servers/backend/config.json
