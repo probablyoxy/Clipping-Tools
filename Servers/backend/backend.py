@@ -111,7 +111,7 @@ auth_listeners = {}
 user_server_tokens = {}
 web_listeners = set()
 
-async def get_web_stats():
+async def get_web_stats(request):
     total_users = len([name for name in os.listdir(USERS_DIR) if os.path.isdir(os.path.join(USERS_DIR, name))])
     payload = json.dumps({
         "action": "stats_update",
@@ -119,7 +119,7 @@ async def get_web_stats():
         "clips_synced": server_stats.get("clips_synced", 0),
         "clips_taken": server_stats.get("clips_taken", 0)
     })
-    return payload
+    return web.json_response(payload)
 
 def load_server_tokens():
     for user_id in os.listdir(USERS_DIR):
