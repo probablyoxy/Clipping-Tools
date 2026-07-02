@@ -1,10 +1,4 @@
-function connectWebSocket() {
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-        ws.send(JSON.stringify({ action: 'web_listen' }));
-    };
-
+function startStatsPolling() {
     const elements = {
         users: document.getElementById('stats-users'),
         clips_synced: document.getElementById('stats-sent'),
@@ -19,17 +13,25 @@ function connectWebSocket() {
 
     const intervals = { users: null, clips: null };
 
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.action === 'stats_update') {
-            updateUsers(data.users);
-            updateClips(data.clips_synced, data.clips_taken);
-        }
-    };
+    async function fetchStats() {
+        try {
+            const response = await fetch('/api/stats');
+            if (!response.ok) throw new Error('Failed to fetch stats');
+            
+            const data = await response.json();
 
-    ws.onclose = () => {
-        setTimeout(connectWebSocket, 5000);
-    };
+            if (data.action === 'stats_update') {
+                updateUsers(data.users);
+                updateClips(data.clips_synced, data.clips_taken);
+            }
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+        }
+    }
+
+    fetchStats();
+
+    setInterval(fetchStats, 20000);
 
     function animateElement(el) {
         el.classList.remove('swipe-animate');
@@ -102,7 +104,7 @@ function connectWebSocket() {
     }
 }
 
-connectWebSocket();
+startStatsPolling();
 
 function getCookie(name) {
     const value = `; ${document.cookie}`;
