@@ -111,25 +111,15 @@ auth_listeners = {}
 user_server_tokens = {}
 web_listeners = set()
 
-async def web_stats_broadcaster():
-    while True:
-        await asyncio.sleep(20)
-        if web_listeners:
-            total_users = len([name for name in os.listdir(USERS_DIR) if os.path.isdir(os.path.join(USERS_DIR, name))])
-            payload = json.dumps({
-                "action": "stats_update",
-                "users": total_users,
-                "clips_synced": server_stats.get("clips_synced", 0),
-                "clips_taken": server_stats.get("clips_taken", 0)
-            })
-            dead_ws = set()
-            for ws in list(web_listeners):
-                try:
-                    await ws.send(payload)
-                except:
-                    dead_ws.add(ws)
-            for ws in dead_ws:
-                web_listeners.discard(ws)
+async def get_web_stats():
+    total_users = len([name for name in os.listdir(USERS_DIR) if os.path.isdir(os.path.join(USERS_DIR, name))])
+    payload = json.dumps({
+        "action": "stats_update",
+        "users": total_users,
+        "clips_synced": server_stats.get("clips_synced", 0),
+        "clips_taken": server_stats.get("clips_taken", 0)
+    })
+    return payload
 
 def load_server_tokens():
     for user_id in os.listdir(USERS_DIR):
@@ -1034,14 +1024,13 @@ async def api_settings_reset(request):
 async def main():
     print("Starting Clipping Tools Central Router...")
     
-    asyncio.create_task(web_stats_broadcaster())
-    
     app = web.Application()
     app.add_routes([
         web.get('/', lambda r: web.FileResponse(os.path.join(HTML_DIR, 'index.html'))),
         web.get('/auth/login', auth_login),
         web.get('/auth/callback', auth_callback),
         web.get('/api/settings', api_settings_get),
+        web.get('/api/stats', get_web_stats),
         web.post('/api/settings/lock', api_settings_lock),
         web.post('/api/settings/remove_uuid', api_settings_remove_uuid),
         web.post('/api/settings/reset', api_settings_reset),
